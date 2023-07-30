@@ -12,7 +12,7 @@ let generate ~on_complete =
       | `Incr -> model + 1
       | `Decr -> model - 1)
   in
-  let%sub { form; width; height } = Parameters.component in
+  let%sub { form; form_view; width; height } = Parameters.component ~host_and_port in
   let%sub images, add_images =
     Bonsai.state_machine0
       ~default_model:Int.Map.empty
@@ -37,23 +37,29 @@ let generate ~on_complete =
   and width = width
   and height = height
   and on_complete = on_complete
+  and form_view = form_view
   and ongoing, inject_ongoing = ongoing in
-  let form =
-    Form.view_as_vdom
-      ~on_submit:
-        (Form.Submit.create
-           ~button:(Some "submit")
-           ~f:(fun query ->
-             let%bind.Effect () = inject_ongoing `Incr in
-             let%bind.Effect () = on_complete in
-             let%bind.Effect () =
-               match%bind.Effect Txt2img.dispatch ~host_and_port query with
-               | Ok images -> add_images (List.map images ~f:Result.return)
-               | Error e -> add_images [ Error e ]
-             in
-             inject_ongoing `Decr)
-           ())
-      form
+  let submit_effect =
+    match Form.value form with
+    | Error _ -> None
+    | Ok query ->
+      Some
+        (let%bind.Effect () = inject_ongoing `Incr in
+         let%bind.Effect () = on_complete in
+         let%bind.Effect () =
+           match%bind.Effect Txt2img.dispatch ~host_and_port query with
+           | Ok images -> add_images (List.map images ~f:Result.return)
+           | Error e -> add_images [ Error e ]
+         in
+         inject_ongoing `Decr)
+  in
+  let submit_button =
+    let attrs =
+      match submit_effect with
+      | None -> [ Vdom.Attr.disabled ]
+      | Some effect -> [ Vdom.Attr.on_click (fun _ -> effect) ]
+    in
+    Vdom.Node.button ~attrs [ Vdom.Node.text "submit" ]
   in
   let view ~preview =
     let images =
@@ -63,12 +69,20 @@ let generate ~on_complete =
     in
     Vdom_node_with_map_children.make ~tag:"div" images
   in
-  form, view, width, height, ongoing
+  form, form_view, submit_button, submit_effect, view, width, height, ongoing
 ;;
 
 let component =
   let%sub progress = Progress.state ~host_and_port in
-  let%sub form, elements, width, height, ongoing =
+  let%sub ( _form
+          , form_view
+          , _submit_button
+          , submit_effect
+          , elements
+          , width
+          , height
+          , ongoing )
+    =
     generate ~on_complete:(Value.return Effect.Ignore)
   in
   let%sub preview =
@@ -90,9 +104,16 @@ let component =
     | _ -> Bonsai.const None
   in
   let%arr preview = preview
-  and form = form
+  and form_view = form_view
+  and submit_effect = submit_effect
   and elements = elements in
-  Vdom.Node.div [ form; elements ~preview ]
+  let on_submit = Option.value submit_effect ~default:Effect.Ignore in
+  Vdom.Node.div [ form_view ~on_submit; elements ~preview ]
 ;;
 
-let () = Bonsai_web.Start.start component
+let () =
+  Bonsai_web.Start.start
+    (View.Theme.set_for_app
+       (Value.return (Kado.theme ~style:Light ~version:Bleeding ()))
+       component)
+;;

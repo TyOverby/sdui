@@ -8,6 +8,10 @@ module Query : sig
     ; negative_prompt : string
     ; width : int
     ; height : int
+    ; steps : int
+    ; cfg_scale : int
+    ; sampler : Samplers.t
+    ; seed : int
     }
   [@@deriving sexp, typed_fields]
 end
