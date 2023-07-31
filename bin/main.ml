@@ -4,6 +4,53 @@ open! Async_kernel
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form
 
+module Gallery_style =
+  [%css
+  stylesheet
+    {|
+
+  body {
+    padding: 0;
+    margin: 0;
+  }
+
+  .container {
+    display: flex;
+    padding: 0.25em;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-evenly;
+    gap: 1em;
+    z-index: 1;
+  }
+
+  .image-wrapper {
+    border: 1px solid rgb(49, 57, 67);
+    height: max-content;
+    display: inline-flex;
+    padding: 5px;
+    border-radius: 9px;
+    background: rgb(20, 24, 28);
+    overflow: clip;
+  }
+
+  .image-wrapper > img {
+    border-radius: 4px;
+    box-shadow: currentcolor 0px 0px 5px;
+    color: rgb(20, 24, 28);
+    padding: 0px;
+    margin: 0px;
+    /*filter: blur(20px);*/
+    transition: 1s linear filter;
+    filter: blur(0px);
+  }
+
+  .image-wrapper.preview > img {
+    filter: blur(10px);
+  }
+
+|}]
+
 let host_and_port = Value.return "http://localhost:7860"
 
 let generate ~on_complete =
@@ -27,7 +74,10 @@ let generate ~on_complete =
       images
       ~f:(fun _key data ->
         match%arr data with
-        | Ok image -> Base64_image.to_vdom image
+        | Ok image ->
+          Vdom.Node.div
+            ~attrs:[ Gallery_style.image_wrapper ]
+            [ Base64_image.to_vdom image ]
         | Error e -> Vdom.Node.sexp_for_debugging ([%sexp_of: Error.t] e))
   in
   let%arr form = form
@@ -65,9 +115,18 @@ let generate ~on_complete =
     let images =
       match preview with
       | None -> images
-      | Some preview -> Map.set images ~key:(-Map.length images) ~data:preview
+      | Some preview ->
+        let preview =
+          Vdom.Node.div
+            ~attrs:[ Gallery_style.image_wrapper; Gallery_style.preview ]
+            [ preview ]
+        in
+        Map.set images ~key:(-Map.length images) ~data:preview
     in
-    Vdom_node_with_map_children.make ~tag:"div" images
+    Vdom_node_with_map_children.make
+      ~tag:"div"
+      ~attr:(Vdom.Attr.many [ Gallery_style.container ])
+      images
   in
   form, form_view, submit_button, submit_effect, view, width, height, ongoing
 ;;
@@ -114,6 +173,6 @@ let component =
 let () =
   Bonsai_web.Start.start
     (View.Theme.set_for_app
-       (Value.return (Kado.theme ~style:Light ~version:Bleeding ()))
+       (Value.return (Kado.theme ~style:Dark ~version:Bleeding ()))
        component)
 ;;

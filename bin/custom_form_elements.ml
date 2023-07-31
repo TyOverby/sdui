@@ -8,6 +8,10 @@ module Label_modifications =
   [%css
   stylesheet
     {|
+  input, select, button {
+    font-size: 0.8em !important;
+  }
+
   fieldset.muted-label > legend {
     text-transform: uppercase;
     font-size:0.5em;
@@ -32,11 +36,11 @@ let int_form
   ~length
   ~min
   ~max
-  ~(validate_or_correct : string -> (int, int) Result.t)
+  ~(validate_or_correct : string -> (Int63.t, Int63.t) Result.t)
   ()
   =
   let%sub theme = View.Theme.current in
-  let%sub state, set_state = Bonsai.state (Int.to_string default) in
+  let%sub state, set_state = Bonsai.state (Int63.to_string default) in
   let%sub id = Bonsai.path_id in
   let%arr theme = theme
   and state = state
@@ -47,7 +51,8 @@ let int_form
   let fix_on_blur =
     match value_or_corrected with
     | Ok _ -> Vdom.Attr.empty
-    | Error corrected -> Vdom.Attr.on_blur (fun _ -> set_state (Int.to_string corrected))
+    | Error corrected ->
+      Vdom.Attr.on_blur (fun _ -> set_state (Int63.to_string corrected))
   in
   let view =
     Kado.Unstable.Input.textbox
@@ -55,8 +60,8 @@ let int_form
       ~input_attr:
         (Vdom.Attr.many
            ([ fix_on_blur
-            ; Vdom.Attr.max (Float.of_int max)
-            ; Vdom.Attr.min (Float.of_int min)
+            ; Vdom.Attr.max (Float.of_int63 max)
+            ; Vdom.Attr.min (Float.of_int63 min)
             ; Vdom.Attr.create "step" (Int.to_string step)
             ; Vdom.Attr.type_ "number"
             ; Vdom.Attr.style (Css_gen.width length)
@@ -87,8 +92,8 @@ let int_form
       ~value:(Ok value)
       ~set:(fun i ->
         set_state
-          (Int.to_string
-             (match validate_or_correct (Int.to_string i) with
+          (Int63.to_string
+             (match validate_or_correct (Int63.to_string i) with
               | Ok v -> v
               | Error v -> v)))
       ~view:(Form.View.of_vdom ~id view)
@@ -177,6 +182,7 @@ module Kado_textarea =
     /* opacity: 0.5; */
     white-space: pre;
     text-wrap: wrap;
+    font-size: 0.8em !important;
   }
 
   div.stack > pre {
@@ -199,6 +205,9 @@ let textarea theme ~attrs ~label ~value ~on_change =
            ~bg:(Css_gen.Color.to_string_css (View.extreme_colors theme).background)
            ~touch
        ; Label_modifications.muted_label
+       ; Label_modifications.Variables.set_all
+           ~border:(Css_gen.Color.to_string_css (View.extreme_primary_border_color theme))
+           ~fg:(Css_gen.Color.to_string_css (View.primary_colors theme).foreground)
        ]
        @ attrs)
     [ (match label with
@@ -215,6 +224,16 @@ let textarea theme ~attrs ~label ~value ~on_change =
               [ Kado_textarea.custom_textarea
               ; Vdom.Attr.value_prop value
               ; Vdom.Attr.on_input (fun _ s -> on_change s)
+              ; Vdom.Attr.on_click (fun evt ->
+                  let open Js_of_ocaml in
+                  let r = Js.Optdef.to_option evt##.which in
+                  match r with
+                  | Some Dom_html.Middle_button ->
+                    Js.Opt.iter evt##.target (fun element ->
+                      Js.Opt.iter (Dom_html.CoerceTo.textarea element) (fun textarea ->
+                        textarea##select));
+                    Effect.Prevent_default
+                  | _ -> Effect.Ignore)
               ]
             []
         ]

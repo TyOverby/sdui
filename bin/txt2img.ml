@@ -7,12 +7,12 @@ module Query = struct
   type t =
     { prompt : string
     ; negative_prompt : string
-    ; width : int
-    ; height : int
-    ; steps : int
-    ; cfg_scale : int
+    ; width : Int63.t
+    ; height : Int63.t
+    ; steps : Int63.t
+    ; cfg_scale : Int63.t
     ; sampler : Samplers.t
-    ; seed : int
+    ; seed : Int63.t
     }
   [@@deriving sexp, typed_fields]
 
@@ -30,7 +30,7 @@ module Query = struct
       ; cfg_scale : int [@key "cfg_scale"]
       ; sampler : Samplers.t
       ; sampler_index : Samplers.t
-      ; seed : int
+      ; seed : int64
       }
     [@@deriving yojson_of, sexp, typed_fields]
 
@@ -56,13 +56,13 @@ module Query = struct
       ; negative_prompt = query.negative_prompt
       ; hr_prompt = query.prompt
       ; hr_negative_prompt = query.negative_prompt
-      ; width = query.width
-      ; height = query.height
-      ; steps = query.steps
-      ; cfg_scale = query.cfg_scale
+      ; width = Int63.to_int_exn query.width
+      ; height = Int63.to_int_exn query.height
+      ; steps = Int63.to_int_exn query.steps
+      ; cfg_scale = Int63.to_int_exn query.cfg_scale
       ; sampler = query.sampler
       ; sampler_index = query.sampler
-      ; seed = query.seed
+      ; seed = Int63.to_int64 query.seed
       }
     ;;
   end

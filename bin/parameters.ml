@@ -7,8 +7,8 @@ module Form = Bonsai_web_ui_form
 type t =
   { form : Txt2img.Query.t Form.t
   ; form_view : on_submit:unit Effect.t -> Vdom.Node.t
-  ; width : int
-  ; height : int
+  ; width : Int63.t
+  ; height : Int63.t
   }
 
 module Size_presets = struct
@@ -55,7 +55,8 @@ module Size_presets = struct
         ~touch:(Css_gen.Color.to_string_css (`Hex "#1BA1F2"))
     in
     let set_dims w h =
-      Vdom.Attr.on_click (fun _ -> Effect.Many [ set_width w; set_height h ])
+      Vdom.Attr.on_click (fun _ ->
+        Effect.Many [ set_width (Int63.of_int w); set_height (Int63.of_int h) ])
     in
     [ Vdom.Node.div
         ~attrs:[ Style.preset; Style.small_square; colors; set_dims 512 512 ]
@@ -66,6 +67,22 @@ module Size_presets = struct
     ]
   ;;
 end
+
+module Top_bar =
+  [%css
+  stylesheet
+    {|
+    .container {
+      padding: 0.25em;
+      padding-bottom: 0.5em;
+      margin-bottom: 0.5em;
+      position:sticky; 
+      top:0;
+      border-bottom: 1px solid color-mix(in srgb, transparent 50%, var(--border));
+      background: var(--bg);
+      z-index: 1;
+    } 
+  |}]
 
 module Submit_button = struct
   module Style =
@@ -89,17 +106,20 @@ module Submit_button = struct
 end
 
 let multiple_of_8 s =
-  match Int.of_string_opt s with
-  | None -> Error 512
-  | Some i when i < 128 -> Error 128
-  | Some i -> if i mod 8 = 0 then Ok i else Error (i + (8 - (i mod 8)))
+  match Int63.of_string_opt s with
+  | None -> Error (Int63.of_int 512)
+  | Some i when Int63.(i < of_int 128) -> Error (Int63.of_int 128)
+  | Some i ->
+    if Int63.(i % of_int 8 = of_int 0)
+    then Ok i
+    else Error Int63.(i + (of_int 8 - (i % of_int 8)))
 ;;
 
-let between_inclusive s ~min ~max =
-  match Int.of_string_opt s with
-  | None -> Error 512
-  | Some i when i < min -> Error min
-  | Some i when i > max -> Error max
+let between_inclusive s ~min:min_v ~max:max_v =
+  match Int63.of_string_opt s with
+  | None -> Error (Int63.of_int 512)
+  | Some i when Int63.(i < min_v) -> Error min_v
+  | Some i when Int63.(i > max_v) -> Error max_v
   | Some i -> Ok i
 ;;
 
@@ -108,21 +128,23 @@ let component ~host_and_port =
     Custom_form_elements.int_form
       ~title
       ~step:8
-      ~default:512
+      ~default:(Int63.of_int 512)
       ~validate_or_correct:multiple_of_8
       ~length:(`Em 4)
-      ~min:128
-      ~max:2048
+      ~min:(Int63.of_int 128)
+      ~max:(Int63.of_int 2048)
       ()
   in
   let min_1_form ~default ~max title =
+    let min = Int63.of_int 1 in
+    let max = Int63.of_int max in
     Custom_form_elements.int_form
       ~title
       ~step:1
       ~default
-      ~validate_or_correct:(between_inclusive ~min:1 ~max)
+      ~validate_or_correct:(between_inclusive ~min ~max)
       ~length:(`Em 3)
-      ~min:1
+      ~min
       ~max
       ()
   in
@@ -130,14 +152,14 @@ let component ~host_and_port =
     Custom_form_elements.int_form
       ~title:"seed"
       ~step:1
-      ~default:(-1)
+      ~default:(Int63.of_int (-1))
       ~validate_or_correct:(fun s ->
-        match Int.of_string_opt s with
-        | None -> Error (-1)
+        match Int63.of_string_opt s with
+        | None -> Error (Int63.of_int (-1))
         | Some i -> Ok i)
       ~length:(`Em 11)
-      ~min:(Int.of_int32_trunc Int32.min_value)
-      ~max:(Int.of_int32_trunc Int32.max_value)
+      ~min:Int63.min_value
+      ~max:Int63.max_value
       ~input_attrs:[ Vdom.Attr.style (Css_gen.font_family [ "monospace" ]) ]
       ()
   in
@@ -150,13 +172,14 @@ let component ~host_and_port =
       ()
   in
   let%sub negative_prompt, negative_prompt_view =
-    Custom_form_elements.textarea
-      ~attrs:[ Vdom.Attr.style (Css_gen.flex_item ~grow:2.0 ()) ]
-      ~label:"negative prompt"
-      ()
+    Custom_form_elements.textarea ~attrs:[] ~label:"negative prompt" ()
   in
-  let%sub sampling_steps, sampling_steps_view = min_1_form ~default:25 ~max:150 "steps" in
-  let%sub cfg_scale, cfg_scale_view = min_1_form ~default:7 ~max:30 "cfg" in
+  let%sub sampling_steps, sampling_steps_view =
+    min_1_form ~default:(Int63.of_int 25) ~max:150 "steps"
+  in
+  let%sub cfg_scale, cfg_scale_view =
+    min_1_form ~default:(Int63.of_int 7) ~max:30 "cfg"
+  in
   let%sub sampler_form, sampler_form_view = Samplers.form ~host_and_port in
   let%sub form =
     Form.Typed.Record.make
@@ -200,7 +223,14 @@ let component ~host_and_port =
           | _ -> Effect.Ignore)
       in
       View.hbox
-        ~attrs:[ hijack_ctrl_enter ]
+        ~attrs:
+          [ hijack_ctrl_enter
+          ; Top_bar.container
+          ; Top_bar.Variables.set_all
+              ~border:
+                (Css_gen.Color.to_string_css (View.extreme_primary_border_color theme))
+              ~bg:(Css_gen.Color.to_string_css (View.primary_colors theme).background)
+          ]
         [ positive_prompt_view
         ; negative_prompt_view
         ; View.vbox
@@ -225,7 +255,7 @@ let component ~host_and_port =
   and height = height_form
   and form = form
   and form_view = form_view in
-  let width = Form.value_or_default width ~default:128 in
-  let height = Form.value_or_default height ~default:128 in
+  let width = Form.value_or_default width ~default:(Int63.of_int 128) in
+  let height = Form.value_or_default height ~default:(Int63.of_int 128) in
   { form; form_view; width; height }
 ;;

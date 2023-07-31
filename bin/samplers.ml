@@ -78,6 +78,10 @@ let form ~host_and_port =
         (Vdom.Attr.many
            [ Custom_form_elements.Label_modifications.muted_label
            ; Vdom.Attr.style (Css_gen.create ~field:"height" ~value:"fit-content")
+           ; Custom_form_elements.Label_modifications.Variables.set_all
+               ~border:
+                 (Css_gen.Color.to_string_css (View.extreme_primary_border_color theme))
+               ~fg:(Css_gen.Color.to_string_css (View.primary_colors theme).foreground)
            ])
       ~title:(Some "sampler")
       ~on_change:set_state

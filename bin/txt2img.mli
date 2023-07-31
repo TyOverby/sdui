@@ -6,12 +6,12 @@ module Query : sig
   type t =
     { prompt : string
     ; negative_prompt : string
-    ; width : int
-    ; height : int
-    ; steps : int
-    ; cfg_scale : int
+    ; width : Int63.t
+    ; height : Int63.t
+    ; steps : Int63.t
+    ; cfg_scale : Int63.t
     ; sampler : Samplers.t
-    ; seed : int
+    ; seed : Int63.t
     }
   [@@deriving sexp, typed_fields]
 end
