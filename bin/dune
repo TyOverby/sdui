@@ -1,5 +1,5 @@
 (executables 
   (names main) 
-  (libraries bonsai.web async_js yojson bonsai.web_ui_form bonsai.vdom_node_with_map_children bonsai.kado) 
+  (libraries bonsai.web async_js yojson bonsai.web_ui_form bonsai.vdom_node_with_map_children bonsai.kado virtual_dom.svg) 
   (modes js)
   (preprocess (pps ppx_jane js_of_ocaml-ppx ppx_css ppx_typed_fields ppx_yojson_conv bonsai.ppx_bonsai)))

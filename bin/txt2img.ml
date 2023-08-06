@@ -13,6 +13,7 @@ module Query = struct
     ; cfg_scale : Int63.t
     ; sampler : Samplers.t
     ; seed : Int63.t
+    ; styles : Styles.t
     }
   [@@deriving sexp, typed_fields]
 
@@ -29,8 +30,10 @@ module Query = struct
       ; steps : int
       ; cfg_scale : int [@key "cfg_scale"]
       ; sampler : Samplers.t
-      ; sampler_index : Samplers.t
+      ; sampler_index : Samplers.t [@key "sampler_index"]
+      ; sampler_name : Samplers.t [@key "sampler_name"]
       ; seed : int64
+      ; styles : Styles.t
       }
     [@@deriving yojson_of, sexp, typed_fields]
 
@@ -62,7 +65,9 @@ module Query = struct
       ; cfg_scale = Int63.to_int_exn query.cfg_scale
       ; sampler = query.sampler
       ; sampler_index = query.sampler
+      ; sampler_name = query.sampler
       ; seed = Int63.to_int64 query.seed
+      ; styles = query.styles
       }
     ;;
   end

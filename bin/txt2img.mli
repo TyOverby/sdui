@@ -12,6 +12,7 @@ module Query : sig
     ; cfg_scale : Int63.t
     ; sampler : Samplers.t
     ; seed : Int63.t
+    ; styles : Styles.t
     }
   [@@deriving sexp, typed_fields]
 end

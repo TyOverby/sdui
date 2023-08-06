@@ -1,6 +1,5 @@
 open! Core
 open! Bonsai_web
-open! Async_kernel
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form
 
@@ -242,7 +241,7 @@ let textarea theme ~attrs ~label ~value ~on_change =
 
 let textarea ?(attrs = []) ?label () =
   let%sub theme = View.Theme.current in
-  let%sub state, set_state = Bonsai.state "this is\n a test" in
+  let%sub state, set_state = Bonsai.state "" in
   let%sub id = Bonsai.path_id in
   let%arr theme = theme
   and state = state

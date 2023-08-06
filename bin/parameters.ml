@@ -79,8 +79,9 @@ module Top_bar =
       position:sticky; 
       top:0;
       border-bottom: 1px solid color-mix(in srgb, transparent 50%, var(--border));
-      background: var(--bg);
       z-index: 1;
+      background: var(--bg);
+      backdrop-filter: blur(5px);
     } 
   |}]
 
@@ -181,6 +182,7 @@ let component ~host_and_port =
     min_1_form ~default:(Int63.of_int 7) ~max:30 "cfg"
   in
   let%sub sampler_form, sampler_form_view = Samplers.form ~host_and_port in
+  let%sub styles_form = Styles.form ~host_and_port in
   let%sub form =
     Form.Typed.Record.make
       (module struct
@@ -197,6 +199,7 @@ let component ~host_and_port =
           | Steps -> return sampling_steps
           | Sampler -> return sampler_form
           | Seed -> return seed_form
+          | Styles -> return styles_form
         ;;
       end)
   in
@@ -212,7 +215,8 @@ let component ~host_and_port =
     and sampling_steps_view = sampling_steps_view
     and seed_form_view = seed_form_view
     and theme = theme
-    and sampler = sampler_form_view in
+    and sampler = sampler_form_view
+    and styles_form = styles_form in
     fun ~on_submit ->
       let hijack_ctrl_enter =
         Vdom.Attr.on_keypress (fun evt ->
@@ -248,6 +252,7 @@ let component ~host_and_port =
             ; View.hbox
                 ~main_axis_alignment:Space_between
                 [ seed_form_view; Submit_button.make theme ~on_submit ]
+            ; Form.view_as_vdom styles_form
             ]
         ]
   in
