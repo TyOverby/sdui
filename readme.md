@@ -31,4 +31,9 @@ dune build @check bin/main.bc.js bin/index.html --profile release
 $(cd _build/default/bin && python3 -m http.server)
 ```
 
+# Screenshots
+## Dark Mode
+<img width="1019" alt="image" src="https://github.com/TyOverby/sdui/assets/573215/30ef1f2e-7ee1-49d3-bb1e-e1cfa941ceb3">
 
+## Light Mode
+<img width="1019" alt="image" src="https://github.com/TyOverby/sdui/assets/573215/d2b4431d-841e-4770-86d9-e746ed37e8a9">
