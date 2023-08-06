@@ -33,7 +33,8 @@ $(cd _build/default/bin && python3 -m http.server)
 
 # Screenshots
 ## Dark Mode
-<img width="1019" alt="image" src="https://github.com/TyOverby/sdui/assets/573215/30ef1f2e-7ee1-49d3-bb1e-e1cfa941ceb3">
+![image](https://github.com/TyOverby/sdui/assets/573215/7da96654-a9fd-41a4-9bc3-1e9e7c560a28)
 
 ## Light Mode
-<img width="1019" alt="image" src="https://github.com/TyOverby/sdui/assets/573215/d2b4431d-841e-4770-86d9-e746ed37e8a9">
+<img width="1019" alt="image" src="https://github.com/TyOverby/sdui/assets/573215/b84dc7f0-00ed-4a5e-ac1e-6a757eda81d9">
+
