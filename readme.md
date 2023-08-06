@@ -15,6 +15,7 @@ git clone git@github.com:TyOverby/sdui.git
 cd sdui
 
 opam switch create ./ 4.14.1
+eval $(opam env)
 
 opam repo add janestreet-bleeding https://ocaml.janestreet.com/opam-repository
 opam repo add janestreet-bleeding-external https://github.com/janestreet/opam-repository.git#external-packages
