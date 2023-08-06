@@ -24,11 +24,11 @@ opam install bonsai yojson ppx_yojson_conv
 # For development:
 # opam install ocamlformat merlin
 
-dune build @check bin/main.bc.js bin/index.html --profile release
+dune build @check main.bc.js index.html --profile release
 # For development: 
-# dune build @check bin/main.bc.js bin/index.html -w
+# dune build @check main.bc.js index.html -w
 
-$(cd _build/default/bin && python3 -m http.server)
+$(cd _build/default && python3 -m http.server)
 ```
 
 # Screenshots
