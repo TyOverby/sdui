@@ -124,6 +124,22 @@ let between_inclusive s ~min:min_v ~max:max_v =
   | Some i -> Ok i
 ;;
 
+let validate_prompt prompt =
+  let translate_line line =
+    line
+    |> String.split ~on:','
+    |> List.map ~f:String.strip
+    |> List.filter_map ~f:(function
+      | "" -> None
+      | s -> Some s)
+    |> String.concat ~sep:", "
+    |> function
+    | "" -> ""
+    | s -> s ^ ","
+  in
+  prompt |> String.split_lines |> List.map ~f:translate_line |> String.concat ~sep:"\n"
+;;
+
 let component ~host_and_port =
   let width_height_form title =
     Custom_form_elements.int_form
@@ -168,12 +184,17 @@ let component ~host_and_port =
   let%sub height_form, height_form_view = width_height_form "height" in
   let%sub positive_prompt, positive_prompt_view =
     Custom_form_elements.textarea
+      ~validate:validate_prompt
       ~attrs:[ Vdom.Attr.style (Css_gen.flex_item ~grow:4.0 ()) ]
       ~label:"positive prompt"
       ()
   in
   let%sub negative_prompt, negative_prompt_view =
-    Custom_form_elements.textarea ~attrs:[] ~label:"negative prompt" ()
+    Custom_form_elements.textarea
+      ~validate:validate_prompt
+      ~attrs:[]
+      ~label:"negative prompt"
+      ()
   in
   let%sub sampling_steps, sampling_steps_view =
     min_1_form ~default:(Int63.of_int 25) ~max:150 "steps"

@@ -3,7 +3,8 @@ open! Bonsai_web
 module Form = Bonsai_web_ui_form
 
 val textarea
-  :  ?attrs:Vdom.Attr.t list
+  :  ?validate:(string -> string)
+  -> ?attrs:Vdom.Attr.t list
   -> ?label:string
   -> unit
   -> (string Form.t * Vdom.Node.t) Computation.t

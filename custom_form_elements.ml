@@ -195,7 +195,7 @@ module Kado_textarea =
 
 let touch = Css_gen.Color.to_string_css (`Hex "#1BA1F2")
 
-let textarea theme ~attrs ~label ~value ~on_change =
+let textarea theme ~attrs ~label ~value ~on_change ~on_blur =
   Vdom.Node.fieldset
     ~attrs:
       ([ Kado_textarea.cusom_textarea_fieldset
@@ -222,6 +222,7 @@ let textarea theme ~attrs ~label ~value ~on_change =
             ~attrs:
               [ Kado_textarea.custom_textarea
               ; Vdom.Attr.value_prop value
+              ; Vdom.Attr.on_blur (fun _ -> on_blur)
               ; Vdom.Attr.on_input (fun _ s -> on_change s)
               ; Vdom.Attr.on_click (fun evt ->
                   let open Js_of_ocaml in
@@ -239,7 +240,7 @@ let textarea theme ~attrs ~label ~value ~on_change =
     ]
 ;;
 
-let textarea ?(attrs = []) ?label () =
+let textarea ?validate ?(attrs = []) ?label () =
   let%sub theme = View.Theme.current in
   let%sub state, set_state = Bonsai.state "" in
   let%sub id = Bonsai.path_id in
@@ -247,7 +248,12 @@ let textarea ?(attrs = []) ?label () =
   and state = state
   and set_state = set_state
   and id = id in
-  let view = textarea theme ~attrs ~label ~value:state ~on_change:set_state in
+  let on_blur =
+    match validate with
+    | None -> Effect.Ignore
+    | Some f -> Effect.lazy_ (lazy (set_state (f state)))
+  in
+  let view = textarea theme ~attrs ~label ~value:state ~on_change:set_state ~on_blur in
   let form =
     Form.Expert.create ~value:(Ok state) ~set:set_state ~view:(Form.View.of_vdom ~id view)
   in
