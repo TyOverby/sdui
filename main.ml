@@ -33,39 +33,33 @@ let blurry_transparent_background =
     })
 ;;
 
-let generate =
+let component =
+  let%sub progress = Progress.state ~host_and_port in
   let%sub { form; form_view; width; height } =
     blurry_transparent_background (Parameters.component ~host_and_port)
   in
-  let%sub { ongoing; wrap_request; add_images; view } =
-    Gallery.component ~set_params:(form >>| Form.set)
+  let%sub { ongoing; wrap_request; add_images; view = elements } =
+    Gallery.component ~host_and_port ~set_params:(form >>| Form.set)
   in
-  let%arr form = form
-  and add_images = add_images
-  and host_and_port = host_and_port
-  and width = width
-  and height = height
-  and form_view = form_view
-  and ongoing = ongoing
-  and wrap_request = wrap_request
-  and view = view in
-  let submit_effect =
-    match Form.value form with
-    | Error _ -> None
-    | Ok query ->
-      let eff =
-        match%bind.Effect Txt2img.dispatch ~host_and_port query with
-        | Ok images -> add_images ~params:query ~images:(List.map images ~f:Result.return)
-        | Error e -> add_images ~params:query ~images:[ Error e ]
-      in
-      Some (wrap_request eff)
+  let%sub submit_effect =
+    let%sub form = Bonsai.yoink form in
+    let%arr form = form
+    and add_images = add_images
+    and host_and_port = host_and_port
+    and wrap_request = wrap_request in
+    Some
+      (wrap_request
+         (match%bind.Effect form with
+          | Inactive -> Effect.Ignore
+          | Active form ->
+            (match Form.value form with
+             | Error e -> Effect.print_s [%sexp (e : Error.t)]
+             | Ok query ->
+               (match%bind.Effect Txt2img.dispatch ~host_and_port query with
+                | Ok images ->
+                  add_images ~params:query ~images:(List.map images ~f:Result.return)
+                | Error e -> add_images ~params:query ~images:[ Error e ]))))
   in
-  form_view, submit_effect, view, (width, height), ongoing
-;;
-
-let component =
-  let%sub progress = Progress.state ~host_and_port in
-  let%sub form_view, submit_effect, elements, size, ongoing = generate in
   let%sub preview =
     let%sub in_progress_image =
       match%sub progress with
@@ -79,7 +73,8 @@ let component =
     match%sub Value.both in_progress_image ongoing with
     | Some current_image, true ->
       let%arr current_image = current_image
-      and width, height = size in
+      and width = width
+      and height = height in
       Some (Base64_image.to_vdom ~width ~height current_image)
     | _ -> Bonsai.const None
   in

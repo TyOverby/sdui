@@ -7,7 +7,7 @@ module Label_modifications =
   [%css
   stylesheet
     {|
-  input, select, button {
+  input, select, button, .checkbox-container {
     font-size: 0.8em !important;
   }
 
@@ -254,6 +254,35 @@ let textarea ?validate ?(attrs = []) ?label () =
     | Some f -> Effect.lazy_ (lazy (set_state (f state)))
   in
   let view = textarea theme ~attrs ~label ~value:state ~on_change:set_state ~on_blur in
+  let value =
+    match validate with
+    | None -> state
+    | Some f -> f state
+  in
+  let form =
+    Form.Expert.create ~value:(Ok value) ~set:set_state ~view:(Form.View.of_vdom ~id view)
+  in
+  form, view
+;;
+
+let bool_form ?(input_attrs = []) ?(container_attrs = []) ~title ~default () =
+  let%sub theme = View.Theme.current in
+  let%sub state, set_state = Bonsai.state default in
+  let%sub id = Bonsai.path_id in
+  let%arr theme = theme
+  and state = state
+  and set_state = set_state
+  and id = id in
+  let view =
+    Kado.Unstable.Input.checkbox
+      ~constants:(View.constants theme)
+      ~input_attr:(Vdom.Attr.many input_attrs)
+      ~container_attr:
+        (Vdom.Attr.many ([ Label_modifications.checkbox_container ] @ container_attrs))
+      ~label:(Vdom.Node.text title)
+      ~on_change:set_state
+      ~checked:state
+  in
   let form =
     Form.Expert.create ~value:(Ok state) ~set:set_state ~view:(Form.View.of_vdom ~id view)
   in

@@ -13,8 +13,16 @@ module Query : sig
     ; sampler : Samplers.t
     ; seed : Int63.t
     ; styles : Styles.t
+    ; enable_hr : bool
     }
   [@@deriving sexp, typed_fields]
 end
 
-val dispatch : host_and_port:string -> Query.t -> Base64_image.t list Or_error.t Effect.t
+module Info : sig
+  type t = { seed : Int63.t } [@@deriving sexp]
+end
+
+val dispatch
+  :  host_and_port:string
+  -> Query.t
+  -> (Base64_image.t * Info.t) list Or_error.t Effect.t

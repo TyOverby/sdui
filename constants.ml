@@ -3,7 +3,7 @@ let txt2img_query =
     {|
 {
   "enable_hr": false,
-  "denoising_strength": 0,
+  "denoising_strength": 0.7,
   "firstphase_width": 0,
   "firstphase_height": 0,
   "hr_scale": 2,

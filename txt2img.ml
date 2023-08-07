@@ -14,6 +14,7 @@ module Query = struct
     ; sampler : Samplers.t
     ; seed : Int63.t
     ; styles : Styles.t
+    ; enable_hr : bool
     }
   [@@deriving sexp, typed_fields]
 
@@ -34,6 +35,7 @@ module Query = struct
       ; sampler_name : Samplers.t [@key "sampler_name"]
       ; seed : int64
       ; styles : Styles.t
+      ; enable_hr : bool
       }
     [@@deriving yojson_of, sexp, typed_fields]
 
@@ -68,14 +70,33 @@ module Query = struct
       ; sampler_name = query.sampler
       ; seed = Int63.to_int64 query.seed
       ; styles = query.styles
+      ; enable_hr = query.enable_hr
       }
     ;;
   end
 end
 
 module Response = struct
-  type t = { images : string list }
+  module Info = struct
+    type t = { seed : int64 }
+    [@@yojson.allow_extra_fields] [@@deriving of_yojson, sexp_of]
+
+    let t_of_yojson (t : Yojson_safe.t) =
+      match t with
+      | `String s -> s |> Yojson_safe.from_string |> t_of_yojson
+      | _ -> failwith "info should be encoded as a string"
+    ;;
+  end
+
+  type t =
+    { images : string list
+    ; info : Info.t
+    }
   [@@yojson.allow_extra_fields] [@@deriving of_yojson, sexp_of]
+end
+
+module Info = struct
+  type t = { seed : Int63.t } [@@deriving sexp]
 end
 
 let dispatch (host_and_port, query) =
@@ -96,9 +117,15 @@ let dispatch (host_and_port, query) =
   Deferred.Or_error.try_with (fun () ->
     Yojson.Safe.from_string response.content
     |> Response.t_of_yojson
-    |> (fun { Response.images } ->
+    |> (fun { Response.images; info } ->
+         let info = { Info.seed = Int63.of_int64_trunc info.seed } in
          List.map images ~f:(fun s ->
-           Base64_image.of_string ~width:query.width ~height:query.height s))
+           let width, height =
+             if query.enable_hr
+             then Int63.(query.width * of_int 2, query.height * of_int 2)
+             else query.width, query.height
+           in
+           Base64_image.of_string ~width ~height s, info))
     |> Deferred.return)
 ;;
 

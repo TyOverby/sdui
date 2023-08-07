@@ -204,6 +204,9 @@ let component ~host_and_port =
   in
   let%sub sampler_form, sampler_form_view = Samplers.form ~host_and_port in
   let%sub styles_form = Styles.form ~host_and_port in
+  let%sub hr_form, hr_form_view =
+    Custom_form_elements.bool_form ~title:"hi res" ~default:false ()
+  in
   let%sub form =
     Form.Typed.Record.make
       (module struct
@@ -221,6 +224,7 @@ let component ~host_and_port =
           | Sampler -> return sampler_form
           | Seed -> return seed_form
           | Styles -> return styles_form
+          | Enable_hr -> return hr_form
         ;;
       end)
   in
@@ -237,7 +241,8 @@ let component ~host_and_port =
     and seed_form_view = seed_form_view
     and theme = theme
     and sampler = sampler_form_view
-    and styles_form = styles_form in
+    and styles_form = styles_form
+    and hr_form_view = hr_form_view in
     fun ~on_submit ->
       let hijack_ctrl_enter =
         Vdom.Attr.on_keypress (fun evt ->
@@ -273,6 +278,7 @@ let component ~host_and_port =
             ; View.hbox
                 ~main_axis_alignment:Space_between
                 [ seed_form_view; Submit_button.make theme ~on_submit ]
+            ; hr_form_view
             ; Form.view_as_vdom styles_form
             ]
         ]

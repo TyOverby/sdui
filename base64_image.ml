@@ -11,16 +11,16 @@ type t =
 let of_string ?width ?height content = { width; height; content }
 let to_string t = t.content
 
-let to_vdom ?width ?height t =
+let to_vdom ?width ?height ?(drop_size = false) t =
   let width =
-    match Option.first_some t.width width with
-    | None -> Vdom.Attr.empty
-    | Some width -> Vdom.Attr.create "width" (Int63.to_string width)
+    match drop_size, Option.first_some t.width width with
+    | true, _ | _, None -> Vdom.Attr.empty
+    | false, Some width -> Vdom.Attr.create "width" (Int63.to_string width)
   in
   let height =
-    match Option.first_some t.height height with
-    | None -> Vdom.Attr.empty
-    | Some height -> Vdom.Attr.create "height" (Int63.to_string height)
+    match drop_size, Option.first_some t.height height with
+    | true, _ | _, None -> Vdom.Attr.empty
+    | _, Some height -> Vdom.Attr.create "height" (Int63.to_string height)
   in
   Vdom.Node.img
     ~attrs:
@@ -34,3 +34,4 @@ let t_of_yojson = function
 ;;
 
 let yojson_of_t t = `String t.content
+let size t = Option.both t.width t.height
