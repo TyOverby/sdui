@@ -19,6 +19,7 @@
  (synopsis "A frontend for the 1111 stable-diffusion API")
  (description "TODO: write a longer description")
  (depends ocaml dune bonsai)
- (tags ()))
+ (tags ())
+ (allow_empty))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
