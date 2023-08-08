@@ -38,7 +38,7 @@ dune build @check main.bc.js index.html --profile release
 # For development: 
 # dune build @check main.bc.js index.html -w
 
-$(cd _build/default && python3 -m http.server)
+(cd _build/default && python3 -m http.server)
 ```
 
 The UI should now be accessible at http://localhost:8000.
