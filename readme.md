@@ -7,6 +7,15 @@ with a focus on:
 - a built-in gallery 
 - tools for managing prompts and parameters
 
+## Setup
+
+To try `sdui`, you'll need to [install and run Stable Diffusion locally](https://github.com/AUTOMATIC1111/stable-diffusion-webui#installation-and-running) locally.
+You should run the `./webui.sh` script with the following commandline arguments:
+
+- `--api  --nowebui`: since we'll be using an alternative frontend
+- `--cors-allow-origins=*`: so that `sdui` doesn't run into CORS issues
+- `--port 7860`: `sdui` expects a process to be running on `http://localhost:7860`
+- `--lowvram`: if your computer has low/limited RAM
 
 ## Building
 
@@ -31,6 +40,8 @@ dune build @check main.bc.js index.html --profile release
 
 $(cd _build/default && python3 -m http.server)
 ```
+
+The UI should now be accessible at http://localhost:8000.
 
 # Screenshots
 ## Dark Mode
