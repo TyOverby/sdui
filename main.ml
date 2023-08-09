@@ -41,6 +41,9 @@ let component =
   let%sub { ongoing; wrap_request; add_images; view = elements } =
     Gallery.component ~host_and_port ~set_params:(form >>| Form.set)
   in
+  let%sub preview =
+    Preview.component ~width ~height ~ongoing progress
+  in
   let%sub submit_effect =
     let%sub form = Bonsai.yoink form in
     let%arr form = form
@@ -59,24 +62,6 @@ let component =
                 | Ok images ->
                   add_images ~params:query ~images:(List.map images ~f:Result.return)
                 | Error e -> add_images ~params:query ~images:[ Error e ]))))
-  in
-  let%sub preview =
-    let%sub in_progress_image =
-      match%sub progress with
-      | Ok { current_image = Some current_image; _ } ->
-        Bonsai.pure Option.some current_image
-      | _ -> Bonsai.const None
-    in
-    let%sub in_progress_image =
-      Bonsai.most_recent_some ~equal:phys_equal in_progress_image ~f:Fn.id
-    in
-    match%sub Value.both in_progress_image ongoing with
-    | Some current_image, true ->
-      let%arr current_image = current_image
-      and width = width
-      and height = height in
-      Some (Base64_image.to_vdom ~width ~height current_image)
-    | _ -> Bonsai.const None
   in
   let%arr preview = preview
   and form_view = form_view
