@@ -230,7 +230,7 @@ let component ~host_and_port ~set_params =
           and modify_images = modify_images
           and dispatch = dispatch in
           let remove = modify_images (`Remove idx) in
-          let set_params = set_params params in
+          let set_params = set_params (Txt2img.Query.apply_info params info) in
           let upscale =
             if params.enable_hr
             then None

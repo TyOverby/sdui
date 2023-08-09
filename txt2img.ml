@@ -3,6 +3,10 @@ open! Async_kernel
 open! Bonsai_web
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives
 
+module Info = struct
+  type t = { seed : Int63.t } [@@deriving sexp]
+end
+
 module Query = struct
   type t =
     { prompt : string
@@ -74,6 +78,8 @@ module Query = struct
       }
     ;;
   end
+
+  let apply_info t info = { t with seed = info.Info.seed }
 end
 
 module Response = struct
@@ -93,10 +99,6 @@ module Response = struct
     ; info : Info.t
     }
   [@@yojson.allow_extra_fields] [@@deriving of_yojson, sexp_of]
-end
-
-module Info = struct
-  type t = { seed : Int63.t } [@@deriving sexp]
 end
 
 let dispatch (host_and_port, query) =

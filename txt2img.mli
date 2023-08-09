@@ -2,6 +2,10 @@ open! Core
 open! Async_kernel
 open! Bonsai_web
 
+module Info : sig
+  type t = { seed : Int63.t } [@@deriving sexp]
+end
+
 module Query : sig
   type t =
     { prompt : string
@@ -16,10 +20,8 @@ module Query : sig
     ; enable_hr : bool
     }
   [@@deriving sexp, typed_fields]
-end
 
-module Info : sig
-  type t = { seed : Int63.t } [@@deriving sexp]
+  val apply_info : t -> Info.t -> t
 end
 
 val dispatch
