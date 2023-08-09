@@ -88,13 +88,8 @@ module Style =
 |}]
 
 type t =
-  { ongoing : bool
-  ; wrap_request : unit Effect.t -> unit Effect.t
-  ; add_images :
-      params:Txt2img.Query.t
-      -> images:(Base64_image.t * Txt2img.Info.t) Or_error.t list
-      -> unit Effect.t
-  ; view : preview:Vdom.Node.t option -> Vdom.Node.t
+  { queue_request : Txt2img.Query.t -> unit Effect.t
+  ; view : Vdom.Node.t
   }
 
 let icon_svg content =
@@ -163,11 +158,6 @@ module Key = struct
 end
 
 let component ~host_and_port ~set_params =
-  let%sub ongoing =
-    Bonsai.state_machine0 ~default_model:0 () ~apply_action:(fun _ctx model -> function
-      | `Incr -> model + 1
-      | `Decr -> model - 1)
-  in
   let%sub (_, images), modify_images =
     Bonsai.state_machine0
       ~default_model:(0, Map.empty (module Key))
@@ -182,25 +172,8 @@ let component ~host_and_port ~set_params =
     let%arr modify_images = modify_images in
     fun ~params ~images -> modify_images (`Add (params, images))
   in
-  let%sub wrap_request =
-    let%arr _, inject_ongoing = ongoing in
-    fun e ->
-      let open Effect.Let_syntax in
-      let%bind () = inject_ongoing `Incr in
-      let%bind r = e in
-      let%bind () = inject_ongoing `Decr in
-      return r
-  in
-  let%sub dispatch =
-    let%arr wrap_request = wrap_request
-    and add_images = add_images
-    and host_and_port = host_and_port in
-    fun query ->
-      wrap_request
-        (match%bind.Effect Txt2img.dispatch ~host_and_port query with
-         | Ok images ->
-           add_images ~params:query ~images:(List.map images ~f:Result.return)
-         | Error e -> add_images ~params:query ~images:[ Error e ])
+  let%sub { view = queue_view; preview_view; queue_request } =
+    Request_queue.component ~host_and_port ~add_images
   in
   let%sub images =
     Bonsai.assoc
@@ -228,14 +201,14 @@ let component ~host_and_port ~set_params =
           and image_vdom, aspect_ratio = image_vdom_and_aspect_ratio
           and set_params = set_params
           and modify_images = modify_images
-          and dispatch = dispatch in
+          and queue_request = queue_request in
           let remove = modify_images (`Remove idx) in
           let set_params = set_params (Txt2img.Query.apply_info params info) in
           let upscale =
             if params.enable_hr
             then None
             else
-              lazy (dispatch { params with seed = info.seed; enable_hr = true })
+              lazy (queue_request { params with Txt2img.Query.seed = info.seed; enable_hr = true })
               |> Effect.lazy_
               |> Some
           in
@@ -245,25 +218,27 @@ let component ~host_and_port ~set_params =
           Vdom.Node.sexp_for_debugging ([%sexp_of: Error.t] e))
   in
   let%sub view =
-    let%arr images = images in
-    fun ~preview ->
-      let images =
-        match preview with
-        | None -> images
-        | Some preview ->
-          let preview =
-            Vdom.Node.div ~attrs:[ Style.image_wrapper; Style.preview ] [ preview ]
-          in
-          Map.set images ~key:Preview ~data:preview
-      in
-      Vdom_node_with_map_children.make
-        ~tag:"div"
-        ~attr:(Vdom.Attr.many [ Style.container ])
-        images
+    let%arr images = images
+    and preview_view = preview_view
+    and queue_view = queue_view in
+    let images =
+      match preview_view with
+      | None -> images
+      | Some preview ->
+        let preview =
+          Vdom.Node.div ~attrs:[ Style.image_wrapper; Style.preview ] [ preview ]
+        in
+        Map.set images ~key:Preview ~data:preview
+    in
+    Vdom.Node.div
+      [ Vdom_node_with_map_children.make
+          ~tag:"div"
+          ~attr:(Vdom.Attr.many [ Style.container ])
+          images
+      ; queue_view
+      ]
   in
-  let%arr ongoing, _ = ongoing
-  and add_images = add_images
-  and wrap_request = wrap_request
+  let%arr queue_request = queue_request
   and view = view in
-  { ongoing = ongoing > 0; wrap_request; view; add_images }
+  { view; queue_request }
 ;;
