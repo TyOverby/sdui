@@ -130,8 +130,8 @@ let component ~host_and_port ~add_images =
   let%sub preview_view =
     match%sub ongoing with
     | `Uninitialized | `Idle -> Bonsai.const None
-    | `Preexisting ->  Preview.component progress
-    | `Running params ->  Preview.component ~params progress
+    | `Preexisting -> Preview.component progress
+    | `Running params -> Preview.component ~params progress
   in
   let%sub queue_request =
     let%arr modify_requests = modify_requests in

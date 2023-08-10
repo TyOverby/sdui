@@ -208,7 +208,9 @@ let component ~host_and_port ~set_params =
             if params.enable_hr
             then None
             else
-              lazy (queue_request { params with Txt2img.Query.seed = info.seed; enable_hr = true })
+              lazy
+                (queue_request
+                   { params with Txt2img.Query.seed = info.seed; enable_hr = true })
               |> Effect.lazy_
               |> Some
           in
