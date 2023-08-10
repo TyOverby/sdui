@@ -7,8 +7,6 @@ module Form = Bonsai_web_ui_form
 type t =
   { form : Txt2img.Query.t Form.t
   ; form_view : on_submit:unit Effect.t -> Vdom.Node.t
-  ; width : Int63.t
-  ; height : Int63.t
   }
 
 module Size_presets = struct
@@ -283,11 +281,7 @@ let component ~host_and_port =
             ]
         ]
   in
-  let%arr width = width_form
-  and height = height_form
-  and form = form
+  let%arr form = form
   and form_view = form_view in
-  let width = Form.value_or_default width ~default:(Int63.of_int 128) in
-  let height = Form.value_or_default height ~default:(Int63.of_int 128) in
-  { form; form_view; width; height }
+  { form; form_view }
 ;;
