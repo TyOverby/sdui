@@ -34,56 +34,29 @@ let blurry_transparent_background =
 ;;
 
 let component =
-  let%sub progress = Progress.state ~host_and_port in
-  let%sub { form; form_view; width; height } =
+  let%sub { form; form_view } =
     blurry_transparent_background (Parameters.component ~host_and_port)
   in
-  let%sub { ongoing; wrap_request; add_images; view = elements } =
+  let%sub { queue_request; view = gallery } =
     Gallery.component ~host_and_port ~set_params:(form >>| Form.set)
   in
   let%sub submit_effect =
     let%sub form = Bonsai.yoink form in
     let%arr form = form
-    and add_images = add_images
-    and host_and_port = host_and_port
-    and wrap_request = wrap_request in
+    and queue_request = queue_request in
     Some
-      (wrap_request
-         (match%bind.Effect form with
-          | Inactive -> Effect.Ignore
-          | Active form ->
-            (match Form.value form with
-             | Error e -> Effect.print_s [%sexp (e : Error.t)]
-             | Ok query ->
-               (match%bind.Effect Txt2img.dispatch ~host_and_port query with
-                | Ok images ->
-                  add_images ~params:query ~images:(List.map images ~f:Result.return)
-                | Error e -> add_images ~params:query ~images:[ Error e ]))))
+      (match%bind.Effect form with
+       | Inactive -> Effect.Ignore
+       | Active form ->
+         (match Form.value form with
+          | Error e -> Effect.print_s [%sexp (e : Error.t)]
+          | Ok query -> queue_request query))
   in
-  let%sub preview =
-    let%sub in_progress_image =
-      match%sub progress with
-      | Ok { current_image = Some current_image; _ } ->
-        Bonsai.pure Option.some current_image
-      | _ -> Bonsai.const None
-    in
-    let%sub in_progress_image =
-      Bonsai.most_recent_some ~equal:phys_equal in_progress_image ~f:Fn.id
-    in
-    match%sub Value.both in_progress_image ongoing with
-    | Some current_image, true ->
-      let%arr current_image = current_image
-      and width = width
-      and height = height in
-      Some (Base64_image.to_vdom ~width ~height current_image)
-    | _ -> Bonsai.const None
-  in
-  let%arr preview = preview
-  and form_view = form_view
+  let%arr form_view = form_view
   and submit_effect = submit_effect
-  and elements = elements in
+  and gallery = gallery in
   let on_submit = Option.value submit_effect ~default:Effect.Ignore in
-  Vdom.Node.div [ form_view ~on_submit; elements ~preview ]
+  Vdom.Node.div [ form_view ~on_submit; gallery ]
 ;;
 
 let () =
