@@ -10,10 +10,10 @@ module Style =
     {|
   .container {
     display: flex;
+    flex-flow: row-reverse wrap-reverse;
     padding: 0.25em;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    justify-content: space-evenly;
+    align-items: flex-end;
+    justify-content: flex-start;
     gap: 1em;
     z-index: 1;
     user-select:none;
@@ -155,7 +155,7 @@ module Key = struct
       | Preview
     [@@deriving compare, sexp]
 
-    let compare = Comparable.reverse compare
+    let compare = compare
   end
 
   include T
