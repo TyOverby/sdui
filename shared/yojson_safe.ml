@@ -17,3 +17,15 @@ let rec sexp_of_t (t : t) =
 
 let t_of_yojson = Fn.id
 let yojson_of_t = Fn.id
+
+let merge_objects ~template record =
+  match record, template with
+  | `Assoc record, `Assoc template ->
+    let init = String.Map.of_alist_exn template in
+    record
+    |> List.fold ~init ~f:(fun acc (key, data) -> Map.set acc ~key ~data)
+    |> Map.to_alist
+    |> fun alist -> `Assoc alist
+  | record, template ->
+    raise_s [%message "unexpected record or template %s %s" (record : t) (template : t)]
+;;

@@ -1,5 +1,6 @@
 open! Core
 open! Bonsai_web
+open Shared
 
 type t =
   { width : Int63.t option

@@ -2,6 +2,7 @@ open! Core
 open! Async_kernel
 open! Bonsai_web
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives
+open Shared
 
 module Info = struct
   type t = { seed : Int63.t } [@@deriving sexp]
@@ -45,19 +46,7 @@ module Query = struct
 
     let yojson_of_t t =
       let record = yojson_of_t t in
-      match record, Constants.txt2img_query with
-      | `Assoc record, `Assoc template ->
-        let init = String.Map.of_alist_exn template in
-        record
-        |> List.fold ~init ~f:(fun acc (key, data) -> Map.set acc ~key ~data)
-        |> Map.to_alist
-        |> fun alist -> `Assoc alist
-      | record, template ->
-        raise_s
-          [%message
-            "unexpected record or template %s %s"
-              (record : Yojson_safe.t)
-              (template : Yojson_safe.t)]
+      Yojson_safe.merge_objects ~template:Constants.txt2img_query record
     ;;
 
     let of_query (query : query) : t =

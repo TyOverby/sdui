@@ -1,3 +1,5 @@
+open Shared
+
 let txt2img_query =
   Yojson_safe.from_string
     {|

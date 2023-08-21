@@ -1,5 +1,5 @@
-(executables
- (names main)
+(library
+ (name shared)
  (libraries
   bonsai.web
   async_js
@@ -8,7 +8,6 @@
   bonsai.vdom_node_with_map_children
   bonsai.kado
   virtual_dom.svg)
- (modes js)
  (preprocess
   (pps
    ppx_jane
