@@ -81,6 +81,15 @@ module Top_bar =
       background: var(--bg);
       backdrop-filter: blur(5px);
     } 
+
+    .collapse-button {
+      position:absolute;
+      left: 50%;
+      bottom: 0;
+      transform: translate(50%, 5px);
+      background: none;
+      border: 0;
+    }
   |}]
 
 module Submit_button = struct
@@ -227,6 +236,7 @@ let component ~host_and_port =
       end)
   in
   let%sub theme = View.Theme.current in
+  let%sub collapsed, toggle_collapsed = Bonsai.toggle ~default_model:false in
   let%sub form_view =
     let%arr width = width_form_view
     and height = height_form_view
@@ -240,7 +250,9 @@ let component ~host_and_port =
     and theme = theme
     and sampler = sampler_form_view
     and styles_form = styles_form
-    and hr_form_view = hr_form_view in
+    and hr_form_view = hr_form_view
+    and collapsed = collapsed
+    and toggle_collapsed = toggle_collapsed in
     fun ~on_submit ->
       let hijack_ctrl_enter =
         Vdom.Attr.on_keypress (fun evt ->
@@ -249,6 +261,32 @@ let component ~host_and_port =
           | Some "Enter" when Js.to_bool evt##.ctrlKey ->
             Effect.Many [ on_submit; Effect.Prevent_default ]
           | _ -> Effect.Ignore)
+      in
+      let form_elements =
+        if collapsed
+        then []
+        else
+          [ positive_prompt_view
+          ; negative_prompt_view
+          ; View.vbox
+              ~cross_axis_alignment:Stretch
+              [ View.hbox
+                  ~main_axis_alignment:Space_between
+                  (Size_presets.view
+                     theme
+                     ~set_width:(Form.set width_form)
+                     ~set_height:(Form.set height_form)
+                   @ [ width; height ])
+              ; View.hbox
+                  ~main_axis_alignment:Space_between
+                  [ sampler; cfg_scale_view; sampling_steps_view ]
+              ; View.hbox
+                  ~main_axis_alignment:Space_between
+                  [ seed_form_view; Submit_button.make theme ~on_submit ]
+              ; hr_form_view
+              ; Form.view_as_vdom styles_form
+              ]
+          ]
       in
       View.hbox
         ~attrs:
@@ -259,27 +297,14 @@ let component ~host_and_port =
                 (Css_gen.Color.to_string_css (View.extreme_primary_border_color theme))
               ~bg:(Css_gen.Color.to_string_css (View.primary_colors theme).background)
           ]
-        [ positive_prompt_view
-        ; negative_prompt_view
-        ; View.vbox
-            ~cross_axis_alignment:Stretch
-            [ View.hbox
-                ~main_axis_alignment:Space_between
-                (Size_presets.view
-                   theme
-                   ~set_width:(Form.set width_form)
-                   ~set_height:(Form.set height_form)
-                 @ [ width; height ])
-            ; View.hbox
-                ~main_axis_alignment:Space_between
-                [ sampler; cfg_scale_view; sampling_steps_view ]
-            ; View.hbox
-                ~main_axis_alignment:Space_between
-                [ seed_form_view; Submit_button.make theme ~on_submit ]
-            ; hr_form_view
-            ; Form.view_as_vdom styles_form
-            ]
-        ]
+        (form_elements
+         @ [ Vdom.Node.button
+               ~attrs:
+                 [ Vdom.Attr.on_click (fun _ -> toggle_collapsed)
+                 ; Top_bar.collapse_button
+                 ]
+               [ Vdom.Node.text "^^^" ]
+           ])
   in
   let%arr form = form
   and form_view = form_view in

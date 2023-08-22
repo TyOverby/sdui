@@ -3,7 +3,11 @@ open! Async_kernel
 open! Bonsai_web
 
 module Info : sig
-  type t = { seed : Int63.t } [@@deriving sexp]
+  type t =
+    { seed : Int63.t
+    ; enable_hr : bool
+    }
+  [@@deriving sexp]
 end
 
 module Query : sig

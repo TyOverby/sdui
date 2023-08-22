@@ -38,7 +38,7 @@ let component =
     blurry_transparent_background (Parameters.component ~host_and_port)
   in
   let%sub { queue_request; view = gallery } =
-    Gallery.component ~host_and_port ~set_params:(form >>| Form.set)
+    Gallery2.component ~host_and_port ~set_params:(form >>| Form.set)
   in
   let%sub submit_effect =
     let%sub form = Bonsai.yoink form in
