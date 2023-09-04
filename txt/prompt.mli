@@ -1,13 +1,9 @@
 open! Core
 open! Bonsai_web
 
-type history_kind :=
+type kind :=
   [ `Instruction
   | `Response
-  ]
-
-type kind :=
-  [ history_kind
   | `Continue
   ]
 
@@ -18,7 +14,7 @@ val make
   -> ?early_stopping:bool
   -> ?max_new_tokens:int
   -> context:string
-  -> history:(history_kind * string) list
+  -> history:(kind * string) list
   -> kind
   -> t
 

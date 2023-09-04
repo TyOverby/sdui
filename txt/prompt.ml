@@ -49,27 +49,36 @@ module Config = struct
   [@@deriving yojson_of, sexp_of]
 end
 
-type history_kind =
+type kind =
   [ `Instruction
   | `Response
-  ]
-
-type kind =
-  [ history_kind
   | `Continue
   ]
 
-let make ?length_penalty ?early_stopping ?max_new_tokens ~context ~history kind =
-  let history = (history :> (kind * string) list) in
+let make
+  ?length_penalty
+  ?early_stopping
+  ?max_new_tokens
+  ~context
+  ~(history : (kind * string) list)
+  (kind : kind)
+  =
+  let history = (history :> ([ kind | `This_continue ] * string) list) in
   let prompt =
-    [ context ]
+    [ Some context ]
     @ List.map
-        (history @ [ kind, "" ])
+        (history
+         @ [ (match kind with
+              | `Continue -> `This_continue, ""
+              | other -> (other :> [ kind | `This_continue ]), "")
+           ])
         ~f:(fun (kind, text) ->
           match kind with
-          | `Instruction -> "### Instruction:\n" ^ text
-          | `Response -> "### Response:\n" ^ text
-          | `Continue -> "")
+          | `Instruction -> Some ("### Instruction:\n" ^ text)
+          | `Response -> Some ("### Response:\n" ^ text)
+          | `This_continue -> None
+          | `Continue -> Some text)
+    |> List.filter_opt
     |> String.concat ~sep:"\n\n"
   in
   Yojson_safe.merge_objects

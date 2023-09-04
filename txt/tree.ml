@@ -115,11 +115,12 @@ module Out = struct
   ;;
 
   type t =
-    | System of text
+    | System of string
     | Splice of string
     | Prefix of string
     | Instruction of text
     | Response of text
+    | Response_continue of text
     | Muted
 end
 
@@ -199,15 +200,47 @@ let generic_editable ~label =
   state, inject, view, enabled
 ;;
 
+let mirror_to_localstorage ~unique_id getter setter =
+  let store =
+    Persistent_var.create
+      (module struct
+        type t = string option [@@deriving equal, sexp]
+      end)
+      `Local_storage
+      ~default:None
+      ~unique_id
+  in
+  let store_value, store_set = Persistent_var.value store, Persistent_var.effect store in
+  let store_set = Value.return (fun s -> store_set (Some s)) in
+  let getter = Value.map getter ~f:Option.some in
+  Bonsai_extra.mirror'
+    ~equal:String.equal
+    ~store_set
+    ~store_value
+    ~interactive_set:setter
+    ~interactive_value:getter
+    ()
+;;
+
+let mirror_editable_to_local_storage ~unique_id edit_box =
+  let%sub state, inject, _, _ = return edit_box in
+  mirror_to_localstorage
+    ~unique_id
+    (state >>| fun { Out.text; _ } -> text)
+    (inject >>| fun inject s -> inject (`Set s))
+;;
+
 let system =
   let%sub edit_box = generic_editable ~label:"system" in
+  let%sub () = mirror_editable_to_local_storage ~unique_id:"system" edit_box in
   let%arr state, _inject, view, enabled = edit_box in
-  let value = if not enabled then Out.Muted else System state in
+  let value = if not enabled then Out.Muted else System state.text in
   { Helpers.view = view (); value }
 ;;
 
 let splice =
   let%sub edit_box = generic_editable ~label:"splice" in
+  let%sub () = mirror_editable_to_local_storage ~unique_id:"splice" edit_box in
   let%arr state, _inject, view, enabled = edit_box in
   let value = if not enabled then Out.Muted else Splice state.text in
   { Helpers.view = view (); value }
@@ -215,6 +248,7 @@ let splice =
 
 let prefix =
   let%sub edit_box = generic_editable ~label:"prefix" in
+  let%sub () = mirror_editable_to_local_storage ~unique_id:"prefix" edit_box in
   let%arr state, _inject, view, enabled = edit_box in
   let value = if not enabled then Out.Muted else Prefix state.text in
   { Helpers.view = view (); value }
@@ -222,6 +256,7 @@ let prefix =
 
 let instruction =
   let%sub edit_box = generic_editable ~label:"instruction" in
+  let%sub () = mirror_editable_to_local_storage ~unique_id:"instruction" edit_box in
   let%arr state, _inject, view, enabled = edit_box in
   let value = if not enabled then Out.Muted else Instruction state in
   { Helpers.view = view (); value }
@@ -250,13 +285,16 @@ let rec dispatch_response
       ~init:("", None, [])
       ~f:(fun ~key:_ ~data (system, next_to_mute, history) ->
         match (data : Out.t) with
-        | System s -> s.text, next_to_mute, history
+        | System s -> s, next_to_mute, history
         | Instruction s ->
           let next_to_mute = Option.first_some next_to_mute (Some s.mute) in
           system, next_to_mute, (`Instruction, s.text) :: history
         | Response s ->
           let next_to_mute = Option.first_some next_to_mute (Some s.mute) in
           system, next_to_mute, (`Response, s.text) :: history
+        | Response_continue s ->
+          let next_to_mute = Option.first_some next_to_mute (Some s.mute) in
+          system, next_to_mute, (`Continue, s.text) :: history
         | Splice _ | Prefix _ | Muted -> system, next_to_mute, history)
   in
   let system =
@@ -299,6 +337,13 @@ let rec dispatch_response
   | Error e -> inject (`Append (Error.to_string_hum e))
 ;;
 
+let regenerate_button ~inject ~generate =
+  Feather_icon.svg
+    Rotate_cw
+    ~size:(`Px 20)
+    ~extra_attrs:[ Vdom.Attr.on_click (fun _ -> Effect.Many [ inject `Clear; generate ]) ]
+;;
+
 let response ~get_all ~my_path =
   let%sub edit_box = generic_editable ~label:"response" in
   let%arr state, inject, view, enabled = edit_box
@@ -314,18 +359,22 @@ let response ~get_all ~my_path =
         ~recent_history:[]
         `Instruction
     in
-    let extra_buttons =
-      [ Feather_icon.svg
-          Rotate_cw
-          ~size:(`Px 20)
-          ~extra_attrs:
-            [ Vdom.Attr.on_click (fun _ -> Effect.Many [ inject `Clear; generate ]) ]
-      ]
-    in
+    let extra_buttons = [ regenerate_button ~inject ~generate ] in
     view ~extra_buttons ()
   in
   let value = if not enabled then Out.Muted else Response state in
   { Helpers.view; value }
+;;
+
+let numeric_remove = Re.Pcre.re "[0-9]+\\." |> Re.compile
+
+let strip_line line =
+  line
+  |> String.strip
+  |> String.chop_prefix_if_exists ~prefix:"- "
+  |> String.chop_suffix_if_exists ~suffix:"."
+  |> String.chop_suffix_if_exists ~suffix:","
+  |> Re.replace_string numeric_remove ~by:""
 ;;
 
 let choice ~get_all ~my_path ~choice_picked =
@@ -344,6 +393,23 @@ let choice ~get_all ~my_path ~choice_picked =
         | _ -> None)
       |> Option.value ~default:""
     in
+    let all =
+      let first_response = ref true in
+      let system_prompt = ref "" in
+      Map.filter_map all ~f:(function
+        | System _ -> Some (Out.System splice_text)
+        | Instruction text ->
+          system_prompt := text.text;
+          None
+        | Response text | Response_continue text ->
+          if !first_response
+          then (
+            first_response := false;
+            let text = { text with text = !system_prompt ^ "\n\n" ^ text.text } in
+            Some (Instruction text))
+          else Some (Response_continue text)
+        | _ -> None)
+    in
     dispatch_response
       ~length_penalty:1.5
       ~early_stopping:true
@@ -352,7 +418,10 @@ let choice ~get_all ~my_path ~choice_picked =
       ~my_path
       ~inject
       ~inject_finished:(set_done_with_choices true)
-      ~recent_history:[ `Instruction, splice_text ]
+      ~recent_history:
+        [ `Instruction, splice_text
+          (*; `Response, "here are some actions that characters could take:\n -"*)
+        ]
       `Response
   in
   let%sub theme = View.Theme.current in
@@ -376,8 +445,9 @@ let choice ~get_all ~my_path ~choice_picked =
     in
     { Helpers.view; value }
   | None ->
-    let%arr state, _inject, _view, _enabled = edit_box
+    let%arr state, inject, _view, _enabled = edit_box
     and theme = theme
+    and dispatch = dispatch
     and set_selected = set_selected
     and choice_picked = choice_picked in
     let view =
@@ -385,17 +455,20 @@ let choice ~get_all ~my_path ~choice_picked =
         let groups =
           state.text
           |> String.split_lines
-          |> List.filter_map ~f:(fun line ->
-            let line =
-              line
-              |> String.chop_prefix_if_exists ~prefix:"- "
-              |> String.chop_suffix_if_exists ~suffix:"."
-              |> String.chop_suffix_if_exists ~suffix:","
-            in
-            Option.bind (String.lsplit2 line ~on:':') ~f:(fun (character, action) ->
-              let character, action = String.strip character, String.strip action in
+          |> List.folding_map ~init:None ~f:(fun current_char line ->
+            let line = strip_line line in
+            let out =
+              let%bind.Option character, action =
+                match String.lsplit2 line ~on:':', current_char with
+                | Some (character, action), _ -> Some (Some character, strip_line action)
+                | None, Some character -> Some (Some character, line)
+                | None, None -> Some (None, line)
+              in
+              let character, action =
+                Option.map ~f:String.strip character, String.strip action
+              in
               match action with
-              | "" -> None
+              | "" -> Some (character, None)
               | action ->
                 let view =
                   Vdom.Node.button
@@ -403,7 +476,11 @@ let choice ~get_all ~my_path ~choice_picked =
                       [ Style.choice_button
                       ; Vdom.Attr.on_click (fun _ ->
                           Effect.Many
-                            [ set_selected (Some (character ^ " " ^ action))
+                            [ set_selected
+                                (Some
+                                   (match character with
+                                    | Some character -> character ^ " " ^ action
+                                    | None -> action))
                             ; choice_picked character
                             ])
                       ; Style.Variables.set_all
@@ -419,18 +496,29 @@ let choice ~get_all ~my_path ~choice_picked =
                       ]
                     [ Vdom.Node.text action ]
                 in
-                Some (character, view)))
-          |> Helpers.alist_group ~equal:String.equal
-          |> List.filter ~f:(fun (k, _) ->
-            match String.lowercase k with
-            | "all" | "both" | "note" -> false
-            | s when String.Caseless.substr_index s ~pattern:"both" |> Option.is_some ->
-              false
-            | _ -> true)
+                Some (character, Some view)
+            in
+            match out with
+            | None -> current_char, None
+            | Some (Some char, _) -> Some char, out
+            | Some (None, _) -> current_char, out)
+          |> List.filter_opt
+          |> Helpers.alist_group ~equal:[%equal: string option]
+          |> List.filter ~f:(function k, _ ->
+            (match Option.map ~f:String.lowercase k with
+             | Some ("all" | "both" | "note") -> false
+             | Some s
+               when String.Caseless.substr_index s ~pattern:"both" |> Option.is_some ->
+               false
+             | None -> true
+             | _ -> true))
         in
-        List.map groups ~f:(function person, group ->
-          let rows = Vdom.Node.span [ Vdom.Node.text person ] :: group in
+        groups
+        |> List.map ~f:(function person, group ->
+          let person = Option.value person ~default:"" in
+          let rows = Vdom.Node.span [ Vdom.Node.text person ] :: List.filter_opt group in
           View.vbox rows ~cross_axis_alignment:Start ~gap:(`Em_float 0.5))
+        |> List.append [ regenerate_button ~inject ~generate:dispatch ]
         |> View.hbox ~attrs:[ Style.choices_container ] ~gap:(`Em_float 0.5)
       in
       options
@@ -455,7 +543,7 @@ let character character ~get_all ~my_path ~character_finished =
         | _ -> None)
       |> Option.value ~default:(character ^ ":")
     in
-    let%bind.Effect () = inject (`Append prefix_text) in
+    let%bind.Effect () = inject (`Append (prefix_text ^ "\n")) in
     dispatch_response
       ~system_substitutions:[ "char", character ]
       ~length_penalty:1.2
@@ -488,6 +576,7 @@ let character character ~get_all ~my_path ~character_finished =
          ~attrs:
            [ Style.character; (if not enabled then Style.disabled else Vdom.Attr.empty) ]
   in
+  let state = { state with text = String.strip state.text } in
   { Helpers.view; value = Out.Response state }
 ;;
 
@@ -543,7 +632,9 @@ let component =
   in
   let%sub choice_picked =
     let%arr inject = inject in
-    fun name -> inject (`Chose name)
+    function
+    | Some name -> inject (`Chose name)
+    | None -> inject (`Chose "")
   in
   let%sub components =
     Helpers.tree (fun ~get_all ->

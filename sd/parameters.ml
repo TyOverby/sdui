@@ -83,10 +83,8 @@ module Top_bar =
     } 
 
     .collapse-button {
-      position:absolute;
       left: 50%;
       bottom: 0;
-      transform: translate(50%, 5px);
       background: none;
       border: 0;
     }
@@ -263,9 +261,20 @@ let component ~host_and_port =
           | _ -> Effect.Ignore)
       in
       let form_elements =
-        if collapsed
-        then []
-        else
+        let attrs =
+          if collapsed
+          then [ Vdom.Attr.style (Css_gen.display `None) ]
+          else
+            [ hijack_ctrl_enter
+            ; Top_bar.container
+            ; Top_bar.Variables.set_all
+                ~border:
+                  (Css_gen.Color.to_string_css (View.extreme_primary_border_color theme))
+                ~bg:(Css_gen.Color.to_string_css (View.primary_colors theme).background)
+            ]
+        in
+        View.hbox
+          ~attrs
           [ positive_prompt_view
           ; negative_prompt_view
           ; View.vbox
@@ -288,23 +297,14 @@ let component ~host_and_port =
               ]
           ]
       in
-      View.hbox
-        ~attrs:
-          [ hijack_ctrl_enter
-          ; Top_bar.container
-          ; Top_bar.Variables.set_all
-              ~border:
-                (Css_gen.Color.to_string_css (View.extreme_primary_border_color theme))
-              ~bg:(Css_gen.Color.to_string_css (View.primary_colors theme).background)
-          ]
-        (form_elements
-         @ [ Vdom.Node.button
-               ~attrs:
-                 [ Vdom.Attr.on_click (fun _ -> toggle_collapsed)
-                 ; Top_bar.collapse_button
-                 ]
-               [ Vdom.Node.text "^^^" ]
-           ])
+      View.vbox
+        ~attrs:[ Vdom.Attr.style (Css_gen.position `Relative) ]
+        [ form_elements
+        ; Vdom.Node.button
+            ~attrs:
+              [ Vdom.Attr.on_click (fun _ -> toggle_collapsed); Top_bar.collapse_button ]
+            [ Vdom.Node.text "^^^" ]
+        ]
   in
   let%arr form = form
   and form_view = form_view in
