@@ -4,4 +4,6 @@ module Form = Bonsai_web_ui_form
 
 type t [@@deriving sexp, yojson]
 
-val form : host_and_port:string Value.t -> (t Form.t * Vdom.Node.t) Computation.t
+val form
+  :  request_host:Hosts.request_host Value.t
+  -> (t Form.t * Vdom.Node.t) Computation.t

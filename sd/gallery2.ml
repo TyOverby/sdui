@@ -185,7 +185,7 @@ module Key = struct
   include Comparable.Make (T)
 end
 
-let component ~host_and_port ~set_params =
+let component ~(request_host : Hosts.request_host Value.t) ~set_params =
   let%sub (_, images), modify_images =
     Bonsai.state_machine0
       ~default_model:(0, Map.empty (module Key))
@@ -208,14 +208,23 @@ let component ~host_and_port ~set_params =
       ~f:(fun idx params ->
         let%sub state, set_state = Bonsai.state `Queued in
         let%sub dispatch =
-          let%arr host_and_port = host_and_port
+          let%arr request_host = request_host
           and set_state = set_state in
           fun params ->
-            match%bind.Effect Txt2img.dispatch ~host_and_port params with
-            | Ok [ (img, info) ] -> set_state (`Done (img, info, `Not_upscaling))
-            | Ok [] | Ok (_ :: _ :: _) ->
-              set_state (`Error (Error.of_string "only one image expected"))
-            | Error e -> set_state (`Error e)
+            let%bind.Effect work = request_host in
+            Effect.ignore_m
+            @@ work.f (fun host_and_port ->
+              match%bind.Effect Txt2img.dispatch ~host_and_port params with
+              | Ok [ (img, info) ] ->
+                let%map.Effect () = set_state (`Done (img, info, `Not_upscaling)) in
+                Ok ()
+              | Ok [] | Ok (_ :: _ :: _) ->
+                let error = Error.of_string "only one image expected" in
+                let%map.Effect () = set_state (`Error error) in
+                Error error
+              | Error e ->
+                let%map.Effect () = set_state (`Error e) in
+                Error e)
         in
         let%sub () =
           let on_activate =

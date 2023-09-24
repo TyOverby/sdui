@@ -9,7 +9,7 @@ let txt2img_query =
   "firstphase_width": 0,
   "firstphase_height": 0,
   "hr_scale": 2,
-  "hr_upscaler": "4x_RealisticRescaler_100000_G",
+  "hr_upscaler": "Latent",
   "hr_second_pass_steps": 0,
   "hr_resize_x": 0,
   "hr_resize_y": 0,

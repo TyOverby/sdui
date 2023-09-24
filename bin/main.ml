@@ -5,5 +5,5 @@ let () =
   Bonsai_web.Start.start
     (View.Theme.set_for_app
        (Value.return (Kado.theme ~style:Dark ~version:Bleeding ()))
-       Txt.component)
+       Sd.component)
 ;;

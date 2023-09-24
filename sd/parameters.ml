@@ -145,7 +145,7 @@ let validate_prompt prompt =
   prompt |> String.split_lines |> List.map ~f:translate_line |> String.concat ~sep:"\n"
 ;;
 
-let component ~host_and_port =
+let component ~(request_host : Hosts.request_host Value.t) =
   let width_height_form title =
     Custom_form_elements.int_form
       ~title
@@ -207,8 +207,8 @@ let component ~host_and_port =
   let%sub cfg_scale, cfg_scale_view =
     min_1_form ~default:(Int63.of_int 7) ~max:30 "cfg"
   in
-  let%sub sampler_form, sampler_form_view = Samplers.form ~host_and_port in
-  let%sub styles_form = Styles.form ~host_and_port in
+  let%sub sampler_form, sampler_form_view = Samplers.form ~request_host in
+  let%sub styles_form = Styles.form ~request_host in
   let%sub hr_form, hr_form_view =
     Custom_form_elements.bool_form ~title:"hi res" ~default:false ()
   in

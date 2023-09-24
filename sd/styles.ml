@@ -28,13 +28,14 @@ let dispatch host_and_port =
 
 let dispatch = Effect.of_deferred_fun dispatch
 
-let all ~host_and_port =
+let all ~(request_host : Hosts.request_host Value.t) =
   let%sub r, refresh =
     Bonsai.Edge.Poll.manual_refresh
       (Bonsai.Edge.Poll.Starting.initial (Error (Error.of_string "loading...")))
       ~effect:
-        (let%map host_and_port = host_and_port in
-         dispatch host_and_port)
+        (let%map request_host = request_host in
+         let%bind.Effect work = request_host in
+         work.f (fun host -> dispatch host))
   in
   let%sub () =
     Bonsai.Clock.every
@@ -46,8 +47,8 @@ let all ~host_and_port =
   return r
 ;;
 
-let form ~host_and_port =
-  let%sub all = all ~host_and_port in
+let form ~request_host =
+  let%sub all = all ~request_host in
   let%sub all =
     match%arr all with
     | Error _ -> []

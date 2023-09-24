@@ -8,4 +8,4 @@ type t =
   ; form_view : on_submit:unit Effect.t -> Vdom.Node.t
   }
 
-val component : host_and_port:string Value.t -> t Computation.t
+val component : request_host : Hosts.request_host Value.t -> t Computation.t

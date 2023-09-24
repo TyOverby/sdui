@@ -1,42 +1,20 @@
 open! Core
 open! Bonsai_web
-open Async_kernel
-open Ppx_yojson_conv_lib.Yojson_conv.Primitives
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form
 
-type t = string [@@deriving sexp, yojson]
-
 let default = "Euler a"
 
-module Api_response = struct
-  type sampler = { name : string }
-  [@@yojson.allow_extra_fields] [@@deriving of_yojson, sexp_of]
+include Samplers_request
 
-  type t = sampler list [@@deriving of_yojson, sexp_of]
-end
-
-let dispatch host_and_port =
-  let%bind.Deferred.Or_error response =
-    Async_js.Http.get (sprintf "%s/sdapi/v1/samplers" host_and_port)
-  in
-  Deferred.Or_error.try_with (fun () ->
-    response
-    |> Yojson.Safe.from_string
-    |> Api_response.t_of_yojson
-    |> List.map ~f:(fun { name } -> name)
-    |> Deferred.return)
-;;
-
-let dispatch = Effect.of_deferred_fun dispatch
-
-let all ~host_and_port =
+let all ~(request_host : Hosts.request_host Value.t) =
   let%sub r, refresh =
     Bonsai.Edge.Poll.manual_refresh
       (Bonsai.Edge.Poll.Starting.initial (Error (Error.of_string "loading...")))
       ~effect:
-        (let%map host_and_port = host_and_port in
-         dispatch host_and_port)
+        (let%map request_host = request_host in
+         let%bind.Effect work = request_host in
+         work.f (fun host -> dispatch host))
   in
   let%sub () =
     Bonsai.Clock.every
@@ -48,8 +26,15 @@ let all ~host_and_port =
   return r
 ;;
 
-let form ~host_and_port =
-  let%sub all = all ~host_and_port in
+let str_rep ~find ~replace s =
+  String.Search_pattern.replace_all
+    (String.Search_pattern.create find)
+    ~in_:s
+    ~with_:replace
+;;
+
+let form ~request_host =
+  let%sub all = all ~request_host in
   let%sub state, set_state = Bonsai.state default in
   let%sub theme = View.Theme.current in
   let%sub id = Bonsai.path_id in
@@ -66,7 +51,11 @@ let form ~host_and_port =
   let options =
     List.map all ~f:(fun sampler ->
       let view =
-        sampler |> String.chop_suffix_if_exists ~suffix:"arras" |> Vdom.Node.text
+        sampler
+        |> str_rep ~find:"Karras" ~replace:"K"
+        |> str_rep ~find:"Exponential" ~replace:"E"
+        |> str_rep ~find:"Heun" ~replace:"H"
+        |> Vdom.Node.text
       in
       sampler, String.equal sampler state, view)
   in
