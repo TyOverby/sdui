@@ -12,7 +12,6 @@ module Style = [%css stylesheet {|
 
 let _host_and_port = Value.return "http://localhost:7860"
 
-(* let host_and_port = Value.return "http://ec2-3-229-118-81.compute-1.amazonaws.com:7860" *)
 let blurry_transparent_background =
   View.Theme.override_constants_for_computation ~f:(fun constants ->
     let make_transparent pct c =
@@ -59,7 +58,7 @@ let component =
   and gallery = gallery
   and hosts_view = hosts_view in
   let on_submit = Option.value submit_effect ~default:Effect.Ignore in
-  Vdom.Node.div [ hosts_view; form_view ~on_submit; gallery ]
+  Vdom.Node.div [  form_view ~on_submit ~hosts_panel:hosts_view; gallery ]
 ;;
 
 

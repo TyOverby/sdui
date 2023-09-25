@@ -28,7 +28,7 @@ let health_check host =
 ;;
 
 let component =
-  let%sub hosts, textbox = Custom_form_elements.textarea () in
+  let%sub hosts, textbox = Custom_form_elements.textarea ~label:"hosts" () in
   let%sub () =
     Bonsai.Edge.lifecycle
       ~on_activate:
@@ -117,7 +117,7 @@ let component =
     return good_hosts
   in
   let%sub write, read = Bonsai_extra.pipe (module Work) in
-  let%sub workers =
+  let%sub _workers =
     Bonsai.assoc
       (module String)
       available
@@ -127,40 +127,29 @@ let component =
           let%arr write = write
           and host = host
           and set_working = set_working in
-          let rec do_the_writing =
-            lazy
-              (write
-                 { Work.host
-                 ; f =
-                     (fun cb ->
-                       let%bind.Effect () = set_working true in
-                       let%bind.Effect the_result = cb host in
-                       let%bind.Effect () = set_working false in
-                       let%map.Effect () = Effect.lazy_ do_the_writing in
-                       the_result)
-                 })
-          in
-          Effect.lazy_ do_the_writing
+          write
+            { Work.host
+            ; f =
+                (fun cb ->
+                  let%bind.Effect () = set_working true in
+                  let%bind.Effect the_result = cb host in
+                  let%bind.Effect () = set_working false in
+                  Effect.return the_result)
+            }
         in
-        let%sub () = Bonsai.Edge.lifecycle ~on_activate:register_self () in
+        let%sub () =
+          Bonsai.Edge.on_change
+            working
+            ~equal:equal_bool
+            ~callback:
+              (let%map register_self = register_self in
+               function
+               | true -> Effect.Ignore
+               | false -> register_self)
+        in
         return working)
   in
-  let%sub view =
-    let%sub theme = View.Theme.current in
-    let%arr textbox = textbox
-    and host_status = host_status
-    and theme = theme
-    and workers = workers
-    and inject_host_status = inject_host_status in
-    Vdom.Node.div
-      [ View.button theme "refresh" ~on_click:(inject_host_status `Check_all)
-      ; textbox
-      ; Vdom.Node.sexp_for_debugging
-          [%sexp (host_status : [ `Bad | `Good | `Pending | `Good_pending ] Host.Map.t)]
-      ; Vdom.Node.sexp_for_debugging [%sexp (workers : bool Host.Map.t)]
-      ]
-  in
-  let%arr view = view
+  let%arr view = textbox
   and read = read in
   { view; request = read }
 ;;

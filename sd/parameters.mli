@@ -5,7 +5,7 @@ module Form := Bonsai_web_ui_form
 
 type t =
   { form : Txt2img.Query.t Form.t
-  ; form_view : on_submit:unit Effect.t -> Vdom.Node.t
+  ; form_view : on_submit:unit Effect.t -> hosts_panel:Vdom.Node.t -> Vdom.Node.t
   }
 
 val component : request_host : Hosts.request_host Value.t -> t Computation.t

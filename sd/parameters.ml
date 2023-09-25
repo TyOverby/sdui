@@ -6,7 +6,7 @@ module Form = Bonsai_web_ui_form
 
 type t =
   { form : Txt2img.Query.t Form.t
-  ; form_view : on_submit:unit Effect.t -> Vdom.Node.t
+  ; form_view : on_submit:unit Effect.t -> hosts_panel:Vdom.Node.t -> Vdom.Node.t
   }
 
 module Size_presets = struct
@@ -251,7 +251,7 @@ let component ~(request_host : Hosts.request_host Value.t) =
     and hr_form_view = hr_form_view
     and collapsed = collapsed
     and toggle_collapsed = toggle_collapsed in
-    fun ~on_submit ->
+    fun ~on_submit ~hosts_panel ->
       let hijack_ctrl_enter =
         Vdom.Attr.on_keypress (fun evt ->
           let open Js_of_ocaml in
@@ -275,8 +275,10 @@ let component ~(request_host : Hosts.request_host Value.t) =
         in
         View.hbox
           ~attrs
-          [ positive_prompt_view
+          [ 
+           positive_prompt_view
           ; negative_prompt_view
+          ; hosts_panel
           ; View.vbox
               ~cross_axis_alignment:Stretch
               [ View.hbox
