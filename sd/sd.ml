@@ -58,7 +58,5 @@ let component =
   and gallery = gallery
   and hosts_view = hosts_view in
   let on_submit = Option.value submit_effect ~default:Effect.Ignore in
-  Vdom.Node.div [  form_view ~on_submit ~hosts_panel:hosts_view; gallery ]
+  Vdom.Node.div [ form_view ~on_submit ~hosts_panel:hosts_view; gallery ]
 ;;
-
-

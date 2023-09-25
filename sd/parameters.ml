@@ -275,8 +275,7 @@ let component ~(request_host : Hosts.request_host Value.t) =
         in
         View.hbox
           ~attrs
-          [ 
-           positive_prompt_view
+          [ positive_prompt_view
           ; negative_prompt_view
           ; hosts_panel
           ; View.vbox
@@ -294,8 +293,9 @@ let component ~(request_host : Hosts.request_host Value.t) =
               ; View.hbox
                   ~main_axis_alignment:Space_between
                   [ seed_form_view; Submit_button.make theme ~on_submit ]
-              ; hr_form_view
-              ; Form.view_as_vdom styles_form
+              ; View.hbox
+                  ~main_axis_alignment:Space_between
+                  (hr_form_view :: (styles_form |> Form.view |> Form.View.to_vdom_plain))
               ]
           ]
       in

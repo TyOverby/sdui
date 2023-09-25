@@ -7,6 +7,6 @@ type t =
   }
 
 val component
-  :  request_host : Hosts.request_host Value.t
+  :  request_host:Hosts.request_host Value.t
   -> set_params:(Txt2img.Query.t -> unit Effect.t) Value.t
   -> t Computation.t

@@ -47,6 +47,23 @@ let all ~(request_host : Hosts.request_host Value.t) =
   return r
 ;;
 
+module Style =
+  [%css
+  stylesheet
+    {|
+  .dropdown {
+    background: var(--bg);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+  }
+
+  .dropdown:focus-within {
+    outline: var(--touch) solid 3px;
+    outline-offset: -2px;
+  }
+|}]
+
 let form ~request_host =
   let%sub all = all ~request_host in
   let%sub all =
@@ -54,6 +71,24 @@ let form ~request_host =
     | Error _ -> []
     | Ok all -> all
   in
-  let%sub form = Form.Elements.Typeahead.list (module String) ~all_options:all in
+  let%sub form =
+    let%sub extra_attrs =
+      let%sub theme = View.Theme.current in
+      let%arr theme = theme in
+      let extreme = View.extreme_colors theme in
+      [ Style.dropdown
+      ; Style.Variables.set_all
+          ~bg:(Css_gen.Color.to_string_css extreme.background)
+          ~fg:(Css_gen.Color.to_string_css extreme.foreground)
+          ~border:(Css_gen.Color.to_string_css (View.extreme_primary_border_color theme))
+          ~touch:"rgb(27, 161, 242)"
+      ]
+    in
+    Form.Elements.Typeahead.list
+      (module String)
+      ~placeholder:"STYLES"
+      ~extra_attrs
+      ~all_options:all
+  in
   return form
 ;;

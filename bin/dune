@@ -2,7 +2,6 @@
  (names main)
  (libraries
   sd
-  txt
   shared
   bonsai.web
   async_js
@@ -11,6 +10,8 @@
   bonsai.vdom_node_with_map_children
   bonsai.kado
   virtual_dom.svg)
+ (js_of_ocaml
+  (link_flags :standard --no-sourcemap))
  (modes js)
  (preprocess
   (pps
