@@ -27,13 +27,20 @@ let health_check host =
   | Error _ -> `Bad
 ;;
 
+let find_permutation map permutations =
+  List.map permutations ~f:(fun permutation ->
+    Option.map (Map.find map permutation) ~f:(fun result -> permutation, result))
+  |> List.reduce ~f:Option.first_some
+  |> Option.join
+;;
+
 let component =
   let%sub hosts, textbox = Custom_form_elements.textarea ~label:"hosts" () in
   let%sub () =
     Bonsai.Edge.lifecycle
       ~on_activate:
         (let%map hosts = hosts in
-         Form.set hosts "http://localhost:7860")
+         Form.set hosts "localhost")
       ()
   in
   let%sub hosts =
@@ -45,6 +52,13 @@ let component =
     |> List.filter ~f:(function
       | "" -> false
       | _ -> true)
+    |> List.map ~f:(fun s ->
+      match String.split s ~on:':' with
+      | [ ("http" | "https"); _name; _port ] -> s
+      | [ ("http" | "https"); _name ] -> s ^ ":7860"
+      | [ _name; _port ] -> "http://" ^ s
+      | [ _name ] -> "http://" ^ s ^ ":7860"
+      | _ -> s)
   in
   let%sub host_status, inject_host_status =
     Bonsai.state_machine1
@@ -117,7 +131,7 @@ let component =
     return good_hosts
   in
   let%sub write, read = Bonsai_extra.pipe (module Work) in
-  let%sub _workers =
+  let%sub workers =
     Bonsai.assoc
       (module String)
       available
@@ -153,18 +167,37 @@ let component =
     let%sub theme = View.Theme.current in
     let%arr textbox = textbox
     and host_status = host_status
+    and workers = workers
     and theme = theme in
     let highlight s =
       String.split_lines s
       |> List.map ~f:(fun line ->
-        let color =
-          match Map.find host_status (String.strip line) with
-          | None -> (View.extreme_colors theme).foreground
-          | Some (`Bad | `Pending) -> (View.intent_colors theme Warning).background
-          | Some (`Good | `Good_pending) -> (View.intent_colors theme Success).background
+        let color, busy =
+          let stripped = String.strip line in
+          let lookup =
+            find_permutation
+              host_status
+              [ stripped
+              ; "http://" ^ stripped
+              ; "http://" ^ stripped ^ ":7860"
+              ; stripped ^ ":7860"
+              ]
+          in
+          match lookup with
+          | None -> (View.extreme_colors theme).foreground, false
+          | Some (_host, (`Bad | `Pending)) ->
+            let color = (View.intent_colors theme Warning).background in
+            color, false
+          | Some (host, (`Good | `Good_pending)) ->
+            let color = (View.intent_colors theme Success).background in
+            let busy = Map.find workers host |> Option.value ~default:true in
+            color, busy
         in
         Vdom.Node.span
-          ~attrs:[ Vdom.Attr.style (Css_gen.color color) ]
+          ~attrs:
+            [ Vdom.Attr.style (Css_gen.color color)
+            ; (if busy then Vdom.Attr.style (Css_gen.opacity 0.5) else Vdom.Attr.empty)
+            ]
           [ Vdom.Node.text line ])
       |> List.intersperse ~sep:(Vdom.Node.text "\n")
     in

@@ -10,8 +10,6 @@ module Style = [%css stylesheet {|
   }
 |}]
 
-let _host_and_port = Value.return "http://localhost:7860"
-
 let blurry_transparent_background =
   View.Theme.override_constants_for_computation ~f:(fun constants ->
     let make_transparent pct c =
