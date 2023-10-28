@@ -275,8 +275,8 @@ let component ~(request_host : Hosts.request_host Value.t) =
         in
         View.hbox
           ~attrs
-          [ positive_prompt_view
-          ; negative_prompt_view
+          [ positive_prompt_view ()
+          ; negative_prompt_view ()
           ; hosts_panel
           ; View.vbox
               ~cross_axis_alignment:Stretch

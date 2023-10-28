@@ -1,3 +1,4 @@
+open! Core
 open! Bonsai_web
 
 module Kado_textarea =
@@ -84,27 +85,72 @@ module Kado_textarea =
     font-size: 0.8em !important;
   }
 
-  div.stack > pre {
+  div.stack > pre:not(.colorized) {
     visibility: hidden;
   }
 
   div.stack > textarea {
     overflow:clip;
   }
+
+  textarea.colorized {
+    background:transparent;
+    caret-color: var(--fg);
+    color: transparent;
+  }
+
+  .extra-dot {
+    color:transparent;
+  }
 |}]
 
 let touch = Css_gen.Color.to_string_css (`Hex "#1BA1F2")
 
-let textarea theme ~attrs ~label ~value ~on_change ~on_blur =
+let textarea ?colorize theme ~attrs ~label ~value ~on_change ~on_blur =
+  let has_colorize = Option.is_some colorize in
+  let fieldset_attrs =
+    [ Kado_textarea.cusom_textarea_fieldset
+    ; Kado_textarea.Variables.set_all
+        ~border:(Css_gen.Color.to_string_css (View.extreme_primary_border_color theme))
+        ~bg:(Css_gen.Color.to_string_css (View.extreme_colors theme).background)
+        ~fg:(Css_gen.Color.to_string_css (View.extreme_colors theme).foreground)
+        ~touch
+    ]
+  in
+  let textarea_attrs =
+    [ (if has_colorize then Kado_textarea.colorized else Vdom.Attr.empty)
+    ; Kado_textarea.custom_textarea
+    ; Vdom.Attr.value_prop value
+    ; Vdom.Attr.on_blur (fun _ -> on_blur)
+    ; Vdom.Attr.on_input (fun _ s -> on_change s)
+    ; Kado_textarea.Variables.set
+        ()
+        ~fg:(Css_gen.Color.to_string_css (View.extreme_colors theme).foreground)
+    ; Vdom.Attr.on_click (fun evt ->
+        let open Js_of_ocaml in
+        let r = Js.Optdef.to_option evt##.which in
+        match r with
+        | Some Dom_html.Middle_button ->
+          Js.Opt.iter evt##.target (fun element ->
+            Js.Opt.iter (Dom_html.CoerceTo.textarea element) (fun textarea ->
+              textarea##select));
+          Effect.Prevent_default
+        | _ -> Effect.Ignore)
+    ]
+  in
+  let extra_dot_for_pre =
+    if String.is_suffix value ~suffix:"\n"
+       || value |> String.for_all ~f:Char.is_whitespace
+    then Vdom.Node.span ~attrs:[ Kado_textarea.extra_dot ] [ Vdom.Node.text "." ]
+    else Vdom.Node.none
+  in
+  let pre_value =
+    match colorize with
+    | None -> [ Vdom.Node.text value ]
+    | Some f -> f value
+  in
   Vdom.Node.fieldset
-    ~attrs:
-      ([ Kado_textarea.cusom_textarea_fieldset
-       ; Kado_textarea.Variables.set_all
-           ~border:(Css_gen.Color.to_string_css (View.extreme_primary_border_color theme))
-           ~bg:(Css_gen.Color.to_string_css (View.extreme_colors theme).background)
-           ~touch
-       ]
-       @ attrs)
+    ~attrs:(fieldset_attrs @ attrs)
     [ (match label with
        | None -> Vdom.Node.none
        | Some label ->
@@ -113,25 +159,10 @@ let textarea theme ~attrs ~label ~value ~on_change ~on_blur =
            [ Vdom.Node.span [ Vdom.Node.text label ] ])
     ; Vdom.Node.div
         ~attrs:[ Kado_textarea.stack ]
-        [ Vdom.Node.pre [ Vdom.Node.text (value ^ ".") ]
-        ; Vdom.Node.textarea
-            ~attrs:
-              [ Kado_textarea.custom_textarea
-              ; Vdom.Attr.value_prop value
-              ; Vdom.Attr.on_blur (fun _ -> on_blur)
-              ; Vdom.Attr.on_input (fun _ s -> on_change s)
-              ; Vdom.Attr.on_click (fun evt ->
-                  let open Js_of_ocaml in
-                  let r = Js.Optdef.to_option evt##.which in
-                  match r with
-                  | Some Dom_html.Middle_button ->
-                    Js.Opt.iter evt##.target (fun element ->
-                      Js.Opt.iter (Dom_html.CoerceTo.textarea element) (fun textarea ->
-                        textarea##select));
-                    Effect.Prevent_default
-                  | _ -> Effect.Ignore)
-              ]
-            []
+        [ Vdom.Node.pre
+            ~attrs:[ (if has_colorize then Kado_textarea.colorized else Vdom.Attr.empty) ]
+            (pre_value @ [ extra_dot_for_pre ])
+        ; Vdom.Node.textarea ~attrs:textarea_attrs []
         ]
     ]
 ;;

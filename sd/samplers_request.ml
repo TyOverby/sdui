@@ -13,10 +13,11 @@ module Api_response = struct
 end
 
 let dispatch host_and_port =
-  let%bind.Deferred.Or_error response =
-    Async_js.Http.get (sprintf "%s/sdapi/v1/samplers" host_and_port)
-  in
   Deferred.Or_error.try_with (fun () ->
+    let%bind.Deferred response =
+      Async_js.Http.get (sprintf "%s/sdapi/v1/samplers" host_and_port)
+      |> Deferred.Or_error.ok_exn
+    in
     response
     |> Yojson.Safe.from_string
     |> Api_response.t_of_yojson

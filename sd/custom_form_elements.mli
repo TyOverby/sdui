@@ -7,7 +7,8 @@ val textarea
   -> ?attrs:Vdom.Attr.t list
   -> ?label:string
   -> unit
-  -> (string Form.t * Vdom.Node.t) Computation.t
+  -> (string Form.t * (?colorize:(string -> Vdom.Node.t list) -> unit -> Vdom.Node.t))
+     Computation.t
 
 val int_form
   :  ?input_attrs:Vdom.Attr.t list

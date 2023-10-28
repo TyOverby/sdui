@@ -100,7 +100,7 @@ let int_form
   form, view
 ;;
 
-let textarea theme ~attrs ~label ~value ~on_change ~on_blur =
+let textarea ?colorize theme ~attrs ~label ~value ~on_change ~on_blur =
   let extra_attrs =
     [ Label_modifications.muted_label
     ; Label_modifications.Variables.set_all
@@ -109,6 +109,7 @@ let textarea theme ~attrs ~label ~value ~on_change ~on_blur =
     ]
   in
   Shared.Raw_textarea.textarea
+    ?colorize
     theme
     ~attrs:(attrs @ extra_attrs)
     ~label
@@ -130,14 +131,14 @@ let textarea ?validate ?(attrs = []) ?label () =
     | None -> Effect.Ignore
     | Some f -> Effect.lazy_ (lazy (set_state (f state)))
   in
-  let view = textarea theme ~attrs ~label ~value:state ~on_change:set_state ~on_blur in
+  let view ?colorize ()= textarea theme ?colorize ~attrs ~label ~value:state ~on_change:set_state ~on_blur in
   let value =
     match validate with
     | None -> state
     | Some f -> f state
   in
   let form =
-    Form.Expert.create ~value:(Ok value) ~set:set_state ~view:(Form.View.of_vdom ~id view)
+    Form.Expert.create ~value:(Ok value) ~set:set_state ~view:(Form.View.of_vdom ~id (Vdom.Node.none))
   in
   form, view
 ;;

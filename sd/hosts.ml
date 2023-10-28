@@ -149,7 +149,28 @@ let component =
         in
         return working)
   in
-  let%arr view = textbox
+  let%sub view =
+    let%sub theme = View.Theme.current in
+    let%arr textbox = textbox
+    and host_status = host_status
+    and theme = theme in
+    let highlight s =
+      String.split_lines s
+      |> List.map ~f:(fun line ->
+        let color =
+          match Map.find host_status (String.strip line) with
+          | None -> (View.extreme_colors theme).foreground
+          | Some (`Bad | `Pending) -> (View.intent_colors theme Warning).background
+          | Some (`Good | `Good_pending) -> (View.intent_colors theme Success).background
+        in
+        Vdom.Node.span
+          ~attrs:[ Vdom.Attr.style (Css_gen.color color) ]
+          [ Vdom.Node.text line ])
+      |> List.intersperse ~sep:(Vdom.Node.text "\n")
+    in
+    textbox ~colorize:highlight ()
+  in
+  let%arr view = view
   and read = read in
   { view; request = read }
 ;;

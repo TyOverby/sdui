@@ -14,11 +14,12 @@ type t =
 [@@yojson.allow_extra_fields] [@@deriving of_yojson, sexp_of]
 
 let dispatch host_and_port =
-  let%bind.Deferred.Or_error response =
-    Async_js.Http.get
-      (sprintf "%s/sdapi/v1/progress?skip_current_image=false" host_and_port)
-  in
   Deferred.Or_error.try_with (fun () ->
+    let%bind.Deferred response =
+      sprintf "%s/sdapi/v1/progress?skip_current_image=false" host_and_port
+      |> Async_js.Http.get
+      |> Deferred.Or_error.ok_exn
+    in
     Yojson.Safe.from_string response |> t_of_yojson |> Deferred.return)
 ;;
 

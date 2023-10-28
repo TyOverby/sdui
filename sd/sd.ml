@@ -24,11 +24,11 @@ let blurry_transparent_background =
     { constants with
       primary =
         { constants.primary with
-          background = make_transparent 20 constants.primary.background
+          background = make_transparent 0 constants.primary.background
         }
     ; extreme =
         { constants.primary with
-          background = make_transparent 50 constants.extreme.background
+          background = make_transparent 0 constants.extreme.background
         }
     })
 ;;

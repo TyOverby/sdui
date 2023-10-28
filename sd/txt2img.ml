@@ -100,24 +100,37 @@ module Response = struct
   [@@yojson.allow_extra_fields] [@@deriving of_yojson, sexp_of]
 end
 
+let strip_images_field_from_json json =
+  let obj = Js_of_ocaml.Json.unsafe_input (Js_of_ocaml.Js.string json) in
+  let stripped = Js_of_ocaml.Js.Unsafe.get obj (Js_of_ocaml.Js.string "images") in
+  Js_of_ocaml.Js.Unsafe.set
+    obj
+    (Js_of_ocaml.Js.string "images")
+    ((new%js Js_of_ocaml.Js.array_empty ));
+  Js_of_ocaml.Json.output obj |> Js_of_ocaml.Js.to_string, Js_of_ocaml.Js.to_array stripped |> Array.to_list |>  List.map ~f:Js_of_ocaml.Js.to_string 
+;;
+
 let dispatch (host_and_port, query) =
-  let%bind.Deferred.Or_error response =
-    let body =
-      Async_js.Http.Post_body.String
-        (query
-         |> Query.Underlying.of_query
-         |> Query.Underlying.yojson_of_t
-         |> Yojson_safe.to_string)
-    in
-    Async_js.Http.request
-      ~response_type:Default
-      ~headers:[ "Content-Type", "application/json" ]
-      (Post (Some body))
-      ~url:(sprintf "%s/sdapi/v1/txt2img" host_and_port)
-  in
   Deferred.Or_error.try_with (fun () ->
-    Yojson.Safe.from_string response.content
+    let%bind.Deferred response =
+      let body =
+        Async_js.Http.Post_body.String
+          (query
+           |> Query.Underlying.of_query
+           |> Query.Underlying.yojson_of_t
+           |> Yojson_safe.to_string)
+      in
+      Async_js.Http.request
+        ~response_type:Default
+        ~headers:[ "Content-Type", "application/json" ]
+        (Post (Some body))
+        ~url:(sprintf "%s/sdapi/v1/txt2img" host_and_port)
+      |> Deferred.Or_error.ok_exn
+    in
+    let response_content, images = strip_images_field_from_json response.content in
+    Yojson.Safe.from_string response_content
     |> Response.t_of_yojson
+    |> (fun response -> {response with Response.images})
     |> (fun { Response.images; parameters; info } ->
          let info =
            { Info.seed = Int63.of_int64_trunc info.seed
