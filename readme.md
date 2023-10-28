@@ -10,11 +10,18 @@ with a focus on:
 ## Setup
 
 To try `sdui`, you'll need to [install and run Stable Diffusion locally](https://github.com/AUTOMATIC1111/stable-diffusion-webui#installation-and-running) locally.
-You should run the `./webui.sh` script with the following commandline arguments:
+You should run the `webui.sh` script like so:
+
+```bash
+./webui --api --cors-allow-origins=* --port 7860 --xformers
+```
 
 - `--api`: since we're using an alternative frontend
 - `--cors-allow-origins=*`: so that `sdui` doesn't run into CORS issues
 - `--port 7860`: `sdui` expects a process to be running on `http://localhost:7860`
+- `--xformers`: use the xformers package for optimization
+
+Additionally you may wish to pass
 - `--lowvram`: if your computer has low/limited RAM
 
 ## Building
