@@ -145,7 +145,7 @@ let validate_prompt prompt =
   prompt |> String.split_lines |> List.map ~f:translate_line |> String.concat ~sep:"\n"
 ;;
 
-let component ~(request_host : Hosts.request_host Value.t) =
+let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
   let width_height_form title =
     Custom_form_elements.int_form
       ~title
@@ -212,6 +212,7 @@ let component ~(request_host : Hosts.request_host Value.t) =
   let%sub hr_form, hr_form_view =
     Custom_form_elements.bool_form ~title:"hi res" ~default:false ()
   in
+  let%sub _models_form, models_form_view = Models.form ~request_host ~available_hosts in
   let%sub form =
     Form.Typed.Record.make
       (module struct
@@ -250,7 +251,8 @@ let component ~(request_host : Hosts.request_host Value.t) =
     and styles_form = styles_form
     and hr_form_view = hr_form_view
     and collapsed = collapsed
-    and toggle_collapsed = toggle_collapsed in
+    and toggle_collapsed = toggle_collapsed
+    and models_form_view = models_form_view in
     fun ~on_submit ~hosts_panel ->
       let hijack_ctrl_enter =
         Vdom.Attr.on_keypress (fun evt ->
@@ -293,6 +295,7 @@ let component ~(request_host : Hosts.request_host Value.t) =
               ; View.hbox
                   ~main_axis_alignment:Space_between
                   [ seed_form_view; Submit_button.make theme ~on_submit ]
+              ; models_form_view
               ; View.hbox
                   ~main_axis_alignment:Space_between
                   (hr_form_view :: (styles_form |> Form.view |> Form.View.to_vdom_plain))

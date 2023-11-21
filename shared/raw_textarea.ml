@@ -93,6 +93,10 @@ module Kado_textarea =
     overflow:clip;
   }
 
+  pre.colorized > * {
+    transition: 0.25s linear opacity; 
+  }
+
   textarea.colorized {
     background:transparent;
     caret-color: var(--fg);

@@ -18,6 +18,7 @@ type request_host = Work.t Effect.t
 type t =
   { view : Vdom.Node.t
   ; request : request_host
+  ; available_hosts : String.Set.t
   }
 
 let health_check host =
@@ -184,8 +185,7 @@ let component =
               ]
           in
           match lookup with
-          | None -> (View.extreme_colors theme).foreground, false
-          | Some (_host, (`Bad | `Pending)) ->
+          | None | Some (_, (`Bad | `Pending)) ->
             let color = (View.intent_colors theme Warning).background in
             color, false
           | Some (host, (`Good | `Good_pending)) ->
@@ -204,6 +204,7 @@ let component =
     textbox ~colorize:highlight ()
   in
   let%arr view = view
-  and read = read in
-  { view; request = read }
+  and read = read
+  and available = available in
+  { view; request = read; available_hosts = Map.key_set available }
 ;;

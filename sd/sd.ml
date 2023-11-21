@@ -32,9 +32,11 @@ let blurry_transparent_background =
 ;;
 
 let component =
-  let%sub { view = hosts_view; request = request_host } = Hosts.component in
+  let%sub { view = hosts_view; request = request_host; available_hosts } =
+    Hosts.component
+  in
   let%sub { form; form_view } =
-    blurry_transparent_background (Parameters.component ~request_host)
+    blurry_transparent_background (Parameters.component ~request_host ~available_hosts)
   in
   let%sub { queue_request; view = gallery } =
     Gallery2.component ~request_host ~set_params:(form >>| Form.set)

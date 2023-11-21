@@ -15,6 +15,7 @@ type request_host = Work.t Effect.t
 type t =
   { view : Vdom.Node.t
   ; request : request_host
+  ; available_hosts: String.Set.t
   }
 
 val component : t Computation.t

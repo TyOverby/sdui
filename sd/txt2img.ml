@@ -38,6 +38,7 @@ module Query = struct
       ; width : int
       ; height : int
       ; steps : int
+      ; hr_second_pass_steps : int [@key "hr_second_pass_steps"]
       ; cfg_scale : int [@key "cfg_scale"]
       ; sampler : Samplers.t
       ; sampler_index : Samplers.t [@key "sampler_index"]
@@ -61,6 +62,7 @@ module Query = struct
       ; width = Int63.to_int_exn query.width
       ; height = Int63.to_int_exn query.height
       ; steps = Int63.to_int_exn query.steps
+      ; hr_second_pass_steps = Int63.to_int_exn query.steps / 4
       ; cfg_scale = Int63.to_int_exn query.cfg_scale
       ; sampler = query.sampler
       ; sampler_index = query.sampler
@@ -106,8 +108,11 @@ let strip_images_field_from_json json =
   Js_of_ocaml.Js.Unsafe.set
     obj
     (Js_of_ocaml.Js.string "images")
-    ((new%js Js_of_ocaml.Js.array_empty ));
-  Js_of_ocaml.Json.output obj |> Js_of_ocaml.Js.to_string, Js_of_ocaml.Js.to_array stripped |> Array.to_list |>  List.map ~f:Js_of_ocaml.Js.to_string 
+    (new%js Js_of_ocaml.Js.array_empty);
+  ( Js_of_ocaml.Json.output obj |> Js_of_ocaml.Js.to_string
+  , Js_of_ocaml.Js.to_array stripped
+    |> Array.to_list
+    |> List.map ~f:Js_of_ocaml.Js.to_string )
 ;;
 
 let dispatch (host_and_port, query) =
@@ -130,7 +135,7 @@ let dispatch (host_and_port, query) =
     let response_content, images = strip_images_field_from_json response.content in
     Yojson.Safe.from_string response_content
     |> Response.t_of_yojson
-    |> (fun response -> {response with Response.images})
+    |> (fun response -> { response with Response.images })
     |> (fun { Response.images; parameters; info } ->
          let info =
            { Info.seed = Int63.of_int64_trunc info.seed
