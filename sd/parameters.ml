@@ -229,6 +229,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
           | Steps -> return sampling_steps
           | Sampler -> return sampler_form
           | Seed -> return seed_form
+          | Subseed_strength -> Bonsai.const (Form.return 0.0)
           | Styles -> return styles_form
           | Enable_hr -> return hr_form
         ;;

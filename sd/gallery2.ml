@@ -50,6 +50,7 @@ module Style =
 
   .image-wrapper.upscaling > img {
     filter: blur(10px);
+    filter: unset;
   }
 
   .icon-button  {
@@ -81,9 +82,11 @@ module Style =
     bottom: 6px;
     left: 6px;
     right: 6px;
-    height: 25%;
+    max-height: 25%;
+    max-width: 100%;
     position: absolute;
     gap:4px;
+
   }
 
   .choice-container > * {
@@ -119,7 +122,16 @@ let icon_svg ~maximize content =
     ()
 ;;
 
-let image_wrapper ~upscaling ~remove ~set_params ~duplicate ~upscale ~aspect_ratio image =
+let image_wrapper
+  ~upscaling
+  ~remove
+  ~set_params
+  ~duplicate
+  ~similar
+  ~upscale
+  ~aspect_ratio
+  image
+  =
   let remove_btn =
     Vdom.Node.div
       ~attrs:
@@ -145,6 +157,14 @@ let image_wrapper ~upscaling ~remove ~set_params ~duplicate ~upscale ~aspect_rat
           {| <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/> |}
       ]
   in
+  let similar_btn =
+    Vdom.Node.div
+      ~attrs:[ Style.icon_button; Vdom.Attr.on_click (fun _ -> similar) ]
+      [ icon_svg
+          ~maximize:true
+          {| <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/> |}
+      ]
+  in
   let upscale_btn =
     match upscale with
     | None -> Vdom.Node.none
@@ -167,7 +187,7 @@ let image_wrapper ~upscaling ~remove ~set_params ~duplicate ~upscale ~aspect_rat
     ; set_params_btn
     ; View.hbox
         ~attrs:[ Style.choice_container ]
-        [ upscale_btn; duplicate_btn; remove_btn ]
+        [ upscale_btn; duplicate_btn; similar_btn; remove_btn ]
     ]
 ;;
 
@@ -254,6 +274,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~set_params =
             ~remove
             ~set_params:(set_params params)
             ~duplicate:Effect.Ignore
+            ~similar:Effect.Ignore
             ~upscale:None
             ~aspect_ratio
             (Vdom.Node.text (Sexp.to_string_hum [%sexp (params : Txt2img.Query.t)]))
@@ -275,20 +296,13 @@ let component ~(request_host : Hosts.request_host Value.t) ~set_params =
             in
             vdom, aspect_ratio
           in
-          let%arr idx = idx
-          and info = info
-          and image = image
-          and set_state = set_state
-          and upscaling = upscaling
-          and params = params
-          and image_vdom, aspect_ratio = image_vdom_and_aspect_ratio
-          and set_params = set_params
-          and modify_images = modify_images
-          and dispatch = dispatch in
-          let remove = modify_images (`Remove idx) in
-          let set_params = set_params (Txt2img.Query.apply_info params info) in
-          let duplicate = modify_images (`Enqueue (params, 1)) in
-          let upscale =
+          let%sub upscale =
+            let%arr info = info
+            and upscaling = upscaling
+            and dispatch = dispatch
+            and set_state = set_state
+            and image = image
+            and params = params in
             match info.enable_hr, upscaling with
             | true, _ | _, `Upscaling -> None
             | _ ->
@@ -298,12 +312,36 @@ let component ~(request_host : Hosts.request_host Value.t) ~set_params =
               |> Effect.lazy_
               |> Some
           in
+          let%sub () =
+            Bonsai_extra.exactly_once (upscale >>| Option.value ~default:Effect.Ignore)
+          in
+          let%arr idx = idx
+          and info = info
+          and upscaling = upscaling
+          and params = params
+          and image_vdom, aspect_ratio = image_vdom_and_aspect_ratio
+          and set_params = set_params
+          and modify_images = modify_images
+          and upscale = upscale in
+          let remove = modify_images (`Remove idx) in
+          let set_params = set_params (Txt2img.Query.apply_info params info) in
+          let duplicate = modify_images (`Enqueue (params, 1)) in
+          let similar =
+            let params =
+              { (Txt2img.Query.apply_info params info) with
+                subseed_strength = params.subseed_strength +. 0.05
+              ; enable_hr = false
+              }
+            in
+            modify_images (`Enqueue (params, 4))
+          in
           image_wrapper
             ~upscaling
             ~remove
             ~set_params
             ~upscale
             ~duplicate
+            ~similar
             ~aspect_ratio
             image_vdom
         | `Error e ->

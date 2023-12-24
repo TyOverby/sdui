@@ -8,7 +8,9 @@
   bonsai.web_ui_form
   bonsai.vdom_node_with_map_children
   bonsai.kado
-  virtual_dom.svg)
+  virtual_dom.svg
+  bonsai.feather_icon
+  )
  (preprocess
   (pps
    ppx_jane

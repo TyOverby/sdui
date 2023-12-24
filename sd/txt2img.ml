@@ -22,6 +22,7 @@ module Query = struct
     ; cfg_scale : Int63.t
     ; sampler : Samplers.t
     ; seed : Int63.t
+    ; subseed_strength : float
     ; styles : Styles.t
     ; enable_hr : bool
     }
@@ -44,6 +45,7 @@ module Query = struct
       ; sampler_index : Samplers.t [@key "sampler_index"]
       ; sampler_name : Samplers.t [@key "sampler_name"]
       ; seed : int64
+      ; subseed_strength : float [@key "subseed_strength"]
       ; styles : Styles.t
       ; enable_hr : bool
       }
@@ -68,6 +70,7 @@ module Query = struct
       ; sampler_index = query.sampler
       ; sampler_name = query.sampler
       ; seed = Int63.to_int64 query.seed
+      ; subseed_strength = query.subseed_strength
       ; styles = query.styles
       ; enable_hr = query.enable_hr
       }
