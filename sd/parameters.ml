@@ -155,6 +155,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
       ~length:(`Em 4)
       ~min:(Int63.of_int 128)
       ~max:(Int63.of_int 2048)
+      ~input_attrs:[Vdom.Attr.create "data-kind" title]
       ()
   in
   let min_1_form ~default ~max title =
@@ -187,19 +188,30 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
   in
   let%sub width_form, width_form_view = width_height_form "width" in
   let%sub height_form, height_form_view = width_height_form "height" in
+  let%sub data_url, data_url_view =
+    Custom_form_elements.textarea
+      ~validate:Fn.id
+      ~container_attrs:
+        [ Vdom.Attr.style (Css_gen.max_width (`Px 30))
+        ; Vdom.Attr.style (Css_gen.max_height (`Px 100))
+        ; Vdom.Attr.style (Css_gen.min_width (`Px 100))
+        ; Vdom.Attr.style (Css_gen.width (`Px 100))
+        ; Vdom.Attr.style (Css_gen.display `None)
+        ]
+      ~textarea_attrs:[ Vdom.Attr.create "data-kind" "data-url" ]
+      ~label:"data url"
+      ()
+  in
   let%sub positive_prompt, positive_prompt_view =
     Custom_form_elements.textarea
       ~validate:validate_prompt
-      ~attrs:[ Vdom.Attr.style (Css_gen.flex_item ~grow:4.0 ()) ]
+      ~container_attrs:[ Vdom.Attr.style (Css_gen.flex_item ~grow:4.0 ()) ]
+      ~textarea_attrs:[ Vdom.Attr.create "data-kind" "prompt" ]
       ~label:"positive prompt"
       ()
   in
   let%sub negative_prompt, negative_prompt_view =
-    Custom_form_elements.textarea
-      ~validate:validate_prompt
-      ~attrs:[]
-      ~label:"negative prompt"
-      ()
+    Custom_form_elements.textarea ~validate:validate_prompt ~label:"negative prompt" ()
   in
   let%sub sampling_steps, sampling_steps_view =
     min_1_form ~default:(Int63.of_int 25) ~max:150 "steps"
@@ -232,6 +244,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
           | Subseed_strength -> Bonsai.const (Form.return 0.0)
           | Styles -> return styles_form
           | Enable_hr -> return hr_form
+          | Data_url -> return data_url
         ;;
       end)
   in
@@ -252,6 +265,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
     and styles_form = styles_form
     and hr_form_view = hr_form_view
     and collapsed = collapsed
+    and data_url_view = data_url_view
     and toggle_collapsed = toggle_collapsed
     and models_form_view = models_form_view in
     fun ~on_submit ~hosts_panel ->
@@ -279,6 +293,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
         View.hbox
           ~attrs
           [ positive_prompt_view ()
+          ; data_url_view ()
           ; negative_prompt_view ()
           ; hosts_panel
           ; View.vbox

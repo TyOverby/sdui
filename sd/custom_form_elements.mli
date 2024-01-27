@@ -4,7 +4,8 @@ module Form = Bonsai_web_ui_form
 
 val textarea
   :  ?validate:(string -> string)
-  -> ?attrs:Vdom.Attr.t list
+  -> ?container_attrs:Vdom.Attr.t list
+  -> ?textarea_attrs:Vdom.Attr.t list
   -> ?label:string
   -> unit
   -> (string Form.t * (?colorize:(string -> Vdom.Node.t list) -> unit -> Vdom.Node.t))

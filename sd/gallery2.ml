@@ -235,13 +235,13 @@ let component ~(request_host : Hosts.request_host Value.t) ~set_params =
             Effect.ignore_m
             @@ work.f (fun host_and_port ->
               match%bind.Effect Txt2img.dispatch ~host_and_port params with
-              | Ok [ (img, info) ] ->
-                let%map.Effect () = set_state (`Done (img, info, `Not_upscaling)) in
-                Ok ()
-              | Ok [] | Ok (_ :: _ :: _) ->
-                let error = Error.of_string "only one image expected" in
+              | Ok [] ->
+                let error = Error.of_string "at least one image expected" in
                 let%map.Effect () = set_state (`Error error) in
                 Error error
+              | Ok ((img, info) :: _) ->
+                let%map.Effect () = set_state (`Done (img, info, `Not_upscaling)) in
+                Ok ()
               | Error e ->
                 let%map.Effect () = set_state (`Error e) in
                 Error e)
@@ -277,7 +277,8 @@ let component ~(request_host : Hosts.request_host Value.t) ~set_params =
             ~similar:Effect.Ignore
             ~upscale:None
             ~aspect_ratio
-            (Vdom.Node.text (Sexp.to_string_hum [%sexp (params : Txt2img.Query.t)]))
+            (Vdom.Node.text "generating...")
+            (*Vdom.Node.text (Sexp.to_string_hum [%sexp (params : Txt2img.Query.t)])*)
         | `Done (image, info, upscaling) ->
           let%sub image_vdom_and_aspect_ratio =
             let%arr image = image
@@ -346,7 +347,8 @@ let component ~(request_host : Hosts.request_host Value.t) ~set_params =
             image_vdom
         | `Error e ->
           let%arr e = e in
-          Vdom.Node.sexp_for_debugging ([%sexp_of: Error.t] e))
+          Vdom.Node.text "generating...")
+          (* Vdom.Node.sexp_for_debugging ([%sexp_of: Error.t] e))*)
   in
   let%sub view =
     let%arr images = images in

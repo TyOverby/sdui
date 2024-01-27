@@ -23,6 +23,7 @@ module Query : sig
     ; subseed_strength: float
     ; styles : Styles.t
     ; enable_hr : bool
+    ; data_url : string
     }
   [@@deriving sexp, typed_fields]
 

@@ -110,7 +110,7 @@ module Kado_textarea =
 
 let touch = Css_gen.Color.to_string_css (`Hex "#1BA1F2")
 
-let textarea ?colorize theme ~attrs ~label ~value ~on_change ~on_blur =
+let textarea ?colorize theme ~container_attrs ~textarea_attrs ~label ~value ~on_change ~on_blur =
   let has_colorize = Option.is_some colorize in
   let fieldset_attrs =
     [ Kado_textarea.cusom_textarea_fieldset
@@ -140,7 +140,7 @@ let textarea ?colorize theme ~attrs ~label ~value ~on_change ~on_blur =
               textarea##select));
           Effect.Prevent_default
         | _ -> Effect.Ignore)
-    ]
+    ] @ textarea_attrs
   in
   let extra_dot_for_pre =
     if String.is_suffix value ~suffix:"\n"
@@ -154,7 +154,7 @@ let textarea ?colorize theme ~attrs ~label ~value ~on_change ~on_blur =
     | Some f -> f value
   in
   Vdom.Node.fieldset
-    ~attrs:(fieldset_attrs @ attrs)
+    ~attrs:(fieldset_attrs @ container_attrs)
     [ (match label with
        | None -> Vdom.Node.none
        | Some label ->

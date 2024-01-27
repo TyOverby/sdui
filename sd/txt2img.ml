@@ -25,11 +25,58 @@ module Query = struct
     ; subseed_strength : float
     ; styles : Styles.t
     ; enable_hr : bool
+    ; data_url : string
     }
   [@@deriving sexp, typed_fields]
 
   module Underlying = struct
     type query = t
+
+    module Ctrlnet = struct
+      type arg =
+        { enabled : bool
+        ; module_ : string [@key "module"]
+        ; model : string
+        ; weight : float
+        ; image : string
+        ; resize_mode : int [@key "resize_mode"]
+        ; lowvram : bool
+        ; processor_res : int [@key "processor_res"]
+        ; threshold_a : int [@key "threshold_a"]
+        ; threshold_b : int [@key "threshold_b"]
+        ; guidance_start : float [@key "guidance_start"]
+        ; guidance_end : float [@key "guidance_end"]
+        ; control_mode : int [@key "control_mode"]
+        ; pixel_perfect : bool [@key "pixel_perfect"]
+        }
+      [@@deriving yojson_of, sexp]
+
+      type mid = { args : arg list } [@@deriving yojson_of, sexp]
+      type high = { controlnet : mid } [@@deriving yojson_of, sexp]
+
+      let create image =
+        { controlnet =
+            { args =
+                [ { pixel_perfect = false
+                  ; control_mode = 0
+                  ; guidance_start = 0.0
+                  ; guidance_end = 0.8
+                  ; threshold_a = 64
+                  ; threshold_b = 64
+                  ; processor_res = 64
+                  ; lowvram = false
+                  ; resize_mode = 1
+                  ; image
+                  ; weight = 1.0
+                  ; model = "control_sd15_depth [fef5e48e]"
+                  ; module_ = "depth_zoe"
+                  ; enabled = true
+                  }
+                ]
+            }
+        }
+      ;;
+    end
 
     type t =
       { prompt : string
@@ -48,6 +95,7 @@ module Query = struct
       ; subseed_strength : float [@key "subseed_strength"]
       ; styles : Styles.t
       ; enable_hr : bool
+      ; always_on_scripts : Ctrlnet.high option [@key "alwayson_scripts"] [@option]
       }
     [@@deriving yojson_of, sexp, typed_fields]
 
@@ -57,6 +105,11 @@ module Query = struct
     ;;
 
     let of_query (query : query) : t =
+      let always_on_scripts =
+        match String.strip query.data_url with
+        | "" -> None
+        | data_url -> Some (Ctrlnet.create data_url)
+      in
       { prompt = query.prompt
       ; negative_prompt = query.negative_prompt
       ; hr_prompt = query.prompt
@@ -73,6 +126,7 @@ module Query = struct
       ; subseed_strength = query.subseed_strength
       ; styles = query.styles
       ; enable_hr = query.enable_hr
+      ; always_on_scripts
       }
     ;;
   end
