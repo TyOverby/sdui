@@ -155,7 +155,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
       ~length:(`Em 4)
       ~min:(Int63.of_int 128)
       ~max:(Int63.of_int 2048)
-      ~input_attrs:[Vdom.Attr.create "data-kind" title]
+      ~input_attrs:[ Vdom.Attr.create "data-kind" title ]
       ()
   in
   let min_1_form ~default ~max title =
@@ -220,6 +220,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
     min_1_form ~default:(Int63.of_int 7) ~max:30 "cfg"
   in
   let%sub sampler_form, sampler_form_view = Samplers.form ~request_host in
+  let%sub upscaler_form, upscaler_form_view = Upscaler.form ~request_host in
   let%sub styles_form = Styles.form ~request_host in
   let%sub hr_form, hr_form_view =
     Custom_form_elements.bool_form ~title:"hi res" ~default:false ()
@@ -245,6 +246,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
           | Styles -> return styles_form
           | Enable_hr -> return hr_form
           | Data_url -> return data_url
+          | Hr_upscaler -> return upscaler_form
         ;;
       end)
   in
@@ -267,6 +269,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
     and collapsed = collapsed
     and data_url_view = data_url_view
     and toggle_collapsed = toggle_collapsed
+    and upscaler_form_view = upscaler_form_view
     and models_form_view = models_form_view in
     fun ~on_submit ~hosts_panel ->
       let hijack_ctrl_enter =
@@ -314,7 +317,8 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
               ; models_form_view
               ; View.hbox
                   ~main_axis_alignment:Space_between
-                  (hr_form_view :: (styles_form |> Form.view |> Form.View.to_vdom_plain))
+                  [ hr_form_view; upscaler_form_view ]
+              ; View.hbox (styles_form |> Form.view |> Form.View.to_vdom_plain)
               ]
           ]
       in

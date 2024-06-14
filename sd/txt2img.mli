@@ -24,6 +24,7 @@ module Query : sig
     ; styles : Styles.t
     ; enable_hr : bool
     ; data_url : string
+    ; hr_upscaler : Upscaler.t
     }
   [@@deriving sexp, typed_fields]
 

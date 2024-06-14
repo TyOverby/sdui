@@ -282,7 +282,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~set_params =
         | `Done (image, info, upscaling) ->
           let%sub image_vdom_and_aspect_ratio =
             let%arr image = image
-            and info = info in
+             in
             let vdom = Base64_image.to_vdom image ~drop_size:true in
             let aspect_ratio =
               match Base64_image.size image with
@@ -291,7 +291,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~set_params =
                   (Css_gen.create
                      ~field:"aspect-ratio"
                      ~value:(sprintf "%s / %s" (Int63.to_string w) (Int63.to_string h)))
-                  (let w = if info.enable_hr then Int63.(w / of_int 2) else w in
+                  (
                    Css_gen.width (`Px (Int63.to_int_exn w)))
               | None -> Css_gen.empty
             in
@@ -346,7 +346,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~set_params =
             ~aspect_ratio
             image_vdom
         | `Error e ->
-          let%arr e = e in
+          let%arr _e = e in
           Vdom.Node.text "generating...")
           (* Vdom.Node.sexp_for_debugging ([%sexp_of: Error.t] e))*)
   in

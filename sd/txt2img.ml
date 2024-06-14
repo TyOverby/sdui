@@ -26,6 +26,7 @@ module Query = struct
     ; styles : Styles.t
     ; enable_hr : bool
     ; data_url : string
+    ; hr_upscaler : Upscaler.t
     }
   [@@deriving sexp, typed_fields]
 
@@ -81,16 +82,14 @@ module Query = struct
     type t =
       { prompt : string
       ; negative_prompt : string [@key "negative_prompt"]
-      ; hr_prompt : string [@key "hr_prompt"]
-      ; hr_negative_prompt : string [@key "hr_negative_prompt"]
       ; width : int
       ; height : int
       ; steps : int
-      ; hr_second_pass_steps : int [@key "hr_second_pass_steps"]
       ; cfg_scale : int [@key "cfg_scale"]
       ; sampler : Samplers.t
       ; sampler_index : Samplers.t [@key "sampler_index"]
       ; sampler_name : Samplers.t [@key "sampler_name"]
+      ; hr_upscaler : Upscaler.t [@key "hr_upscaler"]
       ; seed : int64
       ; subseed_strength : float [@key "subseed_strength"]
       ; styles : Styles.t
@@ -112,16 +111,14 @@ module Query = struct
       in
       { prompt = query.prompt
       ; negative_prompt = query.negative_prompt
-      ; hr_prompt = query.prompt
-      ; hr_negative_prompt = query.negative_prompt
       ; width = Int63.to_int_exn query.width
       ; height = Int63.to_int_exn query.height
       ; steps = Int63.to_int_exn query.steps
-      ; hr_second_pass_steps = Int63.to_int_exn query.steps / 4
       ; cfg_scale = Int63.to_int_exn query.cfg_scale
       ; sampler = query.sampler
       ; sampler_index = query.sampler
       ; sampler_name = query.sampler
+      ; hr_upscaler = query.hr_upscaler
       ; seed = Int63.to_int64 query.seed
       ; subseed_strength = query.subseed_strength
       ; styles = query.styles
