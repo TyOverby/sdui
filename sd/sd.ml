@@ -2,7 +2,21 @@ open! Core
 open! Bonsai_web.Cont
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
-module _ = Img2img
+module Base64_image = Base64_image
+module Custom_form_elements = Custom_form_elements
+module Hosts = Hosts
+module Img2img = Img2img
+module Txt2img = Txt2img
+module Models = Models
+module Parameters = Parameters
+module Preview = Preview
+module Progress = Progress
+module Request_queue = Request_queue
+module Samplers_request = Samplers_request
+module Samplers = Samplers
+module Styles = Styles
+module Upscaler = Upscaler
+module Gallery = Gallery
 
 module Style = [%css stylesheet {|
   body {

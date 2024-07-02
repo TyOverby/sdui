@@ -1,6 +1,9 @@
 open! Core
 open! Bonsai_web.Cont
-module Host = String
+
+module Host : sig
+  type t = private string
+end
 
 module Work : sig
   type t =

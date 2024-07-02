@@ -14,7 +14,7 @@ let all ~(request_host : Hosts.request_host Bonsai.t) graph =
       ~effect:
         (let%map request_host = request_host in
          let%bind.Effect work = request_host in
-         work.f (fun host -> dispatch host))
+         work.f (fun host -> dispatch (host :> string)))
       graph
   in
   Bonsai.Clock.every

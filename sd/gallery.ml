@@ -255,7 +255,7 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~set_params graph =
             let%bind.Effect work = request_host in
             Effect.ignore_m
             @@ work.f (fun host_and_port ->
-              match%bind.Effect Img2img.dispatch ~host_and_port params with
+              match%bind.Effect Img2img.dispatch ~host_and_port:(host_and_port :> string) params with
               | Ok [] ->
                 let error = Error.of_string "at least one image expected" in
                 let%map.Effect () = set_state (`Error error) in
@@ -274,7 +274,7 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~set_params graph =
             let%bind.Effect work = request_host in
             Effect.ignore_m
             @@ work.f (fun host_and_port ->
-              match%bind.Effect Txt2img.dispatch ~host_and_port params with
+              match%bind.Effect Txt2img.dispatch ~host_and_port:(host_and_port :> string) params with
               | Ok [] ->
                 let error = Error.of_string "at least one image expected" in
                 let%map.Effect () = set_state (`Error error) in

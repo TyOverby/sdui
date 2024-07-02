@@ -54,7 +54,7 @@ module Current_model = struct
         ~effect:
           (let%map request_host = request_host in
            let%bind.Effect work = request_host in
-           work.f (fun host -> dispatch_get host))
+           work.f (fun host -> dispatch_get (host :> string)))
         graph
     in
     Bonsai.Clock.every
@@ -100,7 +100,7 @@ module Model_list = struct
         ~effect:
           (let%map request_host = request_host in
            let%bind.Effect work = request_host in
-           work.f (fun host -> dispatch_get host))
+           work.f (fun host -> dispatch_get (host :> string)))
         graph
     in
     Bonsai.Clock.every

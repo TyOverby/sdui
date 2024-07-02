@@ -1,7 +1,11 @@
 open! Core
 open! Bonsai_web.Cont
 open Bonsai.Let_syntax
-module Host = String
+
+module Host = struct
+  type t = string
+end
+
 module Form = Bonsai_web_ui_form.With_manual_view
 
 module Work = struct
