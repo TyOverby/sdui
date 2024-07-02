@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web
+open! Bonsai_web.Cont
 open! Async_kernel
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form
@@ -223,8 +223,8 @@ module Key = struct
   include Comparable.Make (T)
 end
 
-let component ~(request_host : Hosts.request_host Value.t) ~set_params =
-  let%sub (_, images), modify_images =
+let component ~(request_host : Hosts.request_host Bonsai.t) ~set_params graph =
+  let model, modify_images =
     Bonsai.state_machine0
       ~default_model:(0, Map.empty (module Key))
       ~apply_action:(fun _ctx (next_idx, map) ->
@@ -234,19 +234,21 @@ let component ~(request_host : Hosts.request_host Value.t) ~set_params =
           |> List.fold ~init:(next_idx, map) ~f:(fun (next_idx, map) () ->
             next_idx + 1, Map.add_exn map ~key:(Id next_idx) ~data:params)
         | `Remove idx -> next_idx, Map.remove map idx)
-      ()
+      graph
   in
+  let%sub _, images = model in
   let%sub add_images =
     let%arr modify_images = modify_images in
     fun ~params ~count -> modify_images (`Enqueue (params, count))
   in
-  let%sub images =
+  let images =
     Bonsai.assoc
       (module Key)
       images
-      ~f:(fun idx params ->
-        let%sub state, set_state = Bonsai.state `Queued in
-        let%sub dispatch =
+      graph
+      ~f:(fun idx params graph ->
+        let state, set_state = Bonsai.state `Queued  graph in
+        let dispatch =
           let%arr request_host = request_host
           and set_state = set_state in
           fun params ->
@@ -265,13 +267,13 @@ let component ~(request_host : Hosts.request_host Value.t) ~set_params =
                 let%map.Effect () = set_state (`Error e) in
                 Error e)
         in
-        let%sub () =
+        let () =
           let on_activate =
             let%map params = params
             and dispatch = dispatch in
             dispatch params
           in
-          Bonsai.Edge.lifecycle ~on_activate ()
+          Bonsai.Edge.lifecycle ~on_activate graph
         in
         match%sub state with
         | `Queued ->

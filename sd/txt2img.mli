@@ -1,6 +1,6 @@
 open! Core
 open! Async_kernel
-open! Bonsai_web
+open! Bonsai_web.Cont
 
 module Info : sig
   type t =

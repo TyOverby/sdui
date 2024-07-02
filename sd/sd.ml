@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web
+open! Bonsai_web.Cont
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_automatic_view
 
@@ -31,19 +31,20 @@ let blurry_transparent_background =
     })
 ;;
 
-let component =
+let component graph =
   let%sub { view = hosts_view; request = request_host; available_hosts } =
-    Hosts.component
+    Hosts.component graph
   in
   let%sub { form; form_view } =
-    blurry_transparent_background (Parameters.component ~request_host ~available_hosts)
+    blurry_transparent_background
+      (Parameters.component ~request_host ~available_hosts)
+      graph
   in
   let%sub { queue_request; view = gallery } =
-    Gallery2.component ~request_host ~set_params:(form >>| Form.set)
+    Gallery2.component ~request_host ~set_params:(form >>| Form.set) graph
   in
   let%sub submit_effect =
-    let%sub form = Bonsai.yoink form in
-    let%arr form = form
+    let%arr form = Bonsai.peek form graph
     and queue_request = queue_request in
     Some
       (match%bind.Effect form with

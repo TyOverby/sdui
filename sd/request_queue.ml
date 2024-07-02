@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web
+open! Bonsai_web.Cont
 open Bonsai.Let_syntax
 
 module Style =
@@ -33,8 +33,8 @@ type t =
   ; queue_request : Txt2img.Query.t -> unit Effect.t
   }
 
-let component ~host_and_port ~add_images =
-  let%sub ongoing, inject_ongoing =
+let component ~host_and_port ~add_images graph =
+  let ongoing, inject_ongoing =
     Bonsai.state_machine0
       ~default_model:`Uninitialized
       ~apply_action:(fun _ctx state action ->
@@ -45,9 +45,9 @@ let component ~host_and_port ~add_images =
         | `Idle, `Dispatched params -> `Running params
         | _, `Dispatched _ ->
           raise_s [%message "New requests can only be dispatched while idle."])
-      ()
+      graph
   in
-  let%sub (_, requests), modify_requests =
+  let model, modify_requests =
     (* TODO: allow reordering requests by reinserting the key as the average of the new neighbor keys. *)
     Bonsai.state_machine0
       ~default_model:(0., Map.empty (module Float))
@@ -55,13 +55,14 @@ let component ~host_and_port ~add_images =
         function
         | `Queue params -> next_idx +. 100., Map.add_exn map ~key:next_idx ~data:params
         | `Pop idx -> next_idx, Map.remove map idx)
-      ()
+      graph
   in
-  let%sub next_request =
+  let%sub _, requests = model in
+  let next_request =
     let%arr requests = requests in
     Map.min_elt requests
   in
-  let%sub progress = Progress.state ~host_and_port in
+  let progress = Progress.state ~host_and_port graph in
   let%sub handle_queue_effect =
     let%arr ongoing = ongoing
     and inject_ongoing = inject_ongoing
@@ -90,18 +91,18 @@ let component ~host_and_port ~add_images =
       let%bind () = inject_ongoing `Not_running in
       return result
   in
-  let%sub () =
-    Bonsai.Clock.every
-      ~when_to_start_next_effect:`Every_multiple_of_period_blocking
-      ~trigger_on_activate:true
-      (Time_ns.Span.of_sec 0.1)
-      handle_queue_effect
-  in
+  Bonsai.Clock.every
+    ~when_to_start_next_effect:`Every_multiple_of_period_blocking
+    ~trigger_on_activate:true
+    (Time_ns.Span.of_sec 0.1)
+    handle_queue_effect
+    graph;
   let%sub requests =
     Bonsai.assoc
       (module Float)
       requests
-      ~f:(fun idx request ->
+      graph
+      ~f:(fun idx request _graph ->
         let%arr idx = idx
         and request = request
         and modify_requests = modify_requests in
@@ -128,11 +129,11 @@ let component ~host_and_port ~add_images =
         ; Vdom_node_with_map_children.make ~tag:"div" requests
         ]
   in
-  let%sub preview_view =
+  let preview_view =
     match%sub ongoing with
-    | `Uninitialized | `Idle -> Bonsai.const None
-    | `Preexisting -> Preview.component progress
-    | `Running params -> Preview.component ~params progress
+    | `Uninitialized | `Idle -> return None
+    | `Preexisting -> Preview.component progress 
+    | `Running params -> Preview.component ~params progress 
   in
   let%sub queue_request =
     let%arr modify_requests = modify_requests in

@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web
+open! Bonsai_web.Cont
 open! Async_kernel
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives
 open Bonsai.Let_syntax
@@ -25,20 +25,20 @@ let dispatch host_and_port =
 
 let dispatch = Effect.of_deferred_fun dispatch
 
-let state ~host_and_port =
-  let%sub r, refresh =
+let state ~host_and_port graph =
+  let r, refresh =
     Bonsai.Edge.Poll.manual_refresh
       (Bonsai.Edge.Poll.Starting.initial (Error (Error.of_string "loading...")))
+      graph
       ~effect:
         (let%map host_and_port = host_and_port in
          dispatch host_and_port)
   in
-  let%sub () =
-    Bonsai.Clock.every
-      ~when_to_start_next_effect:`Every_multiple_of_period_blocking
-      ~trigger_on_activate:true
-      (Time_ns.Span.of_sec 0.1)
-      refresh
-  in
-  return r
+  Bonsai.Clock.every
+    ~when_to_start_next_effect:`Every_multiple_of_period_blocking
+    ~trigger_on_activate:true
+    (Time_ns.Span.of_sec 0.1)
+    refresh
+    graph;
+  r
 ;;

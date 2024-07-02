@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web
+open! Bonsai_web.Cont
 open! Async_kernel
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_automatic_view
@@ -157,7 +157,7 @@ let validate_prompt prompt =
   prompt |> String.split_lines |> List.map ~f:translate_line |> String.concat ~sep:"\n"
 ;;
 
-let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
+let component ~(request_host : Hosts.request_host Bonsai.t) ~available_hosts graph =
   let width_height_form title =
     Custom_form_elements.int_form
       ~title
@@ -168,7 +168,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
       ~min:(Int63.of_int 128)
       ~max:(Int63.of_int 2048)
       ~input_attrs:[ Vdom.Attr.create "data-kind" title ]
-      ()
+      graph
   in
   let min_1_form ~default ~max title =
     let min = Int63.of_int 1 in
@@ -181,7 +181,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
       ~length:(`Em 3)
       ~min
       ~max
-      ()
+      graph
   in
   let%sub seed_form, seed_form_view =
     Custom_form_elements.int_form
@@ -196,7 +196,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
       ~min:Int63.min_value
       ~max:Int63.max_value
       ~input_attrs:[ Vdom.Attr.style (Css_gen.font_family [ "monospace" ]) ]
-      ()
+      graph
   in
   let%sub width_form, width_form_view = width_height_form "width" in
   let%sub height_form, height_form_view = width_height_form "height" in
@@ -212,7 +212,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
         ]
       ~textarea_attrs:[ Vdom.Attr.create "data-kind" "data-url" ]
       ~label:"data url"
-      ()
+      graph
   in
   let%sub positive_prompt, positive_prompt_view =
     Custom_form_elements.textarea
@@ -220,10 +220,10 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
       ~container_attrs:[ Vdom.Attr.style (Css_gen.flex_item ~grow:4.0 ()) ]
       ~textarea_attrs:[ Vdom.Attr.create "data-kind" "prompt" ]
       ~label:"positive prompt"
-      ()
+      graph
   in
   let%sub negative_prompt, negative_prompt_view =
-    Custom_form_elements.textarea ~validate:validate_prompt ~label:"negative prompt" ()
+    Custom_form_elements.textarea ~validate:validate_prompt ~label:"negative prompt" graph
   in
   let%sub sampling_steps, sampling_steps_view =
     min_1_form ~default:(Int63.of_int 25) ~max:150 "steps"
@@ -231,11 +231,11 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
   let%sub cfg_scale, cfg_scale_view =
     min_1_form ~default:(Int63.of_int 7) ~max:30 "cfg"
   in
-  let%sub sampler_form, sampler_form_view = Samplers.form ~request_host in
-  let%sub upscaler_form, upscaler_form_view = Upscaler.form ~request_host in
-  let%sub styles_form = Styles.form ~request_host in
+  let%sub sampler_form, sampler_form_view = Samplers.form ~request_host graph in
+  let%sub upscaler_form, upscaler_form_view = Upscaler.form ~request_host graph in
+  let%sub styles_form = Styles.form ~request_host graph in
   let%sub hr_form, hr_form_view =
-    Custom_form_elements.bool_form ~title:"upscale" ~default:false ()
+    Custom_form_elements.bool_form ~title:"upscale" ~default:false graph
   in
   let%sub denoising_strength =
     Form.Elements.Range.float
@@ -245,37 +245,42 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
       ~step:0.01
       ~default:0.7
       ~extra_attrs:
-        (Value.return [ Vdom.Attr.style (Css_gen.create ~field:"flex-grow" ~value:"1") ])
-      ()
+        (Bonsai.return [ Vdom.Attr.style (Css_gen.create ~field:"flex-grow" ~value:"1") ])
+        ()
+        graph
   in
-  let%sub _models_form, models_form_view = Models.form ~request_host ~available_hosts in
-  let%sub form =
+  let%sub _models_form, models_form_view =
+    Models.form ~request_host ~available_hosts graph
+  in
+  let form =
     Form.Typed.Record.make
       (module struct
         module Typed_field = Txt2img.Query.Typed_field
 
         let label_for_field = `Inferred
 
-        let form_for_field : type a. a Typed_field.t -> a Form.t Computation.t = function
-          | Prompt -> return positive_prompt
-          | Negative_prompt -> return negative_prompt
-          | Width -> return width_form
-          | Height -> return height_form
-          | Cfg_scale -> return cfg_scale
-          | Steps -> return sampling_steps
-          | Sampler -> return sampler_form
-          | Seed -> return seed_form
-          | Subseed_strength -> Bonsai.const (Form.return 0.0)
-          | Styles -> return styles_form
-          | Enable_hr -> return hr_form
-          | Data_url -> return data_url
-          | Hr_upscaler -> return upscaler_form
-          | Denoising_strength -> return denoising_strength
+        let form_for_field : type a. a Typed_field.t -> Bonsai.graph -> a Form.t Bonsai.t =
+          fun field _graph -> match field with
+          | Prompt -> positive_prompt
+          | Negative_prompt -> negative_prompt
+          | Width -> width_form
+          | Height -> height_form
+          | Cfg_scale -> cfg_scale
+          | Steps -> sampling_steps
+          | Sampler -> sampler_form
+          | Seed -> seed_form
+          | Subseed_strength -> Bonsai.return (Form.return 0.0)
+          | Styles -> styles_form
+          | Enable_hr -> hr_form
+          | Data_url -> data_url
+          | Hr_upscaler -> upscaler_form
+          | Denoising_strength -> denoising_strength 
         ;;
       end)
+      graph
   in
-  let%sub theme = View.Theme.current in
-  let%sub collapsed, toggle_collapsed = Bonsai.toggle ~default_model:false in
+  let theme = View.Theme.current graph in
+  let collapsed, toggle_collapsed = Bonsai.toggle ~default_model:false graph in
   let%sub form_view =
     let%arr width = width_form_view
     and height = height_form_view

@@ -1,16 +1,16 @@
 open! Core
-open! Bonsai_web
+open! Bonsai_web.Cont
 open Bonsai.Let_syntax
 
 let swap_opt_val = function
-  | None -> Value.return None
-  | Some v -> Value.map v ~f:Option.some
+  | None -> Bonsai.return None
+  | Some v -> Bonsai.map v ~f:Option.some
 ;;
 
 let component ?params progress =
   let params = swap_opt_val params in
   match%sub progress with
-  | Error _ -> Bonsai.const None
+  | Error _ -> return None
   | Ok { Progress.current_image; progress; _ } ->
     let%sub image_view =
       let%arr current_image = current_image

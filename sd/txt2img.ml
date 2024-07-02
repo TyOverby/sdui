@@ -1,6 +1,6 @@
 open! Core
 open! Async_kernel
-open! Bonsai_web
+open! Bonsai_web.Cont
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives
 open Shared
 

@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web
+open! Bonsai_web.Cont
 open Async_kernel
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives
 open Bonsai.Let_syntax
@@ -47,22 +47,22 @@ module Current_model = struct
 
   let dispatch_get = Effect.of_deferred_fun dispatch_get
 
-  let current ~(request_host : Hosts.request_host Value.t) =
-    let%sub r, refresh =
+  let current ~(request_host : Hosts.request_host Bonsai.t) graph =
+    let r, refresh =
       Bonsai.Edge.Poll.manual_refresh
         (Bonsai.Edge.Poll.Starting.initial (Error (Error.of_string "loading...")))
         ~effect:
           (let%map request_host = request_host in
            let%bind.Effect work = request_host in
            work.f (fun host -> dispatch_get host))
+        graph
     in
-    let%sub () =
-      Bonsai.Clock.every
-        ~when_to_start_next_effect:`Every_multiple_of_period_blocking
-        ~trigger_on_activate:true
-        (Time_ns.Span.of_sec 1.0)
-        refresh
-    in
+    Bonsai.Clock.every
+      ~when_to_start_next_effect:`Every_multiple_of_period_blocking
+      ~trigger_on_activate:true
+      (Time_ns.Span.of_sec 1.0)
+      refresh
+      graph;
     match%arr r with
     | Ok m -> Some m
     | Error e ->
@@ -93,22 +93,22 @@ module Model_list = struct
 
   let dispatch_get = Effect.of_deferred_fun dispatch
 
-  let all ~(request_host : Hosts.request_host Value.t) =
-    let%sub r, refresh =
+  let all ~(request_host : Hosts.request_host Bonsai.t) graph =
+    let r, refresh =
       Bonsai.Edge.Poll.manual_refresh
         (Bonsai.Edge.Poll.Starting.initial (Error (Error.of_string "loading...")))
         ~effect:
           (let%map request_host = request_host in
            let%bind.Effect work = request_host in
            work.f (fun host -> dispatch_get host))
+        graph
     in
-    let%sub () =
-      Bonsai.Clock.every
-        ~when_to_start_next_effect:`Every_multiple_of_period_blocking
-        ~trigger_on_activate:true
-        (Time_ns.Span.of_min 1.0)
-        refresh
-    in
+    Bonsai.Clock.every
+      ~when_to_start_next_effect:`Every_multiple_of_period_blocking
+      ~trigger_on_activate:true
+      (Time_ns.Span.of_min 1.0)
+      refresh
+      graph;
     match%arr r with
     | Ok l ->
       List.filter l ~f:(fun model -> not (String.is_substring model ~substring:"inpaint"))
@@ -116,46 +116,43 @@ module Model_list = struct
   ;;
 end
 
-let form ~request_host ~available_hosts =
-  let%sub all = Model_list.all ~request_host in
-  let%sub state, set_state = Bonsai.state_opt () in
-  let%sub current = Current_model.current ~request_host in
-  let%sub in_progress, set_in_progress = Bonsai.state false in
-  let%sub () =
-    Bonsai.Edge.on_change
-      ~equal:[%equal: String.Set.t * string option * string option]
-      (let%map available_hosts = available_hosts
-       and state = state
-       and current = current in
-       available_hosts, state, current)
-      ~callback:
-        (let%map set_in_progress = set_in_progress in
-         fun (available_hosts, state, _current) ->
-           match state with
-           | None -> Effect.Ignore
-           | Some sd_model_checkpoint ->
-             let%bind.Effect () = set_in_progress true in
-             let%bind.Effect response =
-               available_hosts
-               |> Set.to_list
-               |> List.map ~f:(fun host ->
-                 Current_model.dispatch_set (host, { sd_model_checkpoint }))
-               |> Effect.all
-             in
-             let%bind.Effect () = set_in_progress false in
-             (match Or_error.all response with
-              | Error e ->
-                Effect.print_s [%message "setting the model failed " ~_:(e : Error.t)]
-              | Ok _l -> Effect.return ()))
-  in
-  let%sub theme = View.Theme.current in
-  let%sub id = Bonsai.path_id in
-  let%arr theme = theme
+let form ~request_host ~available_hosts graph =
+  let all = Model_list.all ~request_host graph in
+  let state, set_state = Bonsai.state_opt graph in
+  let current = Current_model.current ~request_host graph in
+  let in_progress, set_in_progress = Bonsai.state false graph in
+  Bonsai.Edge.on_change
+    ~equal:[%equal: String.Set.t * string option * string option]
+    (let%map available_hosts = available_hosts
+     and state = state
+     and current = current in
+     available_hosts, state, current)
+    graph
+    ~callback:
+      (let%map set_in_progress = set_in_progress in
+       fun (available_hosts, state, _current) ->
+         match state with
+         | None -> Effect.Ignore
+         | Some sd_model_checkpoint ->
+           let%bind.Effect () = set_in_progress true in
+           let%bind.Effect response =
+             available_hosts
+             |> Set.to_list
+             |> List.map ~f:(fun host ->
+               Current_model.dispatch_set (host, { sd_model_checkpoint }))
+             |> Effect.all
+           in
+           let%bind.Effect () = set_in_progress false in
+           (match Or_error.all response with
+            | Error e ->
+              Effect.print_s [%message "setting the model failed " ~_:(e : Error.t)]
+            | Ok _l -> Effect.return ()));
+  let%arr theme = View.Theme.current graph
   and all = all
   and state = state
   and set_state = set_state
   and in_progress = in_progress
-  and unique_key = id
+  and unique_key = Bonsai.path_id graph
   and current = current in
   let current = Option.first_some current state in
   let options =

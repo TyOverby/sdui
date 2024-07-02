@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web
+open! Bonsai_web.Cont
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_automatic_view
 
@@ -36,11 +36,11 @@ let int_form
   ~min
   ~max
   ~(validate_or_correct : string -> (Int63.t, Int63.t) Result.t)
-  ()
+  graph
   =
-  let%sub theme = View.Theme.current in
-  let%sub state, set_state = Bonsai.state (Int63.to_string default) in
-  let%sub id = Bonsai.path_id in
+  let%sub theme = View.Theme.current graph in
+  let state, set_state = Bonsai.state (Int63.to_string default) graph in
+  let id = Bonsai.path_id graph in
   let%arr theme = theme
   and state = state
   and set_state = set_state
@@ -128,14 +128,13 @@ let textarea
     ~on_blur
 ;;
 
-let textarea ?validate ?(container_attrs = []) ?(textarea_attrs = []) ?label () =
-  let%sub theme = View.Theme.current in
-  let%sub state, set_state = Bonsai.state "" in
-  let%sub id = Bonsai.path_id in
+let textarea ?validate ?(container_attrs = []) ?(textarea_attrs = []) ?label graph =
+  let theme = View.Theme.current graph in
+  let state, set_state = Bonsai.state "" graph in
   let%arr theme = theme
   and state = state
   and set_state = set_state
-  and unique_key = id in
+  and unique_key = Bonsai.path_id graph in
   let on_blur =
     match validate with
     | None -> Effect.Ignore
@@ -166,10 +165,10 @@ let textarea ?validate ?(container_attrs = []) ?(textarea_attrs = []) ?label () 
   form, view
 ;;
 
-let bool_form ?(input_attrs = []) ?(container_attrs = []) ~title ~default () =
-  let%sub theme = View.Theme.current in
-  let%sub state, set_state = Bonsai.state default in
-  let%sub id = Bonsai.path_id in
+let bool_form ?(input_attrs = []) ?(container_attrs = []) ~title ~default graph =
+  let theme = View.Theme.current graph in
+  let state, set_state = Bonsai.state default graph in
+  let id = Bonsai.path_id graph in
   let%arr theme = theme
   and state = state
   and set_state = set_state

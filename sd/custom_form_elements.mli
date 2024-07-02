@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web
+open! Bonsai_web.Cont
 module Form = Bonsai_web_ui_form.With_automatic_view
 
 val textarea
@@ -7,9 +7,9 @@ val textarea
   -> ?container_attrs:Vdom.Attr.t list
   -> ?textarea_attrs:Vdom.Attr.t list
   -> ?label:string
-  -> unit
+  -> Bonsai.graph
   -> (string Form.t * (?colorize:(string -> Vdom.Node.t list) -> unit -> Vdom.Node.t))
-       Computation.t
+       Bonsai.t
 
 val int_form
   :  ?input_attrs:Vdom.Attr.t list
@@ -21,16 +21,16 @@ val int_form
   -> min:Int63.t
   -> max:Int63.t
   -> validate_or_correct:(string -> (Int63.t, Int63.t) Result.t)
-  -> unit
-  -> (Int63.t Form.t * Vdom.Node.t) Computation.t
+  -> Bonsai.graph
+  -> (Int63.t Form.t * Vdom.Node.t) Bonsai.t
 
 val bool_form
   :  ?input_attrs:Vdom.Attr.t list
   -> ?container_attrs:Vdom.Attr.t list
   -> title:string
   -> default:bool
-  -> unit
-  -> (bool Form.t * Vdom.Node.t) Computation.t
+  -> Bonsai.graph
+  -> (bool Form.t * Vdom.Node.t) Bonsai.t
 
 module Label_modifications : sig
   val muted_label : Vdom.Attr.t

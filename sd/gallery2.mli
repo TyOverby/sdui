@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web
+open! Bonsai_web.Cont
 
 type t =
   { queue_request : Txt2img.Query.t -> unit Effect.t
@@ -7,6 +7,7 @@ type t =
   }
 
 val component
-  :  request_host:Hosts.request_host Value.t
-  -> set_params:(Txt2img.Query.t -> unit Effect.t) Value.t
-  -> t Computation.t
+  :  request_host:Hosts.request_host Bonsai.t
+  -> set_params:(Txt2img.Query.t -> unit Effect.t) Bonsai.t
+  -> Bonsai.graph
+  -> t Bonsai.t

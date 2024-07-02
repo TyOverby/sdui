@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web
+open! Bonsai_web.Cont
 module Host = String
 
 module Work : sig
@@ -18,4 +18,4 @@ type t =
   ; available_hosts : String.Set.t
   }
 
-val component : t Computation.t
+val component : Bonsai.graph -> t Bonsai.t

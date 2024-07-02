@@ -36,7 +36,7 @@ let find_permutation map permutations =
 ;;
 
 let component =
-  let%sub hosts, textbox = Custom_form_elements.textarea ~label:"hosts" () in
+  let%sub hosts, textbox = Custom_form_elements.textarea ~label:"hosts"  in
   let%sub () =
     Bonsai.Edge.lifecycle
       ~on_activate:

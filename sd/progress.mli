@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web
+open! Bonsai_web.Cont
 open Shared
 
 type t =
@@ -10,4 +10,4 @@ type t =
   }
 [@@deriving sexp_of]
 
-val state : host_and_port:string Value.t -> t Or_error.t Computation.t
+val state : host_and_port:string Bonsai.t -> Bonsai.graph -> t Or_error.t Bonsai.t
