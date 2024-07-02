@@ -1,8 +1,8 @@
 open! Core
-open! Bonsai_web
+open! Bonsai_web.Cont
 open Bonsai.Let_syntax
 module Host = String
-module Form = Bonsai_web_ui_form.With_automatic_view
+module Form = Bonsai_web_ui_form.With_manual_view
 
 module Work = struct
   type t =
@@ -35,17 +35,15 @@ let find_permutation map permutations =
   |> Option.join
 ;;
 
-let component =
-  let%sub hosts, textbox = Custom_form_elements.textarea ~label:"hosts"  in
-  let%sub () =
-    Bonsai.Edge.lifecycle
-      ~on_activate:
-        (let%map hosts = hosts in
-         Form.set hosts "localhost")
-      ()
-  in
+let component graph =
+  let hosts_form = Custom_form_elements.textarea ~label:"hosts" graph in
+  Bonsai.Edge.lifecycle
+    ~on_activate:
+      (let%map hosts_form = hosts_form in
+       Form.set hosts_form "localhost")
+    graph;
   let%sub hosts =
-    let%arr hosts = hosts in
+    let%arr hosts = hosts_form in
     hosts
     |> Form.value_or_default ~default:""
     |> String.split_lines
@@ -61,7 +59,7 @@ let component =
       | [ _name ] -> "http://" ^ s ^ ":7860"
       | _ -> s)
   in
-  let%sub host_status, inject_host_status =
+  let host_status, inject_host_status =
     Bonsai.state_machine1
       ~default_model:String.Map.empty
       ~apply_action:(fun ctx input model ->
@@ -104,41 +102,41 @@ let component =
           Bonsai.Apply_action_context.schedule_event ctx effect;
           model)
       hosts
+      graph
   in
-  let%sub () =
-    let%sub callback =
-      let%arr inject_host_status = inject_host_status in
-      inject_host_status `Check_all
-    in
-    let%sub () =
-      Bonsai.Clock.every
-        ~when_to_start_next_effect:`Wait_period_after_previous_effect_finishes_blocking
-        ~trigger_on_activate:true
-        (Time_ns.Span.of_sec 5.0)
-        callback
-    in
-    Bonsai.Edge.on_change
-      hosts
-      ~equal:[%equal: string list]
-      ~callback:
-        (let%map callback = callback in
-         fun _ -> callback)
+  let%sub callback =
+    let%arr inject_host_status = inject_host_status in
+    inject_host_status `Check_all
   in
-  let%sub available =
-    let%sub good_hosts =
-      Bonsai.Map.filter_map host_status ~f:(function
+  Bonsai.Clock.every
+    ~when_to_start_next_effect:`Wait_period_after_previous_effect_finishes_blocking
+    ~trigger_on_activate:true
+    (Time_ns.Span.of_sec 5.0)
+    callback
+    graph;
+  Bonsai.Edge.on_change
+    hosts
+    ~equal:[%equal: string list]
+    ~callback:
+      (let%map callback = callback in
+       fun _ -> callback)
+    graph;
+  let available =
+    let good_hosts =
+      Bonsai.Map.filter_map host_status graph ~f:(function
         | `Good | `Good_pending -> Some ()
         | `Bad | `Pending -> None)
     in
-    return good_hosts
+    good_hosts
   in
-  let%sub write, read = Bonsai_extra.pipe (module Work) in
+  let%sub write, read = Bonsai_extra.pipe (module Work) graph in
   let%sub workers =
     Bonsai.assoc
       (module String)
       available
-      ~f:(fun host _data ->
-        let%sub working, set_working = Bonsai.state false in
+      graph
+      ~f:(fun host _data graph ->
+        let working, set_working = Bonsai.state false graph in
         let%sub register_self =
           let%arr write = write
           and host = host
@@ -153,24 +151,22 @@ let component =
                   Effect.return the_result)
             }
         in
-        let%sub () =
-          Bonsai.Edge.on_change
-            working
-            ~equal:equal_bool
-            ~callback:
-              (let%map register_self = register_self in
-               function
-               | true -> Effect.Ignore
-               | false -> register_self)
-        in
-        return working)
+        Bonsai.Edge.on_change
+          working
+          ~equal:equal_bool
+          ~callback:
+            (let%map register_self = register_self in
+             function
+             | true -> Effect.Ignore
+             | false -> register_self)
+          graph;
+        working)
   in
-  let%sub view =
-    let%sub theme = View.Theme.current in
-    let%arr textbox = textbox
+  let view =
+    let%arr textbox = hosts_form
     and host_status = host_status
     and workers = workers
-    and theme = theme in
+    and theme = View.Theme.current graph in
     let highlight s =
       String.split_lines s
       |> List.map ~f:(fun line ->
@@ -202,7 +198,7 @@ let component =
           [ Vdom.Node.text line ])
       |> List.intersperse ~sep:(Vdom.Node.text "\n")
     in
-    textbox ~colorize:highlight ()
+    (Form.view textbox) ~colorize:highlight ()
   in
   let%arr view = view
   and read = read

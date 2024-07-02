@@ -1,7 +1,7 @@
 open! Core
 open! Bonsai_web.Cont
 open Bonsai.Let_syntax
-module Form = Bonsai_web_ui_form.With_automatic_view
+module Form = Bonsai_web_ui_form.With_manual_view
 
 module Label_modifications =
   [%css
@@ -40,11 +40,9 @@ let int_form
   =
   let%sub theme = View.Theme.current graph in
   let state, set_state = Bonsai.state (Int63.to_string default) graph in
-  let id = Bonsai.path_id graph in
   let%arr theme = theme
   and state = state
-  and set_state = set_state
-  and unique_key = id in
+  and set_state = set_state in
   let value_or_corrected = validate_or_correct state in
   let is_error = Result.is_ok value_or_corrected in
   let fix_on_blur =
@@ -86,18 +84,16 @@ let int_form
     | Ok v -> v
     | Error v -> v
   in
-  let form =
-    Form.Expert.create
-      ~value:(Ok value)
-      ~set:(fun i ->
+  { Form.value = Ok value
+  ; set =
+      (fun i ->
         set_state
           (Int63.to_string
              (match validate_or_correct (Int63.to_string i) with
               | Ok v -> v
               | Error v -> v)))
-      ~view:(Form.View.of_vdom ~unique_key view)
-  in
-  form, view
+  ; view
+  }
 ;;
 
 let textarea
@@ -133,8 +129,7 @@ let textarea ?validate ?(container_attrs = []) ?(textarea_attrs = []) ?label gra
   let state, set_state = Bonsai.state "" graph in
   let%arr theme = theme
   and state = state
-  and set_state = set_state
-  and unique_key = Bonsai.path_id graph in
+  and set_state = set_state in
   let on_blur =
     match validate with
     | None -> Effect.Ignore
@@ -156,23 +151,15 @@ let textarea ?validate ?(container_attrs = []) ?(textarea_attrs = []) ?label gra
     | None -> state
     | Some f -> f state
   in
-  let form =
-    Form.Expert.create
-      ~value:(Ok value)
-      ~set:set_state
-      ~view:(Form.View.of_vdom ~unique_key Vdom.Node.none)
-  in
-  form, view
+  { Form.value = Ok value; set = set_state; view }
 ;;
 
 let bool_form ?(input_attrs = []) ?(container_attrs = []) ~title ~default graph =
   let theme = View.Theme.current graph in
   let state, set_state = Bonsai.state default graph in
-  let id = Bonsai.path_id graph in
   let%arr theme = theme
   and state = state
-  and set_state = set_state
-  and unique_key = id in
+  and set_state = set_state in
   let view =
     Kado.Unstable.Input.checkbox
       ~constants:(View.constants theme)
@@ -183,11 +170,5 @@ let bool_form ?(input_attrs = []) ?(container_attrs = []) ~title ~default graph 
       ~on_change:set_state
       ~checked:state
   in
-  let form =
-    Form.Expert.create
-      ~value:(Ok state)
-      ~set:set_state
-      ~view:(Form.View.of_vdom ~unique_key view)
-  in
-  form, view
+  { Form.value = Ok state; set = set_state; view }
 ;;

@@ -3,14 +3,7 @@ open! Async_kernel
 open! Bonsai_web.Cont
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives
 open Shared
-
-module Info = struct
-  type t =
-    { seed : Int63.t
-    ; enable_hr : bool
-    }
-  [@@deriving sexp]
-end
+module Info = Txt2img.Info
 
 module Query = struct
   type t =
@@ -26,9 +19,24 @@ module Query = struct
     ; subseed_strength : float
     ; denoising_strength : float
     ; styles : Styles.t
-    ; data_url : string
     }
   [@@deriving sexp, typed_fields]
+
+  let of_txt2img (other : Txt2img.Query.t) ~init_images =
+    { init_images
+    ; prompt = other.prompt
+    ; negative_prompt = other.negative_prompt
+    ; width = other.width
+    ; height = other.height
+    ; steps = other.steps
+    ; cfg_scale = other.cfg_scale
+    ; sampler = other.sampler
+    ; seed = other.seed
+    ; subseed_strength = other.subseed_strength
+    ; denoising_strength = other.denoising_strength
+    ; styles = other.styles
+    }
+  ;;
 
   module Underlying = struct
     type query = t
@@ -90,15 +98,9 @@ module Response = struct
     ;;
   end
 
-  module Parameters = struct
-    type t = { enable_hr : bool [@key "enable_hr"] }
-    [@@yojson.allow_extra_fields] [@@deriving of_yojson, sexp_of]
-  end
-
   type t =
     { images : string list
     ; info : Info.t
-    ; parameters : Parameters.t
     }
   [@@yojson.allow_extra_fields] [@@deriving of_yojson, sexp_of]
 end
@@ -130,17 +132,17 @@ let dispatch (host_and_port, query) =
         ~response_type:Default
         ~headers:[ "Content-Type", "application/json" ]
         (Post (Some body))
-        ~url:(sprintf "%s/sdapi/v1/txt2img" host_and_port)
+        ~url:(sprintf "%s/sdapi/v1/img2img" host_and_port)
       |> Deferred.Or_error.ok_exn
     in
     let response_content, images = strip_images_field_from_json response.content in
     Yojson.Safe.from_string response_content
     |> Response.t_of_yojson
     |> (fun response -> { response with Response.images })
-    |> (fun { Response.images; parameters; info } ->
+    |> (fun { Response.images;  info } ->
          let info =
            { Info.seed = Int63.of_int64_trunc info.seed
-           ; enable_hr = parameters.enable_hr
+           ; enable_hr = false
            }
          in
          List.map images ~f:(fun s ->

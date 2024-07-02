@@ -1,7 +1,7 @@
 open! Core
 open! Bonsai_web.Cont
 open Bonsai.Let_syntax
-module Form = Bonsai_web_ui_form.With_automatic_view
+module Form = Bonsai_web_ui_form.With_manual_view
 module _ = Img2img
 
 module Style = [%css stylesheet {|
@@ -36,16 +36,16 @@ let component graph =
   let%sub { view = hosts_view; request = request_host; available_hosts } =
     Hosts.component graph
   in
-  let%sub { form; form_view } =
+  let parameters =
     blurry_transparent_background
       (Parameters.component ~request_host ~available_hosts)
       graph
   in
   let%sub { queue_request; view = gallery } =
-    Gallery.component ~request_host ~set_params:(form >>| Form.set) graph
+    Gallery.component ~request_host ~set_params:(parameters >>| Form.set) graph
   in
   let%sub submit_effect =
-    let%arr form = Bonsai.peek form graph
+    let%arr form = Bonsai.peek parameters graph
     and queue_request = queue_request in
     Some
       (match%bind.Effect form with
@@ -55,10 +55,10 @@ let component graph =
           | Error e -> Effect.print_s [%sexp (e : Error.t)]
           | Ok query -> queue_request query))
   in
-  let%arr form_view = form_view
+  let%arr parameters = parameters
   and submit_effect = submit_effect
   and gallery = gallery
   and hosts_view = hosts_view in
   let on_submit = Option.value submit_effect ~default:Effect.Ignore in
-  Vdom.Node.div [ form_view ~on_submit ~hosts_panel:hosts_view; gallery ]
+  Vdom.Node.div [ (Form.view parameters) ~on_submit ~hosts_panel:hosts_view; gallery ]
 ;;

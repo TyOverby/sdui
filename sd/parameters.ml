@@ -2,12 +2,12 @@ open! Core
 open! Bonsai_web.Cont
 open! Async_kernel
 open Bonsai.Let_syntax
-module Form = Bonsai_web_ui_form.With_automatic_view
+module Form = Bonsai_web_ui_form.With_manual_view
 
 type t =
-  { form : Txt2img.Query.t Form.t
-  ; form_view : on_submit:unit Effect.t -> hosts_panel:Vdom.Node.t -> Vdom.Node.t
-  }
+  ( Txt2img.Query.t
+    , on_submit:unit Effect.t -> hosts_panel:Vdom.Node.t -> Vdom.Node.t )
+    Form.t
 
 module Size_presets = struct
   module Style =
@@ -183,7 +183,7 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~available_hosts gra
       ~max
       graph
   in
-  let%sub seed_form, seed_form_view =
+  let seed_form =
     Custom_form_elements.int_form
       ~title:"seed"
       ~step:1
@@ -198,9 +198,9 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~available_hosts gra
       ~input_attrs:[ Vdom.Attr.style (Css_gen.font_family [ "monospace" ]) ]
       graph
   in
-  let%sub width_form, width_form_view = width_height_form "width" in
-  let%sub height_form, height_form_view = width_height_form "height" in
-  let%sub data_url, data_url_view =
+  let width_form = width_height_form "width" in
+  let height_form = width_height_form "height" in
+  let data_url_form =
     Custom_form_elements.textarea
       ~validate:Fn.id
       ~container_attrs:
@@ -214,7 +214,7 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~available_hosts gra
       ~label:"data url"
       graph
   in
-  let%sub positive_prompt, positive_prompt_view =
+  let positive_prompt_form =
     Custom_form_elements.textarea
       ~validate:validate_prompt
       ~container_attrs:[ Vdom.Attr.style (Css_gen.flex_item ~grow:4.0 ()) ]
@@ -222,21 +222,15 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~available_hosts gra
       ~label:"positive prompt"
       graph
   in
-  let%sub negative_prompt, negative_prompt_view =
+  let negative_prompt_form =
     Custom_form_elements.textarea ~validate:validate_prompt ~label:"negative prompt" graph
   in
-  let%sub sampling_steps, sampling_steps_view =
-    min_1_form ~default:(Int63.of_int 25) ~max:150 "steps"
-  in
-  let%sub cfg_scale, cfg_scale_view =
-    min_1_form ~default:(Int63.of_int 7) ~max:30 "cfg"
-  in
+  let sampling_steps_form = min_1_form ~default:(Int63.of_int 25) ~max:150 "steps" in
+  let cfg_scale_form = min_1_form ~default:(Int63.of_int 7) ~max:30 "cfg" in
   let%sub sampler_form, sampler_form_view = Samplers.form ~request_host graph in
   let%sub upscaler_form, upscaler_form_view = Upscaler.form ~request_host graph in
   let%sub styles_form = Styles.form ~request_host graph in
-  let%sub hr_form, hr_form_view =
-    Custom_form_elements.bool_form ~title:"upscale" ~default:false graph
-  in
+  let hr_form = Custom_form_elements.bool_form ~title:"upscale" ~default:false graph in
   let%sub denoising_strength =
     Form.Elements.Range.float
       ~allow_updates_when_focused:`Always
@@ -246,8 +240,8 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~available_hosts gra
       ~default:0.7
       ~extra_attrs:
         (Bonsai.return [ Vdom.Attr.style (Css_gen.create ~field:"flex-grow" ~value:"1") ])
-        ()
-        graph
+      ()
+      graph
   in
   let%sub _models_form, models_form_view =
     Models.form ~request_host ~available_hosts graph
@@ -257,46 +251,58 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~available_hosts gra
       (module struct
         module Typed_field = Txt2img.Query.Typed_field
 
-        let label_for_field = `Inferred
+        type field_view = unit
+        type resulting_view = unit
 
-        let form_for_field : type a. a Typed_field.t -> Bonsai.graph -> a Form.t Bonsai.t =
-          fun field _graph -> match field with
-          | Prompt -> positive_prompt
-          | Negative_prompt -> negative_prompt
-          | Width -> width_form
-          | Height -> height_form
-          | Cfg_scale -> cfg_scale
-          | Steps -> sampling_steps
-          | Sampler -> sampler_form
-          | Seed -> seed_form
+        let strip_view (type a v) (form : (a, v) Form.t) : (a, unit) Form.t =
+          Form.map_view form ~f:(Fn.const ())
+        ;;
+
+        type form_of_field_fn = { f : 'a. 'a Typed_field.t -> ('a, unit) Form.t Bonsai.t }
+
+        let finalize_view _ _ = Bonsai.return ()
+
+        let form_for_field
+          : type a. a Typed_field.t -> Bonsai.graph -> (a, unit) Form.t Bonsai.t
+          =
+          fun field _graph ->
+          match field with
+          | Prompt -> positive_prompt_form >>| strip_view
+          | Negative_prompt -> negative_prompt_form >>| strip_view
+          | Width -> width_form >>| strip_view
+          | Height -> height_form >>| strip_view
+          | Cfg_scale -> cfg_scale_form >>| strip_view
+          | Steps -> sampling_steps_form >>| strip_view
+          | Sampler -> sampler_form >>| strip_view
+          | Seed -> seed_form >>| strip_view
           | Subseed_strength -> Bonsai.return (Form.return 0.0)
-          | Styles -> styles_form
-          | Enable_hr -> hr_form
-          | Data_url -> data_url
-          | Hr_upscaler -> upscaler_form
-          | Denoising_strength -> denoising_strength 
+          | Styles -> styles_form >>| strip_view
+          | Enable_hr -> hr_form >>| strip_view
+          | Data_url -> data_url_form >>| strip_view
+          | Hr_upscaler -> upscaler_form >>| strip_view
+          | Denoising_strength -> denoising_strength >>| strip_view
         ;;
       end)
       graph
   in
   let theme = View.Theme.current graph in
   let collapsed, toggle_collapsed = Bonsai.toggle ~default_model:false graph in
-  let%sub form_view =
-    let%arr width = width_form_view
-    and height = height_form_view
+  let form_view =
+    let%arr { view = width; _ } = width_form
+    and { view = height; _ } = height_form
     and width_form = width_form
     and height_form = height_form
-    and positive_prompt_view = positive_prompt_view
-    and negative_prompt_view = negative_prompt_view
-    and cfg_scale_view = cfg_scale_view
-    and sampling_steps_view = sampling_steps_view
-    and seed_form_view = seed_form_view
+    and { view = positive_prompt_view; _ } = positive_prompt_form
+    and { view = negative_prompt_view; _ } = negative_prompt_form
+    and { view = cfg_scale_view; _ } = cfg_scale_form
+    and { view = sampling_steps_view; _ } = sampling_steps_form
+    and { view = seed_form_view; _ } = seed_form
     and theme = theme
     and sampler = sampler_form_view
     and styles_form = styles_form
-    and hr_form_view = hr_form_view
+    and { view = hr_form_view; _ } = hr_form
     and collapsed = collapsed
-    and data_url_view = data_url_view
+    and { view = data_url_view; _ } = data_url_form
     and toggle_collapsed = toggle_collapsed
     and upscaler_form_view = upscaler_form_view
     and denoising_strength = denoising_strength
@@ -345,7 +351,7 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~available_hosts gra
                   ~main_axis_alignment:Space_between
                   [ seed_form_view; Submit_button.make theme ~on_submit ]
               ; models_form_view
-              ; View.hbox (styles_form |> Form.view |> Form.View.to_vdom_plain)
+              ; styles_form |> Form.view
               ; Vdom.Node.fieldset
                   ~attrs:
                     [ Upscale_style.upscale_style
@@ -360,8 +366,9 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~available_hosts gra
                       ~main_axis_alignment:Space_between
                       ~cross_axis_alignment:Stretch
                       ~gap:(`Em 1)
-                      (Vdom.Node.span [ Vdom.Node.text "denoise str" ]
-                       :: (Form.view denoising_strength |> Form.View.to_vdom_plain))
+                      [ Vdom.Node.span [ Vdom.Node.text "denoise str" ]
+                      ; Form.view denoising_strength
+                      ]
                   ]
               ]
           ]
@@ -377,5 +384,5 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~available_hosts gra
   in
   let%arr form = form
   and form_view = form_view in
-  { form; form_view }
+  { Form.value = form.value; set = form.set; view = form_view }
 ;;

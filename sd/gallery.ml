@@ -247,8 +247,27 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~set_params graph =
       images
       graph
       ~f:(fun idx params graph ->
-        let state, set_state = Bonsai.state `Queued  graph in
-        let dispatch =
+        let state, set_state = Bonsai.state `Queued graph in
+        let dispatch_img2img =
+          let%arr request_host = request_host
+          and set_state = set_state in
+          fun params ->
+            let%bind.Effect work = request_host in
+            Effect.ignore_m
+            @@ work.f (fun host_and_port ->
+              match%bind.Effect Img2img.dispatch ~host_and_port params with
+              | Ok [] ->
+                let error = Error.of_string "at least one image expected" in
+                let%map.Effect () = set_state (`Error error) in
+                Error error
+              | Ok ((img, info) :: _) ->
+                let%map.Effect () = set_state (`Done (img, info, `Not_upscaling)) in
+                Ok ()
+              | Error e ->
+                let%map.Effect () = set_state (`Error e) in
+                Error e)
+        in
+        let dispatch_txt2img =
           let%arr request_host = request_host
           and set_state = set_state in
           fun params ->
@@ -267,14 +286,12 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~set_params graph =
                 let%map.Effect () = set_state (`Error e) in
                 Error e)
         in
-        let () =
-          let on_activate =
-            let%map params = params
-            and dispatch = dispatch in
-            dispatch params
-          in
-          Bonsai.Edge.lifecycle ~on_activate graph
+        let on_activate =
+          let%map params = params
+          and dispatch = dispatch_txt2img in
+          dispatch params
         in
+        Bonsai.Edge.lifecycle ~on_activate graph;
         match%sub state with
         | `Queued ->
           let%arr params = params
@@ -330,7 +347,7 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~set_params graph =
           let%sub upscale =
             let%arr info = info
             and upscaling = upscaling
-            and dispatch = dispatch
+            and dispatch_img2img = dispatch_img2img
             and set_state = set_state
             and image = image
             and params = params in
@@ -339,14 +356,15 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~set_params graph =
             | _ ->
               lazy
                 (let%bind.Effect () = set_state (`Done (image, info, `Upscaling)) in
-                 dispatch { params with Txt2img.Query.seed = info.seed; enable_hr = true })
+                 dispatch_img2img
+                   { (Img2img.Query.of_txt2img params ~init_images:[ image ]) with
+                     seed = info.seed
+                   ; width = Int63.(params.width * of_int 2)
+                   ; height = Int63.(params.width * of_int 2)
+                   })
               |> Effect.lazy_
               |> Some
           in
-          (*
-             let%sub () =
-             Bonsai_extra.exactly_once (upscale >>| Option.value ~default:Effect.Ignore)
-             in*)
           let%arr idx = idx
           and info = info
           and upscaling = upscaling
