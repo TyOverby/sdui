@@ -9,6 +9,8 @@ type t =
   }
 [@@deriving sexp]
 
+let data_url t =  t.content
+
 let of_string ?width ?height content = { width; height; content }
 let to_string t = t.content
 

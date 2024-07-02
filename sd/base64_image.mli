@@ -3,6 +3,7 @@ open! Bonsai_web.Cont
 
 type t [@@deriving yojson, sexp]
 
+val data_url : t -> string
 val of_string : ?width:Int63.t -> ?height:Int63.t -> string -> t
 val to_string : t -> string
 val to_vdom : ?width:Int63.t -> ?height:Int63.t -> ?drop_size:bool -> t -> Vdom.Node.t

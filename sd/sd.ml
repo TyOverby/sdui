@@ -2,6 +2,7 @@ open! Core
 open! Bonsai_web.Cont
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_automatic_view
+module _ = Img2img
 
 module Style = [%css stylesheet {|
   body {
@@ -41,7 +42,7 @@ let component graph =
       graph
   in
   let%sub { queue_request; view = gallery } =
-    Gallery2.component ~request_host ~set_params:(form >>| Form.set) graph
+    Gallery.component ~request_host ~set_params:(form >>| Form.set) graph
   in
   let%sub submit_effect =
     let%arr form = Bonsai.peek form graph
