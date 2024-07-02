@@ -1,6 +1,6 @@
 open! Core
 open! Bonsai_web
-module Form = Bonsai_web_ui_form
+module Form = Bonsai_web_ui_form.With_automatic_view
 
 val textarea
   :  ?validate:(string -> string)
@@ -9,7 +9,7 @@ val textarea
   -> ?label:string
   -> unit
   -> (string Form.t * (?colorize:(string -> Vdom.Node.t list) -> unit -> Vdom.Node.t))
-     Computation.t
+       Computation.t
 
 val int_form
   :  ?input_attrs:Vdom.Attr.t list

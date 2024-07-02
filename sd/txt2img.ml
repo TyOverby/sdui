@@ -23,6 +23,7 @@ module Query = struct
     ; sampler : Samplers.t
     ; seed : Int63.t
     ; subseed_strength : float
+    ; denoising_strength : float
     ; styles : Styles.t
     ; enable_hr : bool
     ; data_url : string
@@ -92,6 +93,7 @@ module Query = struct
       ; hr_upscaler : Upscaler.t [@key "hr_upscaler"]
       ; seed : int64
       ; subseed_strength : float [@key "subseed_strength"]
+      ; denoising_strength : float [@key "denoising_strength"]
       ; styles : Styles.t
       ; enable_hr : bool
       ; always_on_scripts : Ctrlnet.high option [@key "alwayson_scripts"] [@option]
@@ -123,6 +125,7 @@ module Query = struct
       ; subseed_strength = query.subseed_strength
       ; styles = query.styles
       ; enable_hr = query.enable_hr
+      ; denoising_strength = query.denoising_strength
       ; always_on_scripts
       }
     ;;

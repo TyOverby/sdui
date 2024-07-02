@@ -3,7 +3,7 @@ open! Bonsai_web
 open Async_kernel
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives
 open Bonsai.Let_syntax
-module Form = Bonsai_web_ui_form
+module Form = Bonsai_web_ui_form.With_automatic_view
 
 type t = string option [@@deriving sexp, yojson, compare]
 
@@ -155,7 +155,7 @@ let form ~request_host ~available_hosts =
   and state = state
   and set_state = set_state
   and in_progress = in_progress
-  and id = id
+  and unique_key = id
   and current = current in
   let current = Option.first_some current state in
   let options =
@@ -190,7 +190,7 @@ let form ~request_host ~available_hosts =
     Form.Expert.create
       ~value:(Ok current)
       ~set:set_state
-      ~view:(Form.View.of_vdom ~id view)
+      ~view:(Form.View.of_vdom ~unique_key view)
   in
   form, view
 ;;

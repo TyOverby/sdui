@@ -1,7 +1,7 @@
 open! Core
 open! Bonsai_web
 open Bonsai.Let_syntax
-module Form = Bonsai_web_ui_form
+module Form = Bonsai_web_ui_form.With_automatic_view
 
 let default = "Latent"
 
@@ -14,10 +14,10 @@ include struct
   type t = string [@@deriving sexp, yojson]
 
   module Api_response = struct
-    type sampler = { name : string }
+    type upscaler = { name : string }
     [@@yojson.allow_extra_fields] [@@deriving of_yojson, sexp_of]
 
-    type t = sampler list [@@deriving of_yojson, sexp_of]
+    type t = upscaler list [@@deriving of_yojson, sexp_of]
   end
 
   let dispatch host_and_port =
@@ -64,16 +64,16 @@ let form ~request_host =
   and all = all
   and state = state
   and set_state = set_state
-  and id = id in
+  and unique_key = id in
   let all =
     match all with
     | Error _ -> [ default ]
     | Ok all -> "Latent" :: all
   in
   let options =
-    List.map all ~f:(fun sampler ->
-      let view = Vdom.Node.text sampler in
-      sampler, String.equal sampler state, view)
+    List.map all ~f:(fun upscaler ->
+      let view = Vdom.Node.text upscaler in
+      upscaler, String.equal upscaler state, view)
   in
   let view =
     Kado.Unstable.Input.dropdown
@@ -83,17 +83,21 @@ let form ~request_host =
         (Vdom.Attr.many
            [ Custom_form_elements.Label_modifications.muted_label
            ; Vdom.Attr.style (Css_gen.create ~field:"height" ~value:"fit-content")
+           ; Vdom.Attr.style (Css_gen.create ~field:"margin-top" ~value:"0")
            ; Custom_form_elements.Label_modifications.Variables.set_all
                ~border:
                  (Css_gen.Color.to_string_css (View.extreme_primary_border_color theme))
                ~fg:(Css_gen.Color.to_string_css (View.primary_colors theme).foreground)
            ])
-      ~title:(Some "sampler")
+      ~title:None
       ~on_change:set_state
       ~options
   in
   let form =
-    Form.Expert.create ~value:(Ok state) ~set:set_state ~view:(Form.View.of_vdom ~id view)
+    Form.Expert.create
+      ~value:(Ok state)
+      ~set:set_state
+      ~view:(Form.View.of_vdom ~unique_key view)
   in
   form, view
 ;;

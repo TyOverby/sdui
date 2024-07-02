@@ -20,7 +20,8 @@ module Query : sig
     ; cfg_scale : Int63.t
     ; sampler : Samplers.t
     ; seed : Int63.t
-    ; subseed_strength: float
+    ; subseed_strength : float
+    ; denoising_strength : float
     ; styles : Styles.t
     ; enable_hr : bool
     ; data_url : string

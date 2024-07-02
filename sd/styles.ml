@@ -3,7 +3,7 @@ open! Bonsai_web
 open Async_kernel
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives
 open Bonsai.Let_syntax
-module Form = Bonsai_web_ui_form
+module Form = Bonsai_web_ui_form.With_automatic_view
 
 type t = string list [@@deriving sexp, yojson, compare]
 

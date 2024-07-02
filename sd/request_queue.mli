@@ -13,5 +13,5 @@ val component
        (params:Txt2img.Query.t
         -> images:(Base64_image.t * Txt2img.Info.t) Or_error.t list
         -> unit Effect.t)
-       Value.t
+         Value.t
   -> t Computation.t

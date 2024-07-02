@@ -51,7 +51,8 @@ let component ~host_and_port ~add_images =
     (* TODO: allow reordering requests by reinserting the key as the average of the new neighbor keys. *)
     Bonsai.state_machine0
       ~default_model:(0., Map.empty (module Float))
-      ~apply_action:(fun _ctx (next_idx, map) -> function
+      ~apply_action:(fun _ctx (next_idx, map) ->
+        function
         | `Queue params -> next_idx +. 100., Map.add_exn map ~key:next_idx ~data:params
         | `Pop idx -> next_idx, Map.remove map idx)
       ()

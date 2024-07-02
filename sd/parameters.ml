@@ -2,7 +2,7 @@ open! Core
 open! Bonsai_web
 open! Async_kernel
 open Bonsai.Let_syntax
-module Form = Bonsai_web_ui_form
+module Form = Bonsai_web_ui_form.With_automatic_view
 
 type t =
   { form : Txt2img.Query.t Form.t
@@ -110,6 +110,18 @@ module Submit_button = struct
     View.button theme ~intent:Info ~attrs:[ Style.button ] ~on_click:on_submit "generate"
   ;;
 end
+
+module Upscale_style =
+  [%css
+  stylesheet
+    {|
+    .upscale_style {
+      display:flex;
+      flex-direction:column;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+    } 
+  |}]
 
 let multiple_of_8 s =
   match Int63.of_string_opt s with
@@ -223,7 +235,18 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
   let%sub upscaler_form, upscaler_form_view = Upscaler.form ~request_host in
   let%sub styles_form = Styles.form ~request_host in
   let%sub hr_form, hr_form_view =
-    Custom_form_elements.bool_form ~title:"hi res" ~default:false ()
+    Custom_form_elements.bool_form ~title:"upscale" ~default:false ()
+  in
+  let%sub denoising_strength =
+    Form.Elements.Range.float
+      ~allow_updates_when_focused:`Always
+      ~min:0.0
+      ~max:1.0
+      ~step:0.01
+      ~default:0.7
+      ~extra_attrs:
+        (Value.return [ Vdom.Attr.style (Css_gen.create ~field:"flex-grow" ~value:"1") ])
+      ()
   in
   let%sub _models_form, models_form_view = Models.form ~request_host ~available_hosts in
   let%sub form =
@@ -247,6 +270,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
           | Enable_hr -> return hr_form
           | Data_url -> return data_url
           | Hr_upscaler -> return upscaler_form
+          | Denoising_strength -> return denoising_strength
         ;;
       end)
   in
@@ -270,6 +294,7 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
     and data_url_view = data_url_view
     and toggle_collapsed = toggle_collapsed
     and upscaler_form_view = upscaler_form_view
+    and denoising_strength = denoising_strength
     and models_form_view = models_form_view in
     fun ~on_submit ~hosts_panel ->
       let hijack_ctrl_enter =
@@ -315,10 +340,24 @@ let component ~(request_host : Hosts.request_host Value.t) ~available_hosts =
                   ~main_axis_alignment:Space_between
                   [ seed_form_view; Submit_button.make theme ~on_submit ]
               ; models_form_view
-              ; View.hbox
-                  ~main_axis_alignment:Space_between
-                  [ hr_form_view; upscaler_form_view ]
               ; View.hbox (styles_form |> Form.view |> Form.View.to_vdom_plain)
+              ; Vdom.Node.fieldset
+                  ~attrs:
+                    [ Upscale_style.upscale_style
+                    ; Upscale_style.Variables.set_all
+                        ~border:
+                          (View.extreme_primary_border_color theme
+                           |> Css_gen.Color.to_string_css)
+                    ]
+                  [ Vdom.Node.legend [ hr_form_view ]
+                  ; upscaler_form_view
+                  ; View.hbox
+                      ~main_axis_alignment:Space_between
+                      ~cross_axis_alignment:Stretch
+                      ~gap:(`Em 1)
+                      (Vdom.Node.span [ Vdom.Node.text "denoise str" ]
+                       :: (Form.view denoising_strength |> Form.View.to_vdom_plain))
+                  ]
               ]
           ]
       in

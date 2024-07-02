@@ -14,12 +14,12 @@ let to_string t = t.content
 
 let to_vdom ?width ?height ?(drop_size = false) t =
   let width =
-    match drop_size, Option.first_some t.width width with
+    match drop_size, Option.first_some width t.width with
     | true, _ | _, None -> Vdom.Attr.empty
     | false, Some width -> Vdom.Attr.create "width" (Int63.to_string width)
   in
   let height =
-    match drop_size, Option.first_some t.height height with
+    match drop_size, Option.first_some height t.height with
     | true, _ | _, None -> Vdom.Attr.empty
     | _, Some height -> Vdom.Attr.create "height" (Int63.to_string height)
   in

@@ -20,17 +20,35 @@ module Style =
   }
 
   .image-wrapper {
+    transition: 
+      max-width 0.25s linear, 
+      min-width 0.25s linear,
+      max-height 0.25s linear, 
+      min-height 0.25s linear,
+      aspect-ratio 0.25s linear;
     border: 1px solid rgb(49, 57, 67);
     height: max-content;
     display: inline-flex;
+    align-items: center;
     padding: 5px;
     border-radius: 9px;
     background: rgb(20, 24, 28);
     overflow: clip;
     position: relative;
 
-    max-height: 75vh;
-    max-width: 66vw;
+    /*
+    --w:calc(--w + 8);
+    --h:calc(--h + 8);
+    */
+
+    width: var(--w);
+    min-width: var(--w);
+    max-width: var(--w);
+    height: var(--h);
+    min-height: var(--h);
+    max-height: var(--h);
+
+    aspect-ratio: var(--w) / var(--h);
   }
 
   .image-wrapper > img {
@@ -182,7 +200,7 @@ let image_wrapper
     | `Upscaling -> Style.upscaling
   in
   Vdom.Node.div
-    ~attrs:[ Style.image_wrapper; maybe_upscaling; Vdom.Attr.style aspect_ratio ]
+    ~attrs:[ Style.image_wrapper; maybe_upscaling; aspect_ratio ]
     [ image
     ; set_params_btn
     ; View.hbox
@@ -209,7 +227,8 @@ let component ~(request_host : Hosts.request_host Value.t) ~set_params =
   let%sub (_, images), modify_images =
     Bonsai.state_machine0
       ~default_model:(0, Map.empty (module Key))
-      ~apply_action:(fun _ctx (next_idx, map) -> function
+      ~apply_action:(fun _ctx (next_idx, map) ->
+        function
         | `Enqueue (params, count) ->
           List.init count ~f:(Fn.const ())
           |> List.fold ~init:(next_idx, map) ~f:(fun (next_idx, map) () ->
@@ -263,11 +282,10 @@ let component ~(request_host : Hosts.request_host Value.t) ~set_params =
           let remove = modify_images (`Remove idx) in
           let w, h = params.width, params.height in
           let aspect_ratio =
-            Css_gen.combine
-              (Css_gen.create
-                 ~field:"aspect-ratio"
-                 ~value:(sprintf "%s / %s" (Int63.to_string w) (Int63.to_string h)))
-              (Css_gen.width (`Px (Int63.to_int_exn w)))
+            let img_width, img_height = Int63.to_int_exn w / 4, Int63.to_int_exn h / 4 in
+            Style.Variables.set_all
+              ~w:(Int.to_string img_width ^ "px")
+              ~h:(Int.to_string img_height ^ "px")
           in
           image_wrapper
             ~upscaling:`Not_upscaling
@@ -278,22 +296,32 @@ let component ~(request_host : Hosts.request_host Value.t) ~set_params =
             ~upscale:None
             ~aspect_ratio
             (Vdom.Node.text "generating...")
-            (*Vdom.Node.text (Sexp.to_string_hum [%sexp (params : Txt2img.Query.t)])*)
+          (*Vdom.Node.text (Sexp.to_string_hum [%sexp (params : Txt2img.Query.t)])*)
         | `Done (image, info, upscaling) ->
           let%sub image_vdom_and_aspect_ratio =
             let%arr image = image
-             in
-            let vdom = Base64_image.to_vdom image ~drop_size:true in
-            let aspect_ratio =
+            and info = info in
+            let width, height =
               match Base64_image.size image with
+              | None -> None, None
               | Some (w, h) ->
-                Css_gen.combine
-                  (Css_gen.create
-                     ~field:"aspect-ratio"
-                     ~value:(sprintf "%s / %s" (Int63.to_string w) (Int63.to_string h)))
-                  (
-                   Css_gen.width (`Px (Int63.to_int_exn w)))
-              | None -> Css_gen.empty
+                let img_width, img_height =
+                  if info.enable_hr
+                  then Int63.(w / of_int 2), Int63.(h / of_int 2)
+                  else w, h
+                in
+                Some img_width, Some img_height
+            in
+            let vdom = Base64_image.to_vdom ?width ?height image in
+            let aspect_ratio =
+              match width, height with
+              | Some img_width, Some img_height ->
+                let img_width = Int63.to_int_exn img_width
+                and img_height = Int63.to_int_exn img_height in
+                Style.Variables.set_all
+                  ~w:(Int.to_string (img_width + (6 * 2)) ^ "px")
+                  ~h:(Int.to_string (img_height + (6 * 2)) ^ "px")
+              | _ -> Vdom.Attr.empty
             in
             vdom, aspect_ratio
           in
@@ -313,9 +341,10 @@ let component ~(request_host : Hosts.request_host Value.t) ~set_params =
               |> Effect.lazy_
               |> Some
           in
-          let%sub () =
-            Bonsai_extra.exactly_once (upscale >>| Option.value ~default:Effect.Ignore)
-          in
+          (*
+             let%sub () =
+             Bonsai_extra.exactly_once (upscale >>| Option.value ~default:Effect.Ignore)
+             in*)
           let%arr idx = idx
           and info = info
           and upscaling = upscaling
@@ -346,9 +375,8 @@ let component ~(request_host : Hosts.request_host Value.t) ~set_params =
             ~aspect_ratio
             image_vdom
         | `Error e ->
-          let%arr _e = e in
-          Vdom.Node.text "generating...")
-          (* Vdom.Node.sexp_for_debugging ([%sexp_of: Error.t] e))*)
+          let%arr e = e in
+          Vdom.Node.sexp_for_debugging ([%sexp_of: Error.t] e))
   in
   let%sub view =
     let%arr images = images in

@@ -2,7 +2,7 @@ open! Core
 open! Bonsai_web
 open Bonsai.Let_syntax
 module Host = String
-module Form = Bonsai_web_ui_form
+module Form = Bonsai_web_ui_form.With_automatic_view
 
 module Work = struct
   type t =
@@ -64,7 +64,8 @@ let component =
   let%sub host_status, inject_host_status =
     Bonsai.state_machine1
       ~default_model:String.Map.empty
-      ~apply_action:(fun ctx input model -> function
+      ~apply_action:(fun ctx input model ->
+        function
         | `Report_health (host, `Pending) ->
           Map.change model host ~f:(function
             | None | Some (`Bad | `Pending) -> Some `Pending

@@ -9,8 +9,7 @@
   bonsai.vdom_node_with_map_children
   bonsai.kado
   virtual_dom.svg
-  bonsai.feather_icon
-  )
+  bonsai.feather_icon)
  (preprocess
   (pps
    ppx_jane

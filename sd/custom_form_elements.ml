@@ -1,7 +1,7 @@
 open! Core
 open! Bonsai_web
 open Bonsai.Let_syntax
-module Form = Bonsai_web_ui_form
+module Form = Bonsai_web_ui_form.With_automatic_view
 
 module Label_modifications =
   [%css
@@ -44,7 +44,7 @@ let int_form
   let%arr theme = theme
   and state = state
   and set_state = set_state
-  and id = id in
+  and unique_key = id in
   let value_or_corrected = validate_or_correct state in
   let is_error = Result.is_ok value_or_corrected in
   let fix_on_blur =
@@ -95,7 +95,7 @@ let int_form
              (match validate_or_correct (Int63.to_string i) with
               | Ok v -> v
               | Error v -> v)))
-      ~view:(Form.View.of_vdom ~id view)
+      ~view:(Form.View.of_vdom ~unique_key view)
   in
   form, view
 ;;
@@ -135,7 +135,7 @@ let textarea ?validate ?(container_attrs = []) ?(textarea_attrs = []) ?label () 
   let%arr theme = theme
   and state = state
   and set_state = set_state
-  and id = id in
+  and unique_key = id in
   let on_blur =
     match validate with
     | None -> Effect.Ignore
@@ -161,7 +161,7 @@ let textarea ?validate ?(container_attrs = []) ?(textarea_attrs = []) ?label () 
     Form.Expert.create
       ~value:(Ok value)
       ~set:set_state
-      ~view:(Form.View.of_vdom ~id Vdom.Node.none)
+      ~view:(Form.View.of_vdom ~unique_key Vdom.Node.none)
   in
   form, view
 ;;
@@ -173,7 +173,7 @@ let bool_form ?(input_attrs = []) ?(container_attrs = []) ~title ~default () =
   let%arr theme = theme
   and state = state
   and set_state = set_state
-  and id = id in
+  and unique_key = id in
   let view =
     Kado.Unstable.Input.checkbox
       ~constants:(View.constants theme)
@@ -185,7 +185,10 @@ let bool_form ?(input_attrs = []) ?(container_attrs = []) ~title ~default () =
       ~checked:state
   in
   let form =
-    Form.Expert.create ~value:(Ok state) ~set:set_state ~view:(Form.View.of_vdom ~id view)
+    Form.Expert.create
+      ~value:(Ok state)
+      ~set:set_state
+      ~view:(Form.View.of_vdom ~unique_key view)
   in
   form, view
 ;;
