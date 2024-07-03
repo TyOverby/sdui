@@ -38,14 +38,17 @@ let pipe
     type t = (unit, a) Effect.Private.Callback.t
 
     let sexp_of_t _ = Sexp.Atom "<callback>"
+    let equal = phys_equal
   end
   in
   let module Model = struct
+    let equal_a = phys_equal
+
     type t =
       { queued_items : (a * Item_id.t) Fdeque.t Spec.Map.t
       ; queued_receivers : Callback.t Fdeque.t Spec.Map.t
       }
-    [@@deriving sexp_of]
+    [@@deriving sexp_of, equal]
 
     let normalize { queued_items; queued_receivers } =
       let n map =
@@ -54,7 +57,6 @@ let pipe
       { queued_items = n queued_items; queued_receivers = n queued_receivers }
     ;;
 
-    let equal = phys_equal
     let default = { queued_items = Spec.Map.empty; queued_receivers = Spec.Map.empty }
   end
   in
