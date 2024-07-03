@@ -2,8 +2,6 @@ open! Core
 open! Bonsai_web.Cont
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
-module _ = Worker2
-module _ = Worker_pool2
 
 module Style = [%css stylesheet {|
   body {
@@ -16,7 +14,7 @@ let component graph =
   let%sub { view = hosts_view; request = request_host; available_hosts } =
     Sd.Hosts.component graph
   in
-  let%sub worker_pool = Worker_pool2.component ~hosts:available_hosts graph in
+  let%sub worker_pool = Worker_pool.component ~hosts:available_hosts graph in
   let parameters, model_form =
     Sd.Parameters.component ~request_host ~available_hosts graph
   in
@@ -28,7 +26,7 @@ let component graph =
     Some
       (match%bind.Effect Effect.Let_syntax.Let_syntax.both parameters_form model_form with
        | Active (Ok _parameters), Active (Ok model) ->
-         Worker_pool2.enqueue worker_pool ~spec:model () ~f:(fun host () ->
+         Worker_pool.enqueue worker_pool ~spec:model () ~f:(fun host () ->
            let%bind.Effect () =
              Effect.print_s [%message "got a host, sleeping" (host : Sd.Hosts.Host.t)]
            in
@@ -43,6 +41,6 @@ let component graph =
   let on_submit = Option.value submit_effect ~default:Effect.Ignore in
   Vdom.Node.div
     [ (Form.view parameters) ~on_submit ~hosts_panel:hosts_view
-    ; Worker_pool2.debug worker_pool
+    ; Worker_pool.debug worker_pool
     ]
 ;;
