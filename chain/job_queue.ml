@@ -9,6 +9,7 @@ type ('a, 'spec) t =
   ; remove : Item_id.t -> unit Effect.t
   ; debug : Vdom.Node.t
   }
+[@@deriving fields]
 
 let pipe
   (type a spec)

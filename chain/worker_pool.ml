@@ -40,7 +40,7 @@ let component ~(hosts : Sd.Hosts.Host.Set.t Bonsai.t) graph =
   and queue = queue in
   let enqueue spec f =
     let%bind.Effect { Worker.Item.on_start; on_done; resource } =
-      queue.Job_queue.pop_front spec
+      Job_queue.pop_front queue spec
     in
     let%bind.Effect () = on_start in
     let%bind.Effect result = f resource in
@@ -49,7 +49,7 @@ let component ~(hosts : Sd.Hosts.Host.Set.t Bonsai.t) graph =
   in
   let debug =
     View.vbox
-      [ queue.Job_queue.debug
+      [ Job_queue.debug queue
       ; Vdom.Node.sexp_for_debugging
           [%sexp (statuses : Worker.Status.t Sd.Hosts.Host.Map.t)]
       ]

@@ -69,7 +69,7 @@ let component
                    and status = status in
                    let remove_effect_opt =
                      match status with
-                     | In_queue id -> queue.Job_queue.remove id
+                     | In_queue id -> Job_queue.remove queue id
                      | _ -> Effect.Ignore
                    in
                    Effect.Many [ reset; remove_effect_opt ])
@@ -85,7 +85,8 @@ let component
                    match status with
                    | Loitering ->
                      let%bind.Effect id =
-                       queue.Job_queue.push_back
+                       Job_queue.push_back
+                         queue
                          spec
                          { Item.on_start; on_done; resource = item }
                      in
