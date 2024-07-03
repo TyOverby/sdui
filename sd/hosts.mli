@@ -2,7 +2,9 @@ open! Core
 open! Bonsai_web.Cont
 
 module Host : sig
-  type t = private string
+  type t = private string [@@deriving sexp_of]
+
+  include Comparable.S with type t := t
 end
 
 module Work : sig
@@ -18,7 +20,7 @@ type request_host = Work.t Effect.t
 type t =
   { view : Vdom.Node.t
   ; request : request_host
-  ; available_hosts : String.Set.t
+  ; available_hosts : Host.Set.t
   }
 
 val component : Bonsai.graph -> t Bonsai.t

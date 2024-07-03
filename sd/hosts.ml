@@ -3,7 +3,7 @@ open! Bonsai_web.Cont
 open Bonsai.Let_syntax
 
 module Host = struct
-  type t = string
+  include String
 end
 
 module Form = Bonsai_web_ui_form.With_manual_view

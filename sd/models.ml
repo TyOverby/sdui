@@ -3,7 +3,7 @@ open! Bonsai_web.Cont
 open Async_kernel
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives
 open Bonsai.Let_syntax
-module Form = Bonsai_web_ui_form.With_automatic_view
+module Form = Bonsai_web_ui_form.With_manual_view
 
 type t = string option [@@deriving sexp, yojson, compare]
 
@@ -69,6 +69,8 @@ module Current_model = struct
       print_s [%message (e : Error.t)];
       None
   ;;
+
+  include T
 end
 
 module Model_list = struct
@@ -116,13 +118,13 @@ module Model_list = struct
   ;;
 end
 
-let form ~request_host ~available_hosts graph =
+let form ~request_host ~(available_hosts : Hosts.Host.Set.t Bonsai.t) graph =
   let all = Model_list.all ~request_host graph in
   let state, set_state = Bonsai.state_opt graph in
   let current = Current_model.current ~request_host graph in
   let in_progress, set_in_progress = Bonsai.state false graph in
   Bonsai.Edge.on_change
-    ~equal:[%equal: String.Set.t * string option * string option]
+    ~equal:[%equal: Hosts.Host.Set.t * string option * string option]
     (let%map available_hosts = available_hosts
      and state = state
      and current = current in
@@ -139,7 +141,8 @@ let form ~request_host ~available_hosts graph =
              available_hosts
              |> Set.to_list
              |> List.map ~f:(fun host ->
-               Current_model.dispatch_set (host, { sd_model_checkpoint }))
+               Current_model.dispatch_set
+                 (((host : Hosts.Host.t) :> string), { sd_model_checkpoint }))
              |> Effect.all
            in
            let%bind.Effect () = set_in_progress false in
@@ -152,7 +155,6 @@ let form ~request_host ~available_hosts graph =
   and state = state
   and set_state = set_state
   and in_progress = in_progress
-  and unique_key = Bonsai.path_id graph
   and current = current in
   let current = Option.first_some current state in
   let options =
@@ -183,11 +185,5 @@ let form ~request_host ~available_hosts graph =
       ~on_change:(fun v -> set_state (Some v))
       ~options
   in
-  let form =
-    Form.Expert.create
-      ~value:(Ok current)
-      ~set:set_state
-      ~view:(Form.View.of_vdom ~unique_key view)
-  in
-  form, view
+  { Form.value = Ok current; set = set_state; view }
 ;;

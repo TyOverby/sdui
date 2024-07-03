@@ -10,6 +10,6 @@ type t =
 
 val component
   :  request_host:Hosts.request_host Bonsai.t
-  -> available_hosts:String.Set.t Bonsai.t
+  -> available_hosts:Hosts.Host.Set.t Bonsai.t
   -> Bonsai.graph
-  -> t Bonsai.t
+  -> t Bonsai.t * (Models.t, Vdom.Node.t) Form.t Bonsai.t

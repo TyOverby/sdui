@@ -1,7 +1,7 @@
 open! Core
 open! Bonsai_web.Cont
 open Bonsai.Let_syntax
-module Form = Bonsai_web_ui_form.With_automatic_view
+module Form = Bonsai_web_ui_form.With_manual_view
 
 let default = "Latent"
 
@@ -60,8 +60,7 @@ let form ~request_host graph =
   let%arr theme = View.Theme.current graph
   and all = all ~request_host graph
   and state = state
-  and set_state = set_state
-  and unique_key = Bonsai.path_id graph in
+  and set_state = set_state in
   let all =
     match all with
     | Error _ -> [ default ]
@@ -90,11 +89,5 @@ let form ~request_host graph =
       ~on_change:set_state
       ~options
   in
-  let form =
-    Form.Expert.create
-      ~value:(Ok state)
-      ~set:set_state
-      ~view:(Form.View.of_vdom ~unique_key view)
-  in
-  form, view
+  { Form.value = Ok state; set = set_state; view }
 ;;

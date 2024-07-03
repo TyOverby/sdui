@@ -7,7 +7,7 @@ type ('a, 'spec) t =
   { push_back : 'spec -> 'a -> Item_id.t Effect.t
   ; pop_front : 'spec -> 'a Effect.t
   ; remove : Item_id.t -> unit Effect.t
-  ; debug : Sexp.t Lazy.t
+  ; debug : Vdom.Node.t
   }
 
 let pipe
@@ -47,6 +47,13 @@ let pipe
       }
     [@@deriving sexp_of]
 
+    let normalize { queued_items; queued_receivers } =
+      let n map =
+        Map.filter map ~f:(fun d -> if Fdeque.is_empty d then false else true)
+      in
+      { queued_items = n queued_items; queued_receivers = n queued_receivers }
+    ;;
+
     let equal = phys_equal
     let default = { queued_items = Spec.Map.empty; queued_receivers = Spec.Map.empty }
   end
@@ -70,60 +77,62 @@ let pipe
       ~equal:[%equal: Model.t]
       ~sexp_of_action:[%sexp_of: Action.t]
       ~default_model:Model.default
-      ~apply_action:(fun context model ->
-        function
-        | Clear item_id ->
-          let queued_items =
-            Map.map model.queued_items ~f:(fun deque ->
-              Fdeque.to_list deque
-              |> List.filter ~f:(fun (_, item_id') ->
-                not (Item_id.equal item_id item_id'))
-              |> Fdeque.of_list)
-          in
-          { model with queued_items }
-        | Add_item { spec; item = a; id } ->
-          let queued_receivers =
-            Map.find model.queued_receivers spec |> Option.value ~default:Fdeque.empty
-          in
-          (match Fdeque.dequeue_front queued_receivers with
-           | None ->
+      ~apply_action:(fun context model action ->
+        Model.normalize
+          (match action with
+           | Clear item_id ->
              let queued_items =
-               Map.find model.queued_items spec
-               |> Option.value ~default:Fdeque.empty
-               |> Fn.flip Fdeque.enqueue_back (a, id)
+               Map.map model.queued_items ~f:(fun deque ->
+                 Fdeque.to_list deque
+                 |> List.filter ~f:(fun (_, item_id') ->
+                   not (Item_id.equal item_id item_id'))
+                 |> Fdeque.of_list)
              in
-             { model with
-               queued_items = Map.set model.queued_items ~key:spec ~data:queued_items
-             }
-           | Some (hd, queued_receivers) ->
-             Bonsai.Apply_action_context.schedule_event
-               context
-               (Effect.Private.Callback.respond_to hd a);
-             { model with
-               queued_receivers =
-                 Map.set model.queued_receivers ~key:spec ~data:queued_receivers
-             })
-        | Add_receiver (spec, r) ->
-          let queued_items =
-            Map.find model.queued_items spec |> Option.value ~default:Fdeque.empty
-          in
-          (match Fdeque.dequeue_front queued_items with
-           | None ->
+             { model with queued_items }
+           | Add_item { spec; item = a; id } ->
              let queued_receivers =
                Map.find model.queued_receivers spec |> Option.value ~default:Fdeque.empty
              in
-             let queued_receivers = Fdeque.enqueue_back queued_receivers r in
-             { model with
-               queued_receivers =
-                 Map.set model.queued_receivers ~key:spec ~data:queued_receivers
-             }
-           | Some ((item, _id), queued_items) ->
-             Bonsai.Apply_action_context.schedule_event
-               context
-               (Effect.Private.Callback.respond_to r item);
-             { model with
-               queued_items = Map.set model.queued_items ~key:spec ~data:queued_items
-             }))
+             (match Fdeque.dequeue_front queued_receivers with
+              | None ->
+                let queued_items =
+                  Map.find model.queued_items spec
+                  |> Option.value ~default:Fdeque.empty
+                  |> Fn.flip Fdeque.enqueue_back (a, id)
+                in
+                { model with
+                  queued_items = Map.set model.queued_items ~key:spec ~data:queued_items
+                }
+              | Some (hd, queued_receivers) ->
+                Bonsai.Apply_action_context.schedule_event
+                  context
+                  (Effect.Private.Callback.respond_to hd a);
+                { model with
+                  queued_receivers =
+                    Map.set model.queued_receivers ~key:spec ~data:queued_receivers
+                })
+           | Add_receiver (spec, r) ->
+             let queued_items =
+               Map.find model.queued_items spec |> Option.value ~default:Fdeque.empty
+             in
+             (match Fdeque.dequeue_front queued_items with
+              | None ->
+                let queued_receivers =
+                  Map.find model.queued_receivers spec
+                  |> Option.value ~default:Fdeque.empty
+                in
+                let queued_receivers = Fdeque.enqueue_back queued_receivers r in
+                { model with
+                  queued_receivers =
+                    Map.set model.queued_receivers ~key:spec ~data:queued_receivers
+                }
+              | Some ((item, _id), queued_items) ->
+                Bonsai.Apply_action_context.schedule_event
+                  context
+                  (Effect.Private.Callback.respond_to r item);
+                { model with
+                  queued_items = Map.set model.queued_items ~key:spec ~data:queued_items
+                })))
   in
   let triple =
     let%arr inject = inject in
@@ -137,9 +146,11 @@ let pipe
         Effect.Expert.handle_non_dom_event_exn (inject (Add_receiver (spec, r))))
     in
     let remove id = inject (Clear id) in
-    { push_back; pop_front; remove; debug = Lazy.from_val (Sexp.Atom "") }
+    { push_back; pop_front; remove; debug = Vdom.Node.none }
   in
   let%arr triple = triple
   and model = model in
-  { triple with debug = lazy (Model.sexp_of_t model) }
+  { triple with
+    debug = Vdom.Node.lazy_ (lazy (Vdom.Node.sexp_for_debugging (Model.sexp_of_t model)))
+  }
 ;;

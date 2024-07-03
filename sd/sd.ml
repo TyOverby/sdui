@@ -25,35 +25,12 @@ module Style = [%css stylesheet {|
   }
 |}]
 
-let blurry_transparent_background =
-  View.Theme.override_constants_for_computation ~f:(fun constants ->
-    let make_transparent pct c =
-      `Name
-        (sprintf
-           "color-mix(in oklab, transparent %d%%, %s)"
-           pct
-           (Css_gen.Color.to_string_css c))
-    in
-    { constants with
-      primary =
-        { constants.primary with
-          background = make_transparent 0 constants.primary.background
-        }
-    ; extreme =
-        { constants.primary with
-          background = make_transparent 0 constants.extreme.background
-        }
-    })
-;;
-
 let component graph =
   let%sub { view = hosts_view; request = request_host; available_hosts } =
     Hosts.component graph
   in
-  let parameters =
-    blurry_transparent_background
-      (Parameters.component ~request_host ~available_hosts)
-      graph
+  let parameters, _model_view =
+    Parameters.component ~request_host ~available_hosts graph
   in
   let%sub { queue_request; view = gallery } =
     Gallery.component ~request_host ~set_params:(parameters >>| Form.set) graph

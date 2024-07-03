@@ -157,7 +157,11 @@ let validate_prompt prompt =
   prompt |> String.split_lines |> List.map ~f:translate_line |> String.concat ~sep:"\n"
 ;;
 
-let component ~(request_host : Hosts.request_host Bonsai.t) ~available_hosts graph =
+let component
+  ~(request_host : Hosts.request_host Bonsai.t)
+  ~(available_hosts : Hosts.Host.Set.t Bonsai.t)
+  graph
+  =
   let width_height_form title =
     Custom_form_elements.int_form
       ~title
@@ -228,7 +232,7 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~available_hosts gra
   let sampling_steps_form = min_1_form ~default:(Int63.of_int 25) ~max:150 "steps" in
   let cfg_scale_form = min_1_form ~default:(Int63.of_int 7) ~max:30 "cfg" in
   let%sub sampler_form, sampler_form_view = Samplers.form ~request_host graph in
-  let%sub upscaler_form, upscaler_form_view = Upscaler.form ~request_host graph in
+  let upscaler_form = Upscaler.form ~request_host graph in
   let%sub styles_form = Styles.form ~request_host graph in
   let hr_form = Custom_form_elements.bool_form ~title:"upscale" ~default:false graph in
   let%sub denoising_strength =
@@ -243,9 +247,7 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~available_hosts gra
       ()
       graph
   in
-  let%sub _models_form, models_form_view =
-    Models.form ~request_host ~available_hosts graph
-  in
+  let models_form = Models.form ~request_host ~available_hosts graph in
   let form =
     Form.Typed.Record.make
       (module struct
@@ -297,6 +299,7 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~available_hosts gra
     and { view = cfg_scale_view; _ } = cfg_scale_form
     and { view = sampling_steps_view; _ } = sampling_steps_form
     and { view = seed_form_view; _ } = seed_form
+    and { view = upscaler_form_view; _ } = upscaler_form
     and theme = theme
     and sampler = sampler_form_view
     and styles_form = styles_form
@@ -304,9 +307,8 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~available_hosts gra
     and collapsed = collapsed
     and { view = data_url_view; _ } = data_url_form
     and toggle_collapsed = toggle_collapsed
-    and upscaler_form_view = upscaler_form_view
     and denoising_strength = denoising_strength
-    and models_form_view = models_form_view in
+    and { view = models_form_view; _ } = models_form in
     fun ~on_submit ~hosts_panel ->
       let hijack_ctrl_enter =
         Vdom.Attr.on_keypress (fun evt ->
@@ -382,7 +384,10 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~available_hosts gra
             [ Vdom.Node.text "^^^" ]
         ]
   in
-  let%arr form = form
-  and form_view = form_view in
-  { Form.value = form.value; set = form.set; view = form_view }
+  let query =
+    let%arr form = form
+    and form_view = form_view in
+    { Form.value = form.value; set = form.set; view = form_view }
+  in
+  query, models_form
 ;;
