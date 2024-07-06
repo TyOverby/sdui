@@ -3,38 +3,48 @@ open! Bonsai_web.Cont
 open! Bonsai.Let_syntax
 
 module type Lease_pool = sig
-  (* A ['a Lease_pool.t] is a data structure for lending out unique access to
-     values of type ['a] for the duration of an Effect.  The set of loanable
-     items can change over time *)
+  (* A lease-pool is a data structure for lending out values of type ['a] to
+     a user of the pool for the duration of an effect.
+
+     Values that can be lent out are provided as an input to the component in a
+     set, and the pool just makes sure that no two ['a] are being lent out at
+     the same time.
+
+     - When a user attempts to perform an effect which requires an ['a], but
+       there are no values in the pool at all (busy or available), the callback
+       is invoked with [None],
+     - if there are available values that aren't being lent out then the
+       callback is immediately invoked with [Some a].
+     - If all values are currently being lent out, then the effect is enqueued,
+       and will be invoked as soon as a currently-lended ['a] becomes available. *)
   type 'a t
 
-  (* [take] gives you an effect that - when scheduled - retrieves an item
-     from the pool.  If there are no items, (or if the pool is inactive),
-     then the Effect won't complete until an item is available. *)
-  val take : 'a t -> 'a option Effect.t Bonsai.t
-
-  (* [return] allows the user to return an item to the pool. *)
-  val return : 'a t -> ('a -> unit Effect.t) Bonsai.t
-
-  (* you can put whatever you want in this sexp to help you debug *)
-  val debug : 'a t -> Sexp.t Bonsai.t
-
-  (* creates an instance of the pool *)
   val create
     :  ('a, 'cmp) Comparator.Module.t
     -> ('a, 'cmp) Set.t Bonsai.t
     -> Bonsai.graph
     -> 'a t
+
+  val dispatcher : 'a t -> (f:('a option -> 'b Effect.t) -> 'b Effect.t) Bonsai.t
+
+  (* you can put whatever you want in this sexp to help you debug *)
+  val debug : 'a t -> Sexp.t Bonsai.t
 end
 
-module type Keyed_pool = sig
-  (* creates an instance of the pool *)
+module type Keyed_lease_pool = sig
+  (* A "keyed lease-pool" is a lease-pool with a key!  Lendable values are
+     provided to the component inside of a map which is keyed on their "kind".
+     Then, during the dispatching stage, the caller of the dispatch function
+     provides a key and only lendable values which are a member of that key are
+     valid candidates for the dispatch. *)
+
   val create
-    :  ('key, 'key_cmp) Comparator.Module.t
-    -> ('a, 'cmp) Comparator.Module.t
-    -> ('key, 'key_cmp, ('a, 'cmp) Set.t) Map.t Bonsai.t
+    :  ('group, 'group_cmp) Bonsai.comparator
+    -> ('key, 'cmp) Comparator.Module.t
+    -> ('key, 'data, 'cmp) Map.t Bonsai.t
+    -> group:('key -> 'data -> 'group)
     -> Bonsai.graph
-    -> ('key -> f:('a option -> 'b Effect.t) -> 'b Effect.t) Bonsai.t
+    -> ('group -> f:('key option -> 'b Effect.t) -> 'b Effect.t) Bonsai.t
 end
 
 module T = struct
@@ -103,6 +113,9 @@ module T = struct
     | Take cb, Inactive ->
       Bonsai.Apply_action_context.schedule_event ctx (Callback.respond_to cb None);
       model
+    | Take cb, Active all when Set.is_empty all ->
+      Bonsai.Apply_action_context.schedule_event ctx (Callback.respond_to cb None);
+      model
     | Take cb, Active all -> take_impl ~ctx ~cb ~all ~model
     | Pump, Inactive -> model
     | Pump, Active all ->
@@ -130,27 +143,47 @@ module T = struct
     in
     { take; return; debug }
   ;;
+
+  let dispatcher { take; return; _ } =
+    let%arr take = take
+    and return = return in
+    fun ~f ->
+      match%bind.Effect take with
+      | None -> f None
+      | Some a ->
+        let%bind.Effect r = f (Some a) in
+        let%bind.Effect () = return a in
+        Effect.return r
+  ;;
 end
 
 module Y = struct
-  let create key_cmp cmp map graph =
+  let create
+    (type group group_cmp key data cmp)
+    (group_cmp : (group, group_cmp) Bonsai.comparator)
+    (cmp : (key, cmp) Comparator.Module.t)
+    (map : (key, data, cmp) Map.t Bonsai.t)
+    ~group
+    graph
+    =
+    let map =
+      Bonsai.Map.index_byi map ~comparator:group_cmp graph ~index:(fun ~key ~data ->
+        Some (group key data))
+    in
     let pools =
-      Bonsai.assoc key_cmp map graph ~f:(fun _ set graph ->
-        let { T.take; return; debug = _ } = T.create cmp set graph in
-        Bonsai.map2 take return ~f:Tuple2.create)
+      Bonsai.assoc group_cmp map graph ~f:(fun _ map graph ->
+        let set = Bonsai.Map.keys map graph in
+        T.dispatcher (T.create cmp set graph))
     in
     let%arr pools = pools in
     fun key ~f ->
       match Map.find pools key with
-      | None -> Effect.return None
-      | Some (take, return) ->
-        (match%bind.Effect take with
-         | None -> Effect.return None
-         | Some a ->
-           let%bind.Effect r = f a in
-           let%bind.Effect () = return a in
-           Effect.return r)
+      | None -> f None
+      | Some dispatcher -> dispatcher ~f
   ;;
+
+  let debug _ = Bonsai.return (sexp_of_opaque ())
 end
 
 module _ : Lease_pool = T
+module _ : Keyed_lease_pool = Y
