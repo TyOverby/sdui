@@ -7,6 +7,7 @@ end
 
 type ('a, 'spec) t
 
+val push_front : ('a, 'spec) t -> 'spec -> 'a -> Item_id.t Ui_effect.t
 val push_back : ('a, 'spec) t -> 'spec -> 'a -> Item_id.t Ui_effect.t
 val pop_front : ('a, 'spec) t -> 'spec -> 'a Ui_effect.t
 val remove : ('a, 'spec) t -> Item_id.t -> unit Ui_effect.t

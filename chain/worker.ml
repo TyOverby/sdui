@@ -79,14 +79,14 @@ let apply_action
     , Inactive
     , Start_work { job = T { spec; _ } as job; queue } ) ->
     (* If you got work while inactive, send it back *)
-    schedule (Effect.ignore_m (Job_queue.push_back queue spec job));
+    schedule (Effect.ignore_m (Job_queue.push_front queue spec job));
     Loitering_or_inactive
   | Working, _, Wake_up -> model
   | Working, Inactive, Finished_work -> Loitering_or_inactive
   | Working, (Active _ | Inactive), Start_work { job = T { spec; _ } as job; queue } ->
     (* If you got work while working, send it back *)
     print_s [%message "BUG" [%here]];
-    schedule (Effect.ignore_m (Job_queue.push_back queue spec job));
+    schedule (Effect.ignore_m (Job_queue.push_front queue spec job));
     Loitering_or_inactive
   | model, Inactive, Wake_up ->
     (* if you got woken up and are inactive, don't do anything *)

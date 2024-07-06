@@ -4,7 +4,8 @@ open! Bonsai.Let_syntax
 module Item_id = Unique_id.Int63 ()
 
 type ('a, 'spec) t =
-  { push_back : 'spec -> 'a -> Item_id.t Effect.t
+  { push_front : 'spec -> 'a -> Item_id.t Effect.t
+  ; push_back : 'spec -> 'a -> Item_id.t Effect.t
   ; pop_front : 'spec -> 'a Effect.t
   ; remove : Item_id.t -> unit Effect.t
   ; debug : Vdom.Node.t
@@ -63,10 +64,11 @@ let pipe
   in
   let module Action = struct
     type t =
-      | Add_item of
+      | Push of
           { spec : Spec.t
           ; item : a
           ; id : Item_id.t
+          ; front_or_back : [ `Front | `Back ]
           }
       | Add_receiver of Spec.t * Callback.t
       | Clear of Item_id.t
@@ -92,7 +94,7 @@ let pipe
                  |> Fdeque.of_list)
              in
              { model with queued_items }
-           | Add_item { spec; item = a; id } ->
+           | Push { spec; item = a; id; front_or_back } ->
              let queued_receivers =
                Map.find model.queued_receivers spec |> Option.value ~default:Fdeque.empty
              in
@@ -101,7 +103,11 @@ let pipe
                 let queued_items =
                   Map.find model.queued_items spec
                   |> Option.value ~default:Fdeque.empty
-                  |> Fn.flip Fdeque.enqueue_back (a, id)
+                  |> Fn.flip
+                       (match front_or_back with
+                        | `Front -> Fdeque.enqueue_front
+                        | `Back -> Fdeque.enqueue_back)
+                       (a, id)
                 in
                 { model with
                   queued_items = Map.set model.queued_items ~key:spec ~data:queued_items
@@ -139,17 +145,19 @@ let pipe
   in
   let triple =
     let%arr inject = inject in
-    let push_back spec item =
+    let push front_or_back spec item =
       let%bind.Effect id = Effect.of_thunk Item_id.create in
-      let%bind.Effect () = inject (Add_item { spec; item; id }) in
+      let%bind.Effect () = inject (Push { spec; item; id; front_or_back }) in
       Effect.return id
     in
+    let push_front = push `Front in
+    let push_back = push `Back in
     let pop_front spec =
       Effect.Private.make ~request:() ~evaluator:(fun r ->
         Effect.Expert.handle_non_dom_event_exn (inject (Add_receiver (spec, r))))
     in
     let remove id = inject (Clear id) in
-    { push_back; pop_front; remove; debug = Vdom.Node.none }
+    { push_back; push_front; pop_front; remove; debug = Vdom.Node.none }
   in
   let%arr triple = triple
   and model = model in
