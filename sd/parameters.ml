@@ -157,36 +157,38 @@ let validate_prompt prompt =
   prompt |> String.split_lines |> List.map ~f:translate_line |> String.concat ~sep:"\n"
 ;;
 
+let width_height_form title graph =
+  Custom_form_elements.int_form
+    ~title
+    ~step:8
+    ~default:(Int63.of_int 512)
+    ~validate_or_correct:multiple_of_8
+    ~length:(`Em 4)
+    ~min:(Int63.of_int 128)
+    ~max:(Int63.of_int 2048)
+    ~input_attrs:[ Vdom.Attr.create "data-kind" title ]
+    graph
+;;
+
+let min_1_form ~default ~max title graph =
+  let min = Int63.of_int 1 in
+  let max = Int63.of_int max in
+  Custom_form_elements.int_form
+    ~title
+    ~step:1
+    ~default
+    ~validate_or_correct:(between_inclusive ~min ~max)
+    ~length:(`Em 3)
+    ~min
+    ~max
+    graph
+;;
+
 let component
   ~(request_host : Hosts.request_host Bonsai.t)
   ~(available_hosts : Hosts.Host.Set.t Bonsai.t)
   graph
   =
-  let width_height_form title =
-    Custom_form_elements.int_form
-      ~title
-      ~step:8
-      ~default:(Int63.of_int 512)
-      ~validate_or_correct:multiple_of_8
-      ~length:(`Em 4)
-      ~min:(Int63.of_int 128)
-      ~max:(Int63.of_int 2048)
-      ~input_attrs:[ Vdom.Attr.create "data-kind" title ]
-      graph
-  in
-  let min_1_form ~default ~max title =
-    let min = Int63.of_int 1 in
-    let max = Int63.of_int max in
-    Custom_form_elements.int_form
-      ~title
-      ~step:1
-      ~default
-      ~validate_or_correct:(between_inclusive ~min ~max)
-      ~length:(`Em 3)
-      ~min
-      ~max
-      graph
-  in
   let seed_form =
     Custom_form_elements.int_form
       ~title:"seed"
@@ -202,8 +204,8 @@ let component
       ~input_attrs:[ Vdom.Attr.style (Css_gen.font_family [ "monospace" ]) ]
       graph
   in
-  let width_form = width_height_form "width" in
-  let height_form = width_height_form "height" in
+  let width_form = width_height_form "width" graph in
+  let height_form = width_height_form "height" graph in
   let data_url_form =
     Custom_form_elements.textarea
       ~validate:Fn.id
@@ -229,8 +231,10 @@ let component
   let negative_prompt_form =
     Custom_form_elements.textarea ~validate:validate_prompt ~label:"negative prompt" graph
   in
-  let sampling_steps_form = min_1_form ~default:(Int63.of_int 25) ~max:150 "steps" in
-  let cfg_scale_form = min_1_form ~default:(Int63.of_int 7) ~max:30 "cfg" in
+  let sampling_steps_form =
+    min_1_form ~default:(Int63.of_int 25) ~max:150 "steps" graph
+  in
+  let cfg_scale_form = min_1_form ~default:(Int63.of_int 7) ~max:30 "cfg" graph in
   let%sub sampler_form, sampler_form_view = Samplers.form ~request_host graph in
   let upscaler_form = Upscaler.form ~request_host graph in
   let%sub styles_form = Styles.form ~request_host graph in
