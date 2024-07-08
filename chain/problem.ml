@@ -17,18 +17,20 @@ module type Lease_pool = sig
        callback is immediately invoked with [Some a].
      - If all values are currently being lent out, then the effect is enqueued,
        and will be invoked as soon as a currently-lended ['a] becomes available. *)
-  type 'a t
+  type 'item t
 
   val create
-    :  ('a, 'cmp) Comparator.Module.t
-    -> ('a, 'cmp) Set.t Bonsai.t
+    :  ('item, 'cmp) Comparator.Module.t
+    -> ('item, 'cmp) Set.t Bonsai.t
     -> Bonsai.graph
-    -> 'a t
+    -> 'item t
 
-  val dispatcher : 'a t -> (f:('a option -> 'b Effect.t) -> 'b Effect.t) Bonsai.t
+  val dispatcher
+    :  'item t
+    -> (f:('item option -> 'result Effect.t) -> 'result Effect.t) Bonsai.t
 
   (* you can put whatever you want in this sexp to help you debug *)
-  val debug : 'a t -> Sexp.t Bonsai.t
+  val debug : 'item t -> Sexp.t Bonsai.t
 end
 
 module type Keyed_lease_pool = sig
@@ -40,11 +42,11 @@ module type Keyed_lease_pool = sig
 
   val create
     :  ('group, 'group_cmp) Bonsai.comparator
-    -> ('key, 'cmp) Comparator.Module.t
-    -> ('key, 'data, 'cmp) Map.t Bonsai.t
-    -> group:('key -> 'data -> 'group)
+    -> ('item, 'cmp) Comparator.Module.t
+    -> ('item, 'data, 'cmp) Map.t Bonsai.t
+    -> group:('item -> 'data -> 'group)
     -> Bonsai.graph
-    -> ('group -> f:('key option -> 'b Effect.t) -> 'b Effect.t) Bonsai.t
+    -> ('group -> f:('item option -> 'result Effect.t) -> 'result Effect.t) Bonsai.t
 end
 
 module T = struct
@@ -158,14 +160,7 @@ module T = struct
 end
 
 module Y = struct
-  let create
-    (type group group_cmp key data cmp)
-    (group_cmp : (group, group_cmp) Bonsai.comparator)
-    (cmp : (key, cmp) Comparator.Module.t)
-    (map : (key, data, cmp) Map.t Bonsai.t)
-    ~group
-    graph
-    =
+  let create group_cmp cmp map ~group graph =
     let map =
       Bonsai.Map.index_byi map ~comparator:group_cmp graph ~index:(fun ~key ~data ->
         Some (group key data))

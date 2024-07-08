@@ -3,6 +3,7 @@ open! Bonsai_web.Cont
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
 module _ = Problem
+module _ = Problem2
 
 module Style = [%css stylesheet {|
   body {
