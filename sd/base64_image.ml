@@ -7,10 +7,9 @@ type t =
   ; height : Int63.t option
   ; content : string
   }
-[@@deriving sexp]
+[@@deriving sexp, equal]
 
-let data_url t =  t.content
-
+let data_url t = t.content
 let of_string ?width ?height content = { width; height; content }
 let to_string t = t.content
 

@@ -17,7 +17,7 @@ module Query : sig
     ; denoising_strength : float
     ; styles : Styles.t
     }
-  [@@deriving sexp, typed_fields]
+  [@@deriving sexp, typed_fields, equal]
 
   val of_txt2img : Txt2img.Query.t -> init_images:Base64_image.t list -> t
   val apply_info : t -> Txt2img.Info.t -> t

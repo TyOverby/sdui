@@ -157,39 +157,35 @@ let validate_prompt prompt =
   prompt |> String.split_lines |> List.map ~f:translate_line |> String.concat ~sep:"\n"
 ;;
 
-let width_height_form title graph =
-  Custom_form_elements.int_form
-    ~title
-    ~step:8
-    ~default:(Int63.of_int 512)
-    ~validate_or_correct:multiple_of_8
-    ~length:(`Em 4)
-    ~min:(Int63.of_int 128)
-    ~max:(Int63.of_int 2048)
-    ~input_attrs:[ Vdom.Attr.create "data-kind" title ]
-    graph
-;;
+module Individual = struct
+  let width_height_form ~label graph =
+    Custom_form_elements.int_form
+      ~title:label
+      ~step:8
+      ~default:(Int63.of_int 512)
+      ~validate_or_correct:multiple_of_8
+      ~length:(`Em 4)
+      ~min:(Int63.of_int 128)
+      ~max:(Int63.of_int 2048)
+      ~input_attrs:[ Vdom.Attr.create "data-kind" label ]
+      graph
+  ;;
 
-let min_1_form ~default ~max title graph =
-  let min = Int63.of_int 1 in
-  let max = Int63.of_int max in
-  Custom_form_elements.int_form
-    ~title
-    ~step:1
-    ~default
-    ~validate_or_correct:(between_inclusive ~min ~max)
-    ~length:(`Em 3)
-    ~min
-    ~max
-    graph
-;;
+  let min_1_form ~default ~max ~label graph =
+    let min = Int63.of_int 1 in
+    let max = Int63.of_int max in
+    Custom_form_elements.int_form
+      ~title:label
+      ~step:1
+      ~default
+      ~validate_or_correct:(between_inclusive ~min ~max)
+      ~length:(`Em 3)
+      ~min
+      ~max
+      graph
+  ;;
 
-let component
-  ~(request_host : Hosts.request_host Bonsai.t)
-  ~(available_hosts : Hosts.Host.Set.t Bonsai.t)
-  graph
-  =
-  let seed_form =
+  let seed_form graph =
     Custom_form_elements.int_form
       ~title:"seed"
       ~step:1
@@ -203,9 +199,29 @@ let component
       ~max:Int63.max_value
       ~input_attrs:[ Vdom.Attr.style (Css_gen.font_family [ "monospace" ]) ]
       graph
-  in
-  let width_form = width_height_form "width" graph in
-  let height_form = width_height_form "height" graph in
+  ;;
+
+  let prompt_form ?textarea_attrs ?container_attrs ~label graph =
+    Custom_form_elements.textarea
+      ~validate:validate_prompt
+      ?container_attrs
+      ?textarea_attrs
+      ~label
+      graph
+    >>| Form.map_view ~f:(fun view -> view ?colorize:None ())
+  ;;
+end
+
+open Individual
+
+let component
+  ~(request_host : Hosts.request_host Bonsai.t)
+  ~(available_hosts : Hosts.Host.Set.t Bonsai.t)
+  graph
+  =
+  let seed_form = seed_form graph in
+  let width_form = width_height_form ~label:"width" graph in
+  let height_form = width_height_form ~label:"height" graph in
   let data_url_form =
     Custom_form_elements.textarea
       ~validate:Fn.id
@@ -221,20 +237,17 @@ let component
       graph
   in
   let positive_prompt_form =
-    Custom_form_elements.textarea
-      ~validate:validate_prompt
+    prompt_form
       ~container_attrs:[ Vdom.Attr.style (Css_gen.flex_item ~grow:4.0 ()) ]
       ~textarea_attrs:[ Vdom.Attr.create "data-kind" "prompt" ]
       ~label:"positive prompt"
       graph
   in
-  let negative_prompt_form =
-    Custom_form_elements.textarea ~validate:validate_prompt ~label:"negative prompt" graph
-  in
+  let negative_prompt_form = prompt_form ~label:"negative prompt" graph in
   let sampling_steps_form =
-    min_1_form ~default:(Int63.of_int 25) ~max:150 "steps" graph
+    min_1_form ~default:(Int63.of_int 25) ~max:150 ~label:"steps" graph
   in
-  let cfg_scale_form = min_1_form ~default:(Int63.of_int 7) ~max:30 "cfg" graph in
+  let cfg_scale_form = min_1_form ~default:(Int63.of_int 7) ~max:30 ~label:"cfg" graph in
   let%sub sampler_form, sampler_form_view = Samplers.form ~request_host graph in
   let upscaler_form = Upscaler.form ~request_host graph in
   let%sub styles_form = Styles.form ~request_host graph in
@@ -337,9 +350,9 @@ let component
         in
         View.hbox
           ~attrs
-          [ positive_prompt_view ()
+          [ positive_prompt_view
           ; data_url_view ()
-          ; negative_prompt_view ()
+          ; negative_prompt_view
           ; hosts_panel
           ; View.vbox
               ~cross_axis_alignment:Stretch

@@ -43,13 +43,16 @@ let component graph =
                (parameters : Sd.Txt2img.Query.t Or_error.t Bonsai.Computation_status.t)
                (model : Sd.Models.t Or_error.t Bonsai.Computation_status.t)])
   in
+  let single = Single.component ~pool:lease_pool ~prev:(Bonsai.return None) graph in
   let%arr parameters = parameters
   and submit_effect = submit_effect
   and lease_pool_debug = Lease_pool.debug lease_pool
-  and hosts_view = hosts_view in
+  and hosts_view = hosts_view
+  and single = single in
   let on_submit = Option.value submit_effect ~default:Effect.Ignore in
   Vdom.Node.div
     [ (Form.view parameters) ~on_submit ~hosts_panel:hosts_view
     ; Vdom.Node.sexp_for_debugging lease_pool_debug
+    ; single
     ]
 ;;

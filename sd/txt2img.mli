@@ -27,7 +27,7 @@ module Query : sig
     ; data_url : string
     ; hr_upscaler : Upscaler.t
     }
-  [@@deriving sexp, typed_fields]
+  [@@deriving sexp, typed_fields, equal]
 
   val apply_info : t -> Info.t -> t
 end

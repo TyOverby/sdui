@@ -5,7 +5,9 @@ open Ppx_yojson_conv_lib.Yojson_conv.Primitives
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
 
-type t = string list [@@deriving sexp, yojson, compare]
+type t = string list [@@deriving sexp, yojson, compare, equal]
+
+let none = []
 
 module Api_response = struct
   type sampler = { name : string }

@@ -13,3 +13,26 @@ val component
   -> available_hosts:Hosts.Host.Set.t Bonsai.t
   -> Bonsai.graph
   -> t Bonsai.t * (Models.t, Vdom.Node.t) Form.t Bonsai.t
+
+module Individual : sig
+  val width_height_form
+    :  label:string
+    -> Bonsai.graph
+    -> (Int63.t, Vdom.Node.t) Form.t Bonsai.t
+
+  val min_1_form
+    :  default:Int63.t
+    -> max:int
+    -> label:string
+    -> Bonsai.graph
+    -> (Int63.t, Vdom.Node.t) Form.t Bonsai.t
+
+  val seed_form : Bonsai.graph -> (Int63.t, Vdom.Node.t) Form.t Bonsai.t
+
+  val prompt_form
+    :  ?textarea_attrs:Vdom.Attr.t list
+    -> ?container_attrs:Vdom.Attr.t list
+    -> label:string
+    -> Bonsai.graph
+    -> (string, Vdom.Node.t) Form.t Bonsai.t
+end

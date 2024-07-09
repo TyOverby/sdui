@@ -1,7 +1,7 @@
 open! Core
 open! Bonsai_web.Cont
 
-type t [@@deriving yojson, sexp]
+type t [@@deriving yojson, sexp, equal]
 
 val data_url : t -> string
 val of_string : ?width:Int63.t -> ?height:Int63.t -> string -> t

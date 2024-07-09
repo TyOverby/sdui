@@ -3,7 +3,7 @@ open! Bonsai_web.Cont
 open Async_kernel
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives
 
-type t = string [@@deriving sexp, yojson]
+type t = string [@@deriving sexp, yojson, equal]
 
 module Api_response = struct
   type sampler = { name : string }

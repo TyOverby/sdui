@@ -29,7 +29,7 @@ module Query = struct
     ; data_url : string
     ; hr_upscaler : Upscaler.t
     }
-  [@@deriving sexp, typed_fields]
+  [@@deriving sexp, typed_fields, equal]
 
   module Underlying = struct
     type query = t

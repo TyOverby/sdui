@@ -20,7 +20,7 @@ module Query = struct
     ; denoising_strength : float
     ; styles : Styles.t
     }
-  [@@deriving sexp, typed_fields]
+  [@@deriving sexp, typed_fields, equal]
 
   let of_txt2img (other : Txt2img.Query.t) ~init_images =
     { init_images
@@ -139,12 +139,8 @@ let dispatch (host_and_port, query) =
     Yojson.Safe.from_string response_content
     |> Response.t_of_yojson
     |> (fun response -> { response with Response.images })
-    |> (fun { Response.images;  info } ->
-         let info =
-           { Info.seed = Int63.of_int64_trunc info.seed
-           ; enable_hr = false
-           }
-         in
+    |> (fun { Response.images; info } ->
+         let info = { Info.seed = Int63.of_int64_trunc info.seed; enable_hr = false } in
          List.map images ~f:(fun s ->
            let width, height = query.width, query.height in
            Base64_image.of_string ~width ~height s, info))
