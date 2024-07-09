@@ -20,4 +20,4 @@ val form
   :  request_host:Hosts.request_host Bonsai.t
   -> available_hosts:Hosts.Host.Set.t Bonsai.t
   -> Bonsai.graph
-  -> ((t, Vdom.Node.t) Form.t) Bonsai.t
+  -> (t, Vdom.Node.t) Form.t Bonsai.t

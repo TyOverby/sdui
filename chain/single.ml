@@ -18,12 +18,12 @@ module Parameters = struct
     ; denoise : Int63.t form
     }
 
-  let component graph =
+  let component ~default_size graph =
     let seed = P.seed_form graph in
     let pos_prompt = P.prompt_form ~label:"prompt" graph in
     let neg_prompt = P.prompt_form ~label:"negative" graph in
-    let width = P.width_height_form ~label:"width" graph in
-    let height = P.width_height_form ~label:"height" graph in
+    let width = P.width_height_form ~default:default_size ~label:"width" graph in
+    let height = P.width_height_form ~default:default_size ~label:"height" graph in
     let steps = P.min_1_form ~default:(Int63.of_int 25) ~max:150 ~label:"steps" graph in
     let cfg = P.min_1_form ~default:(Int63.of_int 7) ~max:30 ~label:"cfg" graph in
     let denoise = P.min_1_form ~default:(Int63.of_int 70) ~max:100 ~label:"deno" graph in
@@ -160,46 +160,59 @@ let image ~params ~prev ~pool graph =
   |> Inc.collapse_error
 ;;
 
-let component ~pool ~prev graph =
+let component ~default_size ~pool ~prev graph =
   let ({ Parameters.seed; pos_prompt; neg_prompt; width; height; steps; cfg; denoise } as
        params)
     =
-    Parameters.component graph
+    Parameters.component ~default_size graph
   in
-  let image = image ~pool ~prev ~params graph in
-  let%arr seed = seed
-  and pos_prompt = pos_prompt
-  and neg_prompt = neg_prompt
-  and width = width
-  and height = height
-  and steps = steps
-  and cfg = cfg
-  and denoise = denoise
-  and image = image
-  and theme = View.Theme.current graph in
-  let image =
-    match image with
-    | Fresh img -> Vdom.Node.div [ Sd.Base64_image.to_vdom img ]
-    | Stale img ->
-      Vdom.Node.div ~attrs:[ {%css| opacity: 0.5;|} ] [ Sd.Base64_image.to_vdom img ]
-    | Not_computed -> Vdom.Node.div [ Vdom.Node.text "not computed yet..." ]
-    | Error e -> Vdom.Node.div [ Vdom.Node.sexp_for_debugging (Error.sexp_of_t e) ]
+  let image, reset =
+    Bonsai.with_model_resetter graph ~f:(fun graph -> image ~pool ~prev ~params graph)
   in
-  View.card'
-    theme
-    [ View.vbox
-        [ View.hbox [ Form.view pos_prompt; Form.view neg_prompt ]
-        ; View.hbox
-            [ View.vbox
-                [ Form.view width
-                ; Form.view height
-                ; Form.view steps
-                ; Form.view cfg
-                ; Form.view denoise
-                ; Form.view seed
-                ]
-            ; image
-            ]
-        ]
-    ]
+  let view =
+    let%arr seed = seed
+    and pos_prompt = pos_prompt
+    and neg_prompt = neg_prompt
+    and width = width
+    and height = height
+    and steps = steps
+    and cfg = cfg
+    and denoise = denoise
+    and image = image
+    and theme = View.Theme.current graph
+    and reset = reset in
+    let image =
+      let base64_to_vdom img =
+        Sd.Base64_image.to_vdom
+          ~drop_size:true
+          ~attrs:[ {%css| width: 33vw; max-width:33vw;|} ]
+          img
+      in
+      match image with
+      | Fresh img -> Vdom.Node.div [ base64_to_vdom img ]
+      | Stale img ->
+        Vdom.Node.div ~attrs:[ {%css| opacity: 0.5;|} ] [ base64_to_vdom img ]
+      | Not_computed -> Vdom.Node.div [ Vdom.Node.text "not computed yet..." ]
+      | Error e -> Vdom.Node.div [ Vdom.Node.sexp_for_debugging (Error.sexp_of_t e) ]
+    in
+    View.card'
+      theme
+      [ View.vbox
+          [ View.hbox [ Form.view pos_prompt; Form.view neg_prompt ]
+          ; View.hbox
+              [ View.vbox
+                  [ Form.view width
+                  ; Form.view height
+                  ; Form.view steps
+                  ; Form.view cfg
+                  ; Form.view denoise
+                  ; Form.view seed
+                  ; View.button theme "reset" ~on_click:reset
+                  ]
+              ; image
+              ]
+          ]
+      ]
+  in
+  image, view
 ;;

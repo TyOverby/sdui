@@ -13,7 +13,7 @@ let data_url t = t.content
 let of_string ?width ?height content = { width; height; content }
 let to_string t = t.content
 
-let to_vdom ?width ?height ?(drop_size = false) t =
+let to_vdom ?(attrs = []) ?width ?height ?(drop_size = false) t =
   let width =
     match drop_size, Option.first_some width t.width with
     | true, _ | _, None -> Vdom.Attr.empty
@@ -26,7 +26,7 @@ let to_vdom ?width ?height ?(drop_size = false) t =
   in
   Vdom.Node.img
     ~attrs:
-      [ Vdom.Attr.src (sprintf "data:image/png;base64, %s" t.content); width; height ]
+      ([ Vdom.Attr.src (sprintf "data:image/png;base64, %s" t.content); width; height ] @ attrs)
     ()
 ;;
 

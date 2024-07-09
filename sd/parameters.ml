@@ -158,11 +158,11 @@ let validate_prompt prompt =
 ;;
 
 module Individual = struct
-  let width_height_form ~label graph =
+  let width_height_form ?(default=512) ~label graph =
     Custom_form_elements.int_form
       ~title:label
       ~step:8
-      ~default:(Int63.of_int 512)
+      ~default:(Int63.of_int default)
       ~validate_or_correct:multiple_of_8
       ~length:(`Em 4)
       ~min:(Int63.of_int 128)
@@ -189,14 +189,14 @@ module Individual = struct
     Custom_form_elements.int_form
       ~title:"seed"
       ~step:1
-      ~default:(Int63.of_int (-1))
+      ~default:(Int63.of_int (0))
       ~validate_or_correct:(fun s ->
         match Int63.of_string_opt s with
         | None -> Error (Int63.of_int (-1))
         | Some i -> Ok i)
       ~length:(`Em 11)
-      ~min:Int63.min_value
-      ~max:Int63.max_value
+      ~min:Int63.zero
+      ~max:(Int63.of_int 1_000_000)
       ~input_attrs:[ Vdom.Attr.style (Css_gen.font_family [ "monospace" ]) ]
       graph
   ;;

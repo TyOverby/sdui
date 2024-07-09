@@ -89,11 +89,13 @@ let map ~equal a ~f graph =
     | None -> Bonsai.return ()
   in
   let%arr needs_recalc = needs_recalc
-  and state = state in
-  match needs_recalc, state with
-  | None, Some (_, _, out) -> Or_error_or_stale.Fresh out
-  | Some _, Some (_, _, out) -> Stale out
-  | Some _, None | None, None -> Not_computed
+  and state = state
+  and a = a in
+  match needs_recalc, a, state with
+  | None, Fresh _, Some (_, _, out) -> Or_error_or_stale.Fresh out
+  | None, _, Some (_, _, out) -> Stale out
+  | Some _, _, None | None, _, None -> Not_computed
+  | Some _, _, Some (_, _, out) -> Stale out
 ;;
 
 let map2 ~equal_a ~equal_b a b ~f graph =

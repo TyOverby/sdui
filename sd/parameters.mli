@@ -16,7 +16,8 @@ val component
 
 module Individual : sig
   val width_height_form
-    :  label:string
+    :  ?default:int
+    -> label:string
     -> Bonsai.graph
     -> (Int63.t, Vdom.Node.t) Form.t Bonsai.t
 
