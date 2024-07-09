@@ -19,9 +19,18 @@ module Parameters = struct
     }
 
   let component ~default_size graph =
-    let seed = P.seed_form graph in
-    let pos_prompt = P.prompt_form ~label:"prompt" graph in
-    let neg_prompt = P.prompt_form ~label:"negative" graph in
+    let seed =
+      P.seed_form
+        ~container_attrs:(fun ~state ~set_state ->
+          [ Vdom.Attr.on_double_click (fun _ -> set_state Int63.(state + of_int 4)) ])
+        graph
+    in
+    let pos_prompt =
+      P.prompt_form ~container_attrs:[ {%css| flex-grow: 2 |} ] ~label:"prompt" graph
+    in
+    let neg_prompt =
+      P.prompt_form ~container_attrs:[ {%css| flex-grow: 1 |} ] ~label:"negative" graph
+    in
     let width = P.width_height_form ~default:default_size ~label:"width" graph in
     let height = P.width_height_form ~default:default_size ~label:"height" graph in
     let steps = P.min_1_form ~default:(Int63.of_int 25) ~max:150 ~label:"steps" graph in
@@ -99,6 +108,36 @@ module Parameters = struct
   ;;
 end
 
+let parallel_both a b =
+  Effect.Private.make ~request:() ~evaluator:(fun cb ->
+    let a_res = ref None
+    and b_res = ref None in
+    let maybe_finalize () =
+      match !a_res, !b_res with
+      | Some a, Some b ->
+        Effect.Expert.handle_non_dom_event_exn
+          (Effect.Private.Callback.respond_to cb (a, b))
+      | _ -> ()
+    in
+    Effect.Expert.handle_non_dom_event_exn
+      (let%map.Effect a = a in
+       a_res := Some a;
+       maybe_finalize ());
+    Effect.Expert.handle_non_dom_event_exn
+      (let%map.Effect b = b in
+       b_res := Some b;
+       maybe_finalize ()))
+;;
+
+let rec parallel_all = function
+  | [] -> Effect.return []
+  | a :: rest ->
+    let%map.Effect a, rest = parallel_both a (parallel_all rest) in
+    a :: rest
+;;
+
+let parallel_n n ~f = List.init n ~f:(fun i -> f i) |> parallel_all
+
 let image ~params ~prev ~pool graph =
   let result =
     match%sub prev with
@@ -117,13 +156,24 @@ let image ~params ~prev ~pool graph =
         ~f:
           (let%arr dispatcher = Lease_pool.dispatcher pool in
            fun query ->
-             dispatcher (function
-               | None ->
-                 Effect.return (Error (Error.of_string "couldn't find host for dispatch"))
-               | Some (host, _) ->
-                 Sd.Txt2img.dispatch
-                   ~host_and_port:((host : Sd.Hosts.Host.t) :> string)
-                   query))
+             let%map.Effect results =
+               parallel_n 4 ~f:(fun i ->
+                 dispatcher (function
+                   | None ->
+                     Effect.return
+                       (Error (Error.of_string "couldn't find host for dispatch"))
+                   | Some (host, _) ->
+                     let query =
+                       { query with
+                         Sd.Txt2img.Query.seed =
+                           Int63.(query.Sd.Txt2img.Query.seed + of_int i)
+                       }
+                     in
+                     Sd.Txt2img.dispatch
+                       ~host_and_port:((host : Sd.Hosts.Host.t) :> string)
+                       query))
+             in
+             Or_error.all results)
       |> Inc.collapse_error
     | Some prev ->
       let query =
@@ -135,28 +185,40 @@ let image ~params ~prev ~pool graph =
       in
       Inc.map2
         ~equal_a:Sd.Img2img.Query.equal
-        ~equal_b:Sd.Base64_image.equal
+        ~equal_b:[%equal: Sd.Base64_image.t list]
         query
         prev
         graph
         ~f:
           (let%arr dispatcher = Lease_pool.dispatcher pool in
            fun query prev ->
-             let query = { query with Sd.Img2img.Query.init_images = [ prev ] } in
-             dispatcher (function
-               | None ->
-                 Effect.return (Error (Error.of_string "couldn't find host for dispatch"))
-               | Some (host, _) ->
-                 Sd.Img2img.dispatch
-                   ~host_and_port:((host : Sd.Hosts.Host.t) :> string)
-                   query))
+             let%map.Effect results =
+               parallel_n 4 ~f:(fun i ->
+                 let query =
+                   { query with
+                     Sd.Img2img.Query.init_images = [ List.nth_exn prev i ]
+                   ; seed = Int63.(query.Sd.Img2img.Query.seed + of_int i)
+                   }
+                 in
+                 dispatcher (function
+                   | None ->
+                     Effect.return
+                       (Error (Error.of_string "couldn't find host for dispatch"))
+                   | Some (host, _) ->
+                     Sd.Img2img.dispatch
+                       ~host_and_port:((host : Sd.Hosts.Host.t) :> string)
+                       query))
+             in
+             Or_error.all results)
       |> Inc.collapse_error
   in
   result
-  |> Inc.map_pure ~f:(function
-    | [ (image, _) ] -> Ok image
-    | [] -> Error (Error.of_string "no images in response")
-    | _ :: _ :: _ -> Error (Error.of_string "more than one image in response"))
+  |> Inc.map_pure ~f:(fun images ->
+    List.map images ~f:(function
+      | [ (image, _) ] -> Ok image
+      | [] -> Error (Error.of_string "no images in response")
+      | _ :: _ :: _ -> Error (Error.of_string "more than one image in response"))
+    |> Or_error.all)
   |> Inc.collapse_error
 ;;
 
@@ -189,13 +251,14 @@ let component ~default_size ~pool ~prev graph =
           img
       in
       match image with
-      | Fresh img -> Vdom.Node.div [ base64_to_vdom img ]
+      | Fresh img -> Vdom.Node.div (List.map img ~f:base64_to_vdom)
       | Stale img ->
-        Vdom.Node.div ~attrs:[ {%css| opacity: 0.5;|} ] [ base64_to_vdom img ]
+        Vdom.Node.div ~attrs:[ {%css| opacity: 0.5;|} ] (List.map img ~f:base64_to_vdom)
       | Not_computed -> Vdom.Node.div [ Vdom.Node.text "not computed yet..." ]
       | Error e -> Vdom.Node.div [ Vdom.Node.sexp_for_debugging (Error.sexp_of_t e) ]
     in
     View.card'
+      ~container_attrs:[ {%css| margin: 1em; |} ]
       theme
       [ View.vbox
           [ View.hbox [ Form.view pos_prompt; Form.view neg_prompt ]

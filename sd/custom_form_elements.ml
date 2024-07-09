@@ -28,7 +28,7 @@ module Label_modifications =
 
 let int_form
   ?(input_attrs = [])
-  ?(container_attrs = [])
+  ?(container_attrs = fun ~state:_ ~set_state:_ -> [])
   ~title
   ~default
   ~step
@@ -50,6 +50,18 @@ let int_form
     | Ok _ -> Vdom.Attr.empty
     | Error corrected ->
       Vdom.Attr.on_blur (fun _ -> set_state (Int63.to_string corrected))
+  in
+  let value =
+    match value_or_corrected with
+    | Ok v -> v
+    | Error v -> v
+  in
+  let set i =
+    set_state
+      (Int63.to_string
+         (match validate_or_correct (Int63.to_string i) with
+          | Ok v -> v
+          | Error v -> v))
   in
   let view =
     Kado.Unstable.Input.textbox
@@ -74,26 +86,12 @@ let int_form
             ; (if is_error then Vdom.Attr.class_ "error" else Vdom.Attr.empty)
             ; Vdom.Attr.style (Css_gen.create ~field:"height" ~value:"fit-content")
             ]
-            @ container_attrs))
+            @ container_attrs ~state:value ~set_state:set))
       ~title:(Some title)
       ~on_change:set_state
       ~value:state
   in
-  let value =
-    match value_or_corrected with
-    | Ok v -> v
-    | Error v -> v
-  in
-  { Form.value = Ok value
-  ; set =
-      (fun i ->
-        set_state
-          (Int63.to_string
-             (match validate_or_correct (Int63.to_string i) with
-              | Ok v -> v
-              | Error v -> v)))
-  ; view
-  }
+  { Form.value = Ok value; set; view }
 ;;
 
 let textarea

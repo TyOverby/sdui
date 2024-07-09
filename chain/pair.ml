@@ -14,8 +14,9 @@ let component ~pool ~prev ~reset graph =
     and reset = reset in
     View.card'
       theme
+      ~container_attrs:[{%css| margin: 1em; |}]
       ~title:[ View.button theme "x" ~on_click:reset ]
-      [ View.hbox ~main_axis_alignment:Space_around [ single; single2 ] ]
+      [ View.hbox ~gap:(`Em 1) ~main_axis_alignment:Space_around [ single; single2 ] ]
   in
   image2, view
 ;;
@@ -28,7 +29,7 @@ let component ~pool ~prev graph =
       | false ->
         let%arr toggle_active = toggle_active
         and theme = View.Theme.current graph in
-        None, View.button theme "+" ~on_click:toggle_active
+        None, Vdom.Node.div ~attrs:[{%css| font-size: 3em !important; display: flex; justify-content: center; margin: 1em; |}] [View.button theme "+" ~on_click:toggle_active]
       | true ->
         let image, view = component ~pool ~prev ~reset graph in
         let next = recurse (image >>| Option.some) graph in

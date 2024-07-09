@@ -28,7 +28,11 @@ module Individual : sig
     -> Bonsai.graph
     -> (Int63.t, Vdom.Node.t) Form.t Bonsai.t
 
-  val seed_form : Bonsai.graph -> (Int63.t, Vdom.Node.t) Form.t Bonsai.t
+  val seed_form
+    :  ?container_attrs:
+         (state:Int63.t -> set_state:(Int63.t -> unit Effect.t) -> Vdom.Attr.t list)
+    -> Bonsai.graph
+    -> (Int63.t, Vdom.Node.t) Form.t Bonsai.t
 
   val prompt_form
     :  ?textarea_attrs:Vdom.Attr.t list
