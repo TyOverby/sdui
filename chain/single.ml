@@ -255,7 +255,13 @@ let component ~default_size ~pool ~prev graph =
         in
         Vdom.Node.div
           ~attrs:
-            [ (if checked then {%css| border: 1px solid red; |} else {%css| border: 1px solid black; |} ) ]
+            [ {%css| padding: 4px; border-radius: 4px; border:1px solid white; |}
+            ; (if checked
+               then {%css| background: #10ff1033; border-color:green; |}
+               else
+                 {%css| background: rgba(255,255,255,0.25); background: rgba(255,255,255,0.5);
+             |})
+            ]
           [ Sd.Base64_image.to_vdom
               ~drop_size:true
               ~attrs:
@@ -266,9 +272,12 @@ let component ~default_size ~pool ~prev graph =
           ]
       in
       match images with
-      | Fresh img -> Vdom.Node.div (List.mapi img ~f:base64_to_vdom)
+      | Fresh img -> View.vbox ~gap:(`Em 1) (List.mapi img ~f:base64_to_vdom)
       | Stale img ->
-        Vdom.Node.div ~attrs:[ {%css| opacity: 0.5;|} ] (List.mapi img ~f:base64_to_vdom)
+        View.vbox
+          ~gap:(`Em 1)
+          ~attrs:[ {%css| opacity: 0.5;|} ]
+          (List.mapi img ~f:base64_to_vdom)
       | Not_computed -> Vdom.Node.div [ Vdom.Node.text "not computed yet..." ]
       | Error e -> Vdom.Node.div [ Vdom.Node.sexp_for_debugging (Error.sexp_of_t e) ]
     in
