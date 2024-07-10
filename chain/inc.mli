@@ -42,4 +42,5 @@ val map2
   -> 'c t
 
 val map_pure : 'a t -> f:('a -> 'b) -> 'b t
+val map2_pure : 'a t -> 'b t -> f:('a -> 'b -> 'c) -> 'c t
 val collapse_error : 'a Or_error.t t -> 'a t

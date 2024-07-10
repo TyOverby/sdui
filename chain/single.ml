@@ -196,7 +196,8 @@ let image ~params ~prev ~pool graph =
                parallel_n 4 ~f:(fun i ->
                  let query =
                    { query with
-                     Sd.Img2img.Query.init_images = [ List.nth_exn prev i ]
+                     Sd.Img2img.Query.init_images =
+                       [ List.nth_exn prev (i % List.length prev) ]
                    ; seed = Int63.(query.Sd.Img2img.Query.seed + of_int i)
                    }
                  in
@@ -228,9 +229,10 @@ let component ~default_size ~pool ~prev graph =
     =
     Parameters.component ~default_size graph
   in
-  let image, reset =
+  let images, reset =
     Bonsai.with_model_resetter graph ~f:(fun graph -> image ~pool ~prev ~params graph)
   in
+  let picked, set_picked = Bonsai.state Int.Set.empty graph in
   let view =
     let%arr seed = seed
     and pos_prompt = pos_prompt
@@ -240,20 +242,33 @@ let component ~default_size ~pool ~prev graph =
     and steps = steps
     and cfg = cfg
     and denoise = denoise
-    and image = image
+    and images = images
     and theme = View.Theme.current graph
-    and reset = reset in
+    and reset = reset
+    and picked = picked
+    and set_picked = set_picked in
     let image =
-      let base64_to_vdom img =
-        Sd.Base64_image.to_vdom
-          ~drop_size:true
-          ~attrs:[ {%css| width: 33vw; max-width:33vw;|} ]
-          img
+      let base64_to_vdom i img =
+        let checked = Set.mem picked i in
+        let toggle =
+          set_picked (if checked then Set.remove picked i else Set.add picked i)
+        in
+        Vdom.Node.div
+          ~attrs:
+            [ (if checked then {%css| border: 1px solid red; |} else {%css| border: 1px solid black; |} ) ]
+          [ Sd.Base64_image.to_vdom
+              ~drop_size:true
+              ~attrs:
+                [ {%css| width: 33vw; max-width:33vw;|}
+                ; Vdom.Attr.on_click (fun _ -> toggle)
+                ]
+              img
+          ]
       in
-      match image with
-      | Fresh img -> Vdom.Node.div (List.map img ~f:base64_to_vdom)
+      match images with
+      | Fresh img -> Vdom.Node.div (List.mapi img ~f:base64_to_vdom)
       | Stale img ->
-        Vdom.Node.div ~attrs:[ {%css| opacity: 0.5;|} ] (List.map img ~f:base64_to_vdom)
+        Vdom.Node.div ~attrs:[ {%css| opacity: 0.5;|} ] (List.mapi img ~f:base64_to_vdom)
       | Not_computed -> Vdom.Node.div [ Vdom.Node.text "not computed yet..." ]
       | Error e -> Vdom.Node.div [ Vdom.Node.sexp_for_debugging (Error.sexp_of_t e) ]
     in
@@ -277,5 +292,17 @@ let component ~default_size ~pool ~prev graph =
           ]
       ]
   in
-  image, view
+  let picked =
+    Inc.of_bonsai
+      ~equal:Int.Set.equal
+      picked
+      ~time_to_stable:(Bonsai.return (Time_ns.Span.of_sec 1.0))
+      graph
+  in
+  let images =
+    Inc.map2_pure images picked ~f:(fun images picked ->
+      let result = List.filteri images ~f:(fun i _image -> Set.mem picked i) in
+      if List.is_empty result then images else result)
+  in
+  images, view
 ;;

@@ -34,7 +34,6 @@ let component ~pool ~prev graph =
         let image, view = component ~pool ~prev ~reset graph in
         let next = recurse (image >>| Option.some) graph in
         let%arr view = view
-        and image = image
-        and _, view2 = next in
-        Some image, View.vbox ~gap:(`Em 1) [ view; view2 ]))
+        and image, view2 = next in
+        image, View.vbox ~gap:(`Em 1) [ view; view2 ]))
 ;;

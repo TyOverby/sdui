@@ -50,6 +50,18 @@ let map_pure a ~f =
   | Not_computed -> Not_computed
 ;;
 
+let map2_pure a b ~f =
+  let a_and_b = Bonsai.both a b in
+  match%arr a_and_b with
+  | Or_error_or_stale.Fresh a, Or_error_or_stale.Fresh b ->
+    Or_error_or_stale.Fresh (f a b)
+  | Stale a, Fresh b | Fresh a, Stale b | Stale a, Stale b -> Stale (f a b)
+  | Error e1, Error e2 -> Error (Error.of_list [e1; e2])
+  | Error e, _ -> Error e
+  | _, Error e -> Error e
+  | Not_computed, _ | _, Not_computed -> Not_computed
+;;
+
 let map ~equal a ~f graph =
   let module Id_gen = Bonsai_extra.Id_gen (Int63) () in
   let id_gen = Id_gen.component graph in
