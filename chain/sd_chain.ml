@@ -43,12 +43,25 @@ let component graph =
                (parameters : Sd.Txt2img.Query.t Or_error.t Bonsai.Computation_status.t)
                (model : Sd.Models.t Or_error.t Bonsai.Computation_status.t)])
   in
-  let img_and_view = Pair.component ~pool:lease_pool ~prev:(Bonsai.return None) graph in
+  let%sub img, view = Pair.component ~pool:lease_pool ~prev:(Bonsai.return None) graph in
+  let painting =
+    match%sub img with
+    | None -> Bonsai.return (Vdom.Node.text "none")
+    | Some (Fresh (img :: _) | Stale (img :: _)) ->
+      let _, view = Paint.component img graph in
+      view
+    | Some (Fresh [] | Stale []) -> Bonsai.return (Vdom.Node.text "empty")
+    | Some Not_computed -> Bonsai.return (Vdom.Node.text "not computed")
+    | Some (Error e) ->
+      let%arr e = e in
+      Vdom.Node.text ("error" ^ Error.to_string_hum e)
+  in
   let%arr parameters = parameters
   and submit_effect = submit_effect
   and lease_pool_debug = Lease_pool.debug lease_pool
   and hosts_view = hosts_view
-  and _, view = img_and_view in
+  and view = view
+  and painting = painting in
   let on_submit = Option.value submit_effect ~default:Effect.Ignore in
   Vdom.Node.div
     [ (Form.view parameters) ~on_submit ~hosts_panel:hosts_view
@@ -58,5 +71,6 @@ let component graph =
           ]
         [ Vdom.Node.sexp_for_debugging lease_pool_debug ]
     ; view
+    ; painting
     ]
 ;;

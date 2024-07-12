@@ -9,8 +9,10 @@
   bonsai.web_ui_form
   bonsai.vdom_node_with_map_children
   bonsai.kado
+  bonsai.web_ui_widget
   virtual_dom.svg
   bonsai.feather_icon)
+ (js_of_ocaml (javascript_files ./js/index.js))
  (preprocess
   (pps
    ppx_jane

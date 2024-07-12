@@ -157,7 +157,8 @@ let image ~params ~prev ~pool graph =
           (let%arr dispatcher = Lease_pool.dispatcher pool in
            fun query ->
              let%map.Effect results =
-               parallel_n 4 ~f:(fun i ->
+             (* BUG: here *)
+               parallel_n 1 ~f:(fun i ->
                  dispatcher (function
                    | None ->
                      Effect.return
