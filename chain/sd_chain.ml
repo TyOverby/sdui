@@ -43,9 +43,7 @@ let component graph =
                (parameters : Sd.Txt2img.Query.t Or_error.t Bonsai.Computation_status.t)
                (model : Sd.Models.t Or_error.t Bonsai.Computation_status.t)])
   in
-  let img_and_view =
-    Pair.component ~pool:lease_pool ~prev:(Bonsai.return None)  graph
-  in
+  let img_and_view = Pair.component ~pool:lease_pool ~prev:(Bonsai.return None) graph in
   let%arr parameters = parameters
   and submit_effect = submit_effect
   and lease_pool_debug = Lease_pool.debug lease_pool
@@ -54,7 +52,11 @@ let component graph =
   let on_submit = Option.value submit_effect ~default:Effect.Ignore in
   Vdom.Node.div
     [ (Form.view parameters) ~on_submit ~hosts_panel:hosts_view
-    ; Vdom.Node.sexp_for_debugging lease_pool_debug
+    ; Vdom.Node.div
+        ~attrs:
+          [ {%css| position: fixed; top:1em; left: 1em; background: black; padding:0.25em; border-radius:0.25em; z-index:1; |}
+          ]
+        [ Vdom.Node.sexp_for_debugging lease_pool_debug ]
     ; view
     ]
 ;;
