@@ -45,7 +45,7 @@ function painter_init(settings) {
         outline_ctx.strokeStyle = "rgba(0,0,0,0.5)";
         outline_ctx.lineWidth = 1.0;
 
-        img_ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalWidth);
+        img_ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
 
         state.clear = function () {
             draw_ctx.clearRect(0, 0, outline_canvas.width, outline_canvas.height);
@@ -61,7 +61,7 @@ function painter_init(settings) {
             var image = document.createElement("img");
             image.setAttribute("src", "data:image/png;base64," + data_url);
             init(image, function () {
-                img_ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalWidth);
+                img_ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
             })
         }
 

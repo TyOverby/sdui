@@ -2,23 +2,31 @@ open! Core
 open! Bonsai_web.Cont
 open! Bonsai.Let_syntax
 
-let component ~pool ~prev ~reset graph =
+let component ~index ~pool ~prev ~reset graph =
   let image, single = Single.component ~pool ~prev ~default_size:512 graph in
   let view =
     let%arr single = single
     and theme = View.Theme.current graph
-    and reset = reset in
-    View.card'
-      theme
-      ~container_attrs:[ {%css| margin: 1em; |} ]
-      ~title:[ View.button theme "x" ~on_click:reset ]
-      [ single ]
+    and reset = reset
+    and index = index
+    and prev = prev in
+    let header =
+      let text =
+        match prev with
+        | None -> "txt -> img"
+        | Some _ -> "img -> img"
+      in
+      Vdom.Node.h2 ~attrs:[{%css| margin:0; |}]
+        [ Vdom.Node.textf "#%d : %s" index text; View.button theme "x" ~on_click:reset ]
+    in
+    Vdom.Node.div [ header; single ]
   in
   image, view
 ;;
 
-let component ~pool ~prev graph =
-  Bonsai.fix prev graph ~f:(fun ~recurse prev graph ->
+let component ~pool ~index ~prev graph =
+  Bonsai.fix2 index prev graph ~f:(fun ~recurse index prev graph ->
+    let index = index >>| ( + ) 1 in
     Bonsai.with_model_resetter' graph ~f:(fun ~reset graph ->
       let active, toggle_active = Bonsai.toggle ~default_model:false graph in
       match%sub active with
@@ -33,9 +41,11 @@ let component ~pool ~prev graph =
               ]
             [ View.button theme "+" ~on_click:toggle_active ] )
       | true ->
-        let image, view = component ~pool ~prev ~reset graph in
-        let next = recurse (image >>| Option.some) graph in
+        let image, view = component ~index ~pool ~prev ~reset graph in
+        let next = recurse index (image >>| Option.some) graph in
         let%arr view = view
         and image, view2 = next in
-        image, View.hbox ~gap:(`Em 1) [ view; view2 ]))
+        image, View.vbox ~gap:(`Em 1) [ view; view2 ]))
 ;;
+
+let component ~pool ~prev graph = component ~pool ~index:(Bonsai.return 0) ~prev graph

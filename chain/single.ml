@@ -157,8 +157,7 @@ let image ~params ~prev ~pool graph =
           (let%arr dispatcher = Lease_pool.dispatcher pool in
            fun query ->
              let%map.Effect results =
-             (* BUG: here *)
-               parallel_n 1 ~f:(fun i ->
+               parallel_n 4 ~f:(fun i ->
                  dispatcher (function
                    | None ->
                      Effect.return
@@ -248,7 +247,7 @@ let component ~default_size ~pool ~prev graph =
     and reset = reset
     and picked = picked
     and set_picked = set_picked in
-    let image =
+    let images =
       let base64_to_vdom i img =
         let checked = Set.mem picked i in
         let toggle =
@@ -263,42 +262,44 @@ let component ~default_size ~pool ~prev graph =
                  {%css| background: rgba(255,255,255,0.25); background: rgba(255,255,255,0.5);
              |})
             ]
-          [ Sd.Base64_image.to_vdom
-              ~drop_size:true
-              ~attrs:
-                [ {%css| width: 33vw; max-width:33vw;|}
-                ; Vdom.Attr.on_click (fun _ -> toggle)
-                ]
-              img
+          [ (let max_width =
+               match Sd.Base64_image.size img with
+               | Some (w, _) ->
+                 Float.to_string
+                   (Int63.to_float w /. Js_of_ocaml.Js.Unsafe.global##.devicePixelRatio)
+                 ^ "px"
+               | None -> "512px"
+             in
+             Sd.Base64_image.to_vdom
+               ~drop_size:true
+               ~attrs:
+                 [ {%css| width: 33vw; max-width:%{max_width};|}
+                 ; Vdom.Attr.on_click (fun _ -> toggle)
+                 ]
+               img)
           ]
       in
       match images with
-      | Fresh img -> View.vbox ~gap:(`Em 1) (List.mapi img ~f:base64_to_vdom)
+      | Fresh img -> View.hbox ~gap:(`Em 1) (List.mapi img ~f:base64_to_vdom)
       | Stale img ->
-        View.vbox
+        View.hbox
           ~gap:(`Em 1)
           ~attrs:[ {%css| opacity: 0.5;|} ]
           (List.mapi img ~f:base64_to_vdom)
       | Not_computed -> Vdom.Node.div [ Vdom.Node.text "not computed yet..." ]
       | Error e -> Vdom.Node.div [ Vdom.Node.sexp_for_debugging (Error.sexp_of_t e) ]
     in
-    View.card'
-      ~container_attrs:[ {%css| margin: 1em; |} ]
-      theme
+    Vdom.Node.div
       [ View.vbox
-          [ View.hbox [ Form.view pos_prompt; Form.view neg_prompt ]
-          ; View.hbox
-              [ View.vbox
-                  [ Form.view width
-                  ; Form.view height
-                  ; Form.view steps
-                  ; Form.view cfg
-                  ; Form.view denoise
-                  ; Form.view seed
-                  ; View.button theme "reset" ~on_click:reset
-                  ]
-              ; image
+          [ View.hbox
+              [ View.button theme "reset" ~on_click:reset
+              ; View.vbox [ Form.view width; Form.view height ]
+              ; View.vbox [ Form.view steps; Form.view cfg ]
+              ; View.vbox [ Form.view denoise; Form.view seed ]
+              ; Form.view pos_prompt
+              ; Form.view neg_prompt
               ]
+          ; images
           ]
       ]
   in

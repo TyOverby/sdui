@@ -17,8 +17,6 @@ module _ =
         .stack>canvas {
             grid-area: 1 / 1;
             cursor:none;
-            width:512px;
-            height:512px;
         }
 
         * {
