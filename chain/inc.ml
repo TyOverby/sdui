@@ -8,6 +8,29 @@ module Or_error_or_stale = struct
     | Stale of 'a
     | Error of Error.t
     | Not_computed
+
+  let both a b =
+    match a, b with
+    | Fresh a, Fresh b -> Fresh (a, b)
+    | Stale a, Fresh b | Fresh a, Stale b | Stale a, Stale b -> Stale (a, b)
+    | Error e1, Error e2 -> Error (Error.of_list [ e1; e2 ])
+    | _, Error e -> Error e
+    | Error e, _ -> Error e
+    | _, Not_computed | Not_computed, _ -> Not_computed
+  ;;
+
+  let map a ~f =
+    match a with
+    | Fresh a -> Fresh (f a)
+    | Stale a -> Stale (f a)
+    | Error e -> Error e
+    | Not_computed -> Not_computed
+  ;;
+
+  let rec all = function
+    | [] -> Fresh []
+    | a :: rest -> map (both a (all rest)) ~f:(fun (a, rest) -> a :: rest)
+  ;;
 end
 
 type 'a t = 'a Or_error_or_stale.t Bonsai.t
@@ -56,7 +79,7 @@ let map2_pure a b ~f =
   | Or_error_or_stale.Fresh a, Or_error_or_stale.Fresh b ->
     Or_error_or_stale.Fresh (f a b)
   | Stale a, Fresh b | Fresh a, Stale b | Stale a, Stale b -> Stale (f a b)
-  | Error e1, Error e2 -> Error (Error.of_list [e1; e2])
+  | Error e1, Error e2 -> Error (Error.of_list [ e1; e2 ])
   | Error e, _ -> Error e
   | _, Error e -> Error e
   | Not_computed, _ | _, Not_computed -> Not_computed

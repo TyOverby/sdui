@@ -75,11 +75,19 @@ let component (image : Sd.Base64_image.t Bonsai.t) graph =
            | other -> other))
       graph
   in
+  Bonsai.Edge.on_change
+    image
+    ~equal:Sd.Base64_image.equal
+    ~callback:
+      (let%arr inject = inject in
+       fun _ -> inject `Invalidate)
+    graph;
   let view =
     let%arr theme = View.Theme.current graph
     and unique_id = unique_id
     and next_id = next_id
     and inject = inject
+    and _value = value
     and { Bonsai_web_ui_widget.view = widget; read; _ } = widget in
     let forward =
       let%bind.Effect effects =
@@ -87,12 +95,68 @@ let component (image : Sd.Base64_image.t Bonsai.t) graph =
       in
       Effect.all_unit effects
     in
+    (*let is_dirty =
+      match value with
+      | Fresh _ -> false
+      | _ -> true
+      in *)
+    let is_dirty = true in
     Vdom.Node.div
       ~key:(Int.to_string unique_id)
       [ widget
-      ; View.button theme "forward" ~on_click:forward
+      ; (if is_dirty
+         then View.button theme "forward" ~on_click:forward
+         else Vdom.Node.none)
       ; View.button theme "clear" ~on_click:(next_id ())
       ]
   in
   value, view
+;;
+
+let do_the_assoc all graph =
+  let out =
+    Bonsai.assoc_list
+      (module Int)
+      ~get_key:Tuple2.get1
+      all
+      graph
+      ~f:(fun _ image graph ->
+        let%sub _, image = image in
+        Tuple2.uncurry Bonsai.both (component image graph))
+  in
+  let%arr out = out in
+  match out with
+  | `Ok v ->
+    let results, views = List.unzip v in
+    let results = Inc.Or_error_or_stale.all results in
+    ( results
+    , View.hbox
+        (List.mapi views ~f:(fun i view -> Vdom.Node.div ~key:(Int.to_string i) [ view ]))
+    )
+  | `Duplicate_key i ->
+    let results =
+      Inc.Or_error_or_stale.Error (Error.create_s [%message "duplicate key" (i : int)])
+    in
+    let view = Vdom.Node.textf "dupldate key: %d" i in
+    results, view
+;;
+
+let multi
+  ~(prev : Sd.Base64_image.t list Inc.Or_error_or_stale.t Bonsai.t)
+  (graph : Bonsai.graph)
+  : Sd.Base64_image.t list Inc.Or_error_or_stale.t Bonsai.t * Vdom.Node.t Bonsai.t
+  =
+  let prev = Inc.map_pure prev ~f:(List.mapi ~f:Tuple2.create) in
+  let%sub a, b =
+    match%sub prev with
+    | Inc.Or_error_or_stale.Fresh all | Stale all ->
+      let%sub results, view = do_the_assoc all graph in
+      Bonsai.both (Inc.map2_pure prev results ~f:(fun _ r -> r)) view
+    | Error e ->
+      let%arr e = e in
+      Inc.Or_error_or_stale.Error e, Vdom.Node.textf "Error: %s" (Error.to_string_hum e)
+    | Not_computed ->
+      Bonsai.return (Inc.Or_error_or_stale.Not_computed, Vdom.Node.text "not computed")
+  in
+  a, b
 ;;

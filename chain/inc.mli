@@ -7,6 +7,10 @@ module Or_error_or_stale : sig
     | Stale of 'a
     | Error of Error.t
     | Not_computed
+
+  val map : 'a t -> f:('a -> 'b) -> 'b t
+  val both : 'a t -> 'b t -> ('a * 'b) t
+  val all : 'a t list -> 'a list t
 end
 
 type 'a t = 'a Or_error_or_stale.t Bonsai.t
