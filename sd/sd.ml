@@ -17,6 +17,7 @@ module Samplers = Samplers
 module Styles = Styles
 module Upscaler = Upscaler
 module Gallery = Gallery
+module Alwayson_scripts = Alwayson_scripts
 
 module Style = [%css stylesheet {|
   body {

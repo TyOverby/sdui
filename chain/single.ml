@@ -16,6 +16,7 @@ module Parameters = struct
     ; steps : Int63.t form
     ; cfg : Int63.t form
     ; denoise : Int63.t form
+    ; ratios : string form
     }
 
   let component ~default_size graph =
@@ -36,10 +37,16 @@ module Parameters = struct
     let steps = P.min_1_form ~default:(Int63.of_int 25) ~max:150 ~label:"steps" graph in
     let cfg = P.min_1_form ~default:(Int63.of_int 7) ~max:30 ~label:"cfg" graph in
     let denoise = P.min_1_form ~default:(Int63.of_int 70) ~max:100 ~label:"deno" graph in
-    { seed; pos_prompt; neg_prompt; width; height; steps; cfg; denoise }
+    let ratios =
+      Sd.Custom_form_elements.textarea ~label:"ratios" graph
+      >>| Form.map_view ~f:(fun view -> view ?colorize:None ())
+    in
+    { seed; pos_prompt; neg_prompt; width; height; steps; cfg; denoise; ratios }
   ;;
 
-  let for_img2img { seed; pos_prompt; neg_prompt; width; height; steps; cfg; denoise } =
+  let for_img2img
+    { seed; pos_prompt; neg_prompt; width; height; steps; cfg; denoise; ratios = _ }
+    =
     let%arr seed = seed
     and pos_prompt = pos_prompt
     and neg_prompt = neg_prompt
@@ -72,7 +79,9 @@ module Parameters = struct
     }
   ;;
 
-  let for_txt2img { seed; pos_prompt; neg_prompt; width; height; steps; cfg; denoise } =
+  let for_txt2img
+    { seed; pos_prompt; neg_prompt; width; height; steps; cfg; denoise; ratios }
+    =
     let%arr seed = seed
     and pos_prompt = pos_prompt
     and neg_prompt = neg_prompt
@@ -80,7 +89,8 @@ module Parameters = struct
     and height = height
     and steps = steps
     and cfg = cfg
-    and denoise = denoise in
+    and denoise = denoise
+    and ratios = ratios in
     let%map.Or_error prompt = Form.value pos_prompt
     and negative_prompt = Form.value neg_prompt
     and width = Form.value width
@@ -88,8 +98,25 @@ module Parameters = struct
     and steps = Form.value steps
     and cfg_scale = Form.value cfg
     and seed = Form.value seed
-    and denoise = Form.value denoise in
+    and denoise = Form.value denoise
+    and ratios = Form.value ratios in
     let denoising_strength = Int63.to_float denoise /. 100.0 in
+    let regional_prompter =
+      if String.for_all ratios ~f:Char.is_whitespace
+      then None
+      else (
+        match ratios |> String.lowercase |> String.strip |> String.lsplit2 ~on:' ' with
+        | None -> None
+        | Some (mode, ratios) ->
+          let matrix_mode =
+            match mode with
+            | "row" | "rows" -> `Rows
+            | "col" | "column" | "columns" -> `Columns
+            | _ -> `Rows
+          in
+          let ratios = String.filter ratios ~f:(Fn.non Char.is_whitespace) in
+          Some { Sd.Alwayson_scripts.Regional_prompter.Query.matrix_mode; ratios })
+    in
     { Sd.Txt2img.Query.prompt
     ; negative_prompt
     ; width
@@ -101,9 +128,10 @@ module Parameters = struct
     ; sampler = Sd.Samplers.default
     ; subseed_strength = 0.0
     ; enable_hr = false
-    ; data_url = ""
+    ; ctrlnet = None
     ; hr_upscaler = Sd.Upscaler.default
     ; styles = Sd.Styles.none
+    ; regional_prompter
     }
   ;;
 end
@@ -159,10 +187,8 @@ let image ~params ~prev ~pool graph =
              let%map.Effect results =
                parallel_n 4 ~f:(fun i ->
                  dispatcher (function
-                   | None ->
-                     Effect.return
-                       (Error (Error.of_string "couldn't find host for dispatch"))
-                   | Some (host, _) ->
+                   | Error _ as error -> Effect.return error
+                   | Ok (host, _) ->
                      let query =
                        { query with
                          Sd.Txt2img.Query.seed =
@@ -202,10 +228,8 @@ let image ~params ~prev ~pool graph =
                    }
                  in
                  dispatcher (function
-                   | None ->
-                     Effect.return
-                       (Error (Error.of_string "couldn't find host for dispatch"))
-                   | Some (host, _) ->
+                   | Error _ as e -> Effect.return e
+                   | Ok (host, _) ->
                      Sd.Img2img.dispatch
                        ~host_and_port:((host : Sd.Hosts.Host.t) :> string)
                        query))
@@ -224,8 +248,16 @@ let image ~params ~prev ~pool graph =
 ;;
 
 let component ~default_size ~pool ~prev graph =
-  let ({ Parameters.seed; pos_prompt; neg_prompt; width; height; steps; cfg; denoise } as
-       params)
+  let ({ Parameters.seed
+       ; pos_prompt
+       ; neg_prompt
+       ; width
+       ; height
+       ; steps
+       ; cfg
+       ; denoise
+       ; ratios
+       } as params)
     =
     Parameters.component ~default_size graph
   in
@@ -246,7 +278,8 @@ let component ~default_size ~pool ~prev graph =
     and theme = View.Theme.current graph
     and reset = reset
     and picked = picked
-    and set_picked = set_picked in
+    and set_picked = set_picked
+    and ratios = ratios in
     let images =
       let base64_to_vdom i img =
         let checked = Set.mem picked i in
@@ -296,6 +329,7 @@ let component ~default_size ~pool ~prev graph =
               ; View.vbox [ Form.view width; Form.view height ]
               ; View.vbox [ Form.view steps; Form.view cfg ]
               ; View.vbox [ Form.view denoise; Form.view seed ]
+              ; Form.view ratios
               ; Form.view pos_prompt
               ; Form.view neg_prompt
               ]

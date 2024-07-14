@@ -28,8 +28,9 @@ val dispatcher
   :  ('key, 'data) t
   -> (?info:Sexp.t
       -> ?pred:('key -> 'data -> bool)
-      -> (('key * 'data) option -> 'result Effect.t)
+      -> (('key * 'data) Or_error.t -> 'result Effect.t)
       -> 'result Effect.t)
        Bonsai.t
 
 val debug : ('key, 'data) t -> Sexp.t Bonsai.t
+val clear_all : _ t -> unit Effect.t Bonsai.t

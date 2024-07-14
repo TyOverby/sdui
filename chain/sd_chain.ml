@@ -28,8 +28,8 @@ let component graph =
       (match%bind.Effect Effect.Let_syntax.Let_syntax.both parameters_form model_form with
        | Active (Ok _parameters), Active (Ok _model) ->
          dispatcher (function
-           | None -> Effect.alert "no hosts!"
-           | Some (host, ()) ->
+           | Error e -> Effect.alert (Error.to_string_hum e)
+           | Ok (host, ()) ->
              let%bind.Effect () =
                Effect.print_s [%message "got a host, sleeping" (host : Sd.Hosts.Host.t)]
              in
@@ -48,7 +48,9 @@ let component graph =
   and submit_effect = submit_effect
   and lease_pool_debug = Lease_pool.debug lease_pool
   and hosts_view = hosts_view
-  and view = view in
+  and view = view
+  and theme = View.Theme.current graph
+  and clear_all = Lease_pool.clear_all lease_pool in
   let on_submit = Option.value submit_effect ~default:Effect.Ignore in
   Vdom.Node.div
     [ (Form.view parameters) ~on_submit ~hosts_panel:hosts_view
@@ -56,7 +58,9 @@ let component graph =
         ~attrs:
           [ {%css| position: fixed; top:1em; left: 1em; background: black; padding:0.25em; border-radius:0.25em; z-index:1; |}
           ]
-        [ Vdom.Node.sexp_for_debugging lease_pool_debug ]
+        [ Vdom.Node.sexp_for_debugging lease_pool_debug
+        ; View.button theme "clear queue" ~on_click:clear_all
+        ]
     ; view
     ]
 ;;

@@ -7,7 +7,7 @@ module Computation_status = Bonsai.Computation_status
 module Pred_and_cb = struct
   type ('key, 'data) t =
     { pred : 'key -> 'data -> bool
-    ; cb : (unit, ('key * 'data) option) Effect.Private.Callback.t
+    ; cb : (unit, ('key * 'data) Or_error.t) Effect.Private.Callback.t
     ; info : Sexp.t option
     }
 end
@@ -32,18 +32,21 @@ module Action = struct
     | Return of 'key
     | Take of ('key, 'data) Pred_and_cb.t
     | Pump
+    | Clear_all
 end
+
+let no_items_in_pool_error = Error.of_string "no items in pool"
 
 let take_impl ~schedule_event ~cb ~all ~pred ~info ~(model : _ Model.t) =
   let pickable = List.filter (Map.to_alist all) ~f:(fun (k, v) -> pred k v) in
   if List.is_empty pickable
   then (
-    schedule_event (Callback.respond_to cb None);
+    schedule_event (Callback.respond_to cb (Error no_items_in_pool_error));
     model)
   else (
     match List.find pickable ~f:(fun (k, _) -> not (Set.mem model.leased_out k)) with
     | Some (k, v) ->
-      schedule_event (Callback.respond_to cb (Some (k, v)));
+      schedule_event (Callback.respond_to cb (Ok (k, v)));
       { model with leased_out = Set.add model.leased_out k }
     | None ->
       { model with waiting = Fdeque.enqueue_back model.waiting { pred; cb; info } })
@@ -62,7 +65,7 @@ let apply_action ctx input model action =
   | Return key, Inactive ->
     { (model : _ Model.t) with leased_out = Set.remove model.leased_out key }
   | Take { cb; pred = _; info = _ }, Inactive ->
-    schedule_event (Callback.respond_to cb None);
+    schedule_event (Callback.respond_to cb (Error no_items_in_pool_error));
     model
   | Take { cb; pred; info }, Active all ->
     take_impl ~schedule_event ~cb ~all ~model ~pred ~info
@@ -71,15 +74,21 @@ let apply_action ctx input model action =
   | Return key, Active all ->
     let model = { model with leased_out = Set.remove model.leased_out key } in
     pump_impl ~model ~all ~schedule_event
+  | Clear_all, _ ->
+    model.waiting
+    |> Fdeque.iter ~f:(fun { cb; _ } ->
+      schedule_event (Callback.respond_to cb (Error (Error.of_string "evicted"))));
+    { model with waiting = Fdeque.empty }
 ;;
 
 type ('key, 'data) t =
   { take :
       (info:Sexp.t option
        -> pred:('key -> 'data -> bool)
-       -> ('key * 'data) option Effect.t)
+       -> ('key * 'data) Or_error.t Effect.t)
         Bonsai.t
   ; return : ('key -> unit Effect.t) Bonsai.t
+  ; clear_all : unit Effect.t Bonsai.t
   ; debug : Sexp.t Lazy.t Bonsai.t
   }
 [@@deriving fields]
@@ -110,11 +119,15 @@ let create cmp ?(data_equal = phys_equal) map graph =
     let%arr inject = inject in
     fun a -> inject (Return a)
   in
+  let clear_all =
+    let%arr inject = inject in
+    inject Clear_all
+  in
   let debug =
     let%arr model = model in
     lazy (Model.sexp_of_t model)
   in
-  { take; return; debug }
+  { take; return; debug; clear_all }
 ;;
 
 let default_pred _ _ = true
@@ -124,9 +137,9 @@ let dispatcher { take; return; _ } =
   and return = return in
   fun ?info ?(pred = default_pred) f ->
     match%bind.Effect take ~pred ~info with
-    | None -> f None
-    | Some (key, data) ->
-      let%bind.Effect r = f (Some (key, data)) in
+    | Error _ as e -> f e
+    | Ok (key, _) as v ->
+      let%bind.Effect r = f v in
       let%bind.Effect () = return key in
       Effect.return r
 ;;

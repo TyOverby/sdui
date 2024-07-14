@@ -1,8 +1,7 @@
 open! Core
 open! Bonsai_web.Cont
-
 module Base64_image = Base64_image
-module Custom_form_elements  = Custom_form_elements
+module Custom_form_elements = Custom_form_elements
 module Hosts = Hosts
 module Img2img = Img2img
 module Txt2img = Txt2img
@@ -16,5 +15,6 @@ module Samplers = Samplers
 module Styles = Styles
 module Upscaler = Upscaler
 module Gallery = Gallery
+module Alwayson_scripts = Alwayson_scripts
 
 val component : Bonsai.graph -> Vdom.Node.t Bonsai.t

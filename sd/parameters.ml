@@ -141,7 +141,8 @@ let between_inclusive s ~min:min_v ~max:max_v =
   | Some i -> Ok i
 ;;
 
-let validate_prompt prompt =
+let validate_prompt s = s
+let _validate_prompt prompt =
   let translate_line line =
     line
     |> String.split ~on:','
@@ -296,9 +297,20 @@ let component
           | Sampler -> sampler_form >>| strip_view
           | Seed -> seed_form >>| strip_view
           | Subseed_strength -> Bonsai.return (Form.return 0.0)
+          | Regional_prompter -> Bonsai.return (Form.return None)
           | Styles -> styles_form >>| strip_view
           | Enable_hr -> hr_form >>| strip_view
-          | Data_url -> data_url_form >>| strip_view
+          | Ctrlnet ->
+            data_url_form
+            >>| strip_view
+            >>| Form.project
+                  ~parse_exn:(fun s ->
+                    if String.for_all s ~f:Char.is_whitespace
+                    then None
+                    else Some { Alwayson_scripts.Ctrlnet.Query.image = s })
+                  ~unparse:(function
+                    | None -> ""
+                    | Some { Alwayson_scripts.Ctrlnet.Query.image } -> image)
           | Hr_upscaler -> upscaler_form >>| strip_view
           | Denoising_strength -> denoising_strength >>| strip_view
         ;;

@@ -24,7 +24,8 @@ module Query : sig
     ; denoising_strength : float
     ; styles : Styles.t
     ; enable_hr : bool
-    ; data_url : string
+    ; ctrlnet : Alwayson_scripts.Ctrlnet.Query.t option
+    ; regional_prompter : Alwayson_scripts.Regional_prompter.Query.t option
     ; hr_upscaler : Upscaler.t
     }
   [@@deriving sexp, typed_fields, equal]
