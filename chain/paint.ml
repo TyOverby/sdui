@@ -30,6 +30,7 @@ module Output = struct
     method get_data_url : Js.js_string Js.t Js.meth
     method updateImage : Js.js_string Js.t -> unit Js.meth
     method composite : Js.js_string Js.t Js.meth
+    method compositeMask : Js.js_string Js.t Js.meth
   end
 end
 
@@ -56,7 +57,7 @@ end
 
 module Id = Bonsai_extra.Id_gen (Int63) ()
 
-let component (image : Sd.Base64_image.t Bonsai.t) graph =
+let component ~prev:(image : Sd.Base64_image.t Bonsai.t) ~is_mask graph =
   let data_url = image >>| Sd.Base64_image.data_url in
   let widget = Bonsai_web_ui_widget.component (module Widget) data_url graph in
   let unique_id, next_id =
@@ -91,15 +92,13 @@ let component (image : Sd.Base64_image.t Bonsai.t) graph =
     and { Bonsai_web_ui_widget.view = widget; read; _ } = widget in
     let forward =
       let%bind.Effect effects =
-        read (fun _input state -> inject (`Set_value (Js.to_string state##composite)))
+        read (fun _input state ->
+          inject
+            (`Set_value
+              (Js.to_string (if is_mask then state##compositeMask else state##composite))))
       in
       Effect.all_unit effects
     in
-    (*let is_dirty =
-      match value with
-      | Fresh _ -> false
-      | _ -> true
-      in *)
     let is_dirty = true in
     Vdom.Node.div
       ~key:(Int.to_string unique_id)
@@ -113,7 +112,7 @@ let component (image : Sd.Base64_image.t Bonsai.t) graph =
   value, view
 ;;
 
-let do_the_assoc all graph =
+let do_the_assoc all ~is_mask graph =
   let out =
     Bonsai.assoc_list
       (module Int)
@@ -122,7 +121,7 @@ let do_the_assoc all graph =
       graph
       ~f:(fun _ image graph ->
         let%sub _, image = image in
-        Tuple2.uncurry Bonsai.both (component image graph))
+        Tuple2.uncurry Bonsai.both (component ~prev:image ~is_mask graph))
   in
   let%arr out = out in
   match out with
@@ -143,6 +142,7 @@ let do_the_assoc all graph =
 
 let multi
   ~(prev : Sd.Base64_image.t list Inc.Or_error_or_stale.t Bonsai.t)
+  ~is_mask
   (graph : Bonsai.graph)
   : Sd.Base64_image.t list Inc.Or_error_or_stale.t Bonsai.t * Vdom.Node.t Bonsai.t
   =
@@ -150,7 +150,7 @@ let multi
   let%sub a, b =
     match%sub prev with
     | Inc.Or_error_or_stale.Fresh all | Stale all ->
-      let%sub results, view = do_the_assoc all graph in
+      let%sub results, view = do_the_assoc all ~is_mask graph in
       Bonsai.both (Inc.map2_pure prev results ~f:(fun _ r -> r)) view
     | Error e ->
       let%arr e = e in

@@ -19,10 +19,11 @@ module Query = struct
     ; subseed_strength : float
     ; denoising_strength : float
     ; styles : Styles.t
+    ; mask : Base64_image.t option
     }
   [@@deriving sexp, typed_fields, equal]
 
-  let of_txt2img (other : Txt2img.Query.t) ~init_images =
+  let of_txt2img (other : Txt2img.Query.t) ~init_images ~mask =
     { init_images
     ; prompt = other.prompt
     ; negative_prompt = other.negative_prompt
@@ -35,6 +36,7 @@ module Query = struct
     ; subseed_strength = other.subseed_strength
     ; denoising_strength = other.denoising_strength
     ; styles = other.styles
+    ; mask
     }
   ;;
 
@@ -43,12 +45,14 @@ module Query = struct
 
     type t =
       { init_images : string list [@key "init_images"]
+      ; include_init_images : bool [@key "include_init_images"]
       ; prompt : string
       ; negative_prompt : string [@key "negative_prompt"]
       ; width : int
       ; height : int
       ; steps : int
       ; cfg_scale : int [@key "cfg_scale"]
+      ; image_cfg_scale : float [@key "image_cfg_scale"]
       ; sampler : Samplers.t
       ; sampler_index : Samplers.t [@key "sampler_index"]
       ; sampler_name : Samplers.t [@key "sampler_name"]
@@ -56,6 +60,13 @@ module Query = struct
       ; subseed_strength : float [@key "subseed_strength"]
       ; denoising_strength : float [@key "denoising_strength"]
       ; styles : Styles.t
+      ; mask : Base64_image.t option [@key "mask"] [@option]
+      ; inpainting_mask_invert : int [@key "inpainting_mask_invert"]
+      ; inpainting_fill : int [@key "inpainting_fill"]
+      ; resize_mode : int [@key "resize_mode"]
+      ; inpaint_full_res_padding : int [@key "inpaint_full_res_padding"]
+      ; inpaint_full_res : bool [@key "inpaint_full_res"]
+      ; initial_noise_multiplier : float [@key "initial_noise_multiplier"]
       }
     [@@deriving yojson_of, sexp, typed_fields]
 
@@ -79,6 +90,15 @@ module Query = struct
       ; subseed_strength = query.subseed_strength
       ; styles = query.styles
       ; denoising_strength = query.denoising_strength
+      ; mask = query.mask
+      ; image_cfg_scale = 0.7
+      ; inpainting_fill = 1
+      ; resize_mode = 0
+      ; inpaint_full_res_padding = 32
+      ; inpaint_full_res = true
+      ; inpainting_mask_invert = 1
+      ; include_init_images = true
+      ; initial_noise_multiplier = 1.0
       }
     ;;
   end

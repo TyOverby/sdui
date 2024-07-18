@@ -57,6 +57,19 @@ function painter_init(settings) {
             return composite_canvas.toDataURL("image/png", 1);
         }
 
+        state.compositeMask = function () {
+            composite_ctx.clearRect(0,0, image.naturalWidth, image.naturalHeight);
+            composite_ctx.globalCompositeOperation = "source-over";
+            composite_ctx.fillStyle = "black";
+            composite_ctx.fillRect(0, 0, image.naturalWidth, image.naturalHeight)
+            composite_ctx.globalCompositeOperation = "destination-in";
+            composite_ctx.drawImage(draw_canvas, 0, 0);
+            composite_ctx.globalCompositeOperation = "source-out";
+            composite_ctx.fillStyle = "white";
+            composite_ctx.fillRect(0, 0, image.naturalWidth, image.naturalHeight)
+            return composite_canvas.toDataURL("image/png", 1);
+        }
+
         state.updateImage = function (data_url) {
             var image = document.createElement("img");
             image.setAttribute("src", "data:image/png;base64," + data_url);

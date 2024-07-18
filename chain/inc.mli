@@ -45,6 +45,18 @@ val map2
   -> Bonsai.graph
   -> 'c t
 
+val map3
+  :  equal_a:('a -> 'a -> bool)
+  -> equal_b:('b -> 'b -> bool)
+  -> equal_c:('c -> 'c -> bool)
+  -> 'a t
+  -> 'b t
+  -> 'c t
+  -> f:('a -> 'b -> 'c -> 'd Effect.t) Bonsai.t
+  -> Bonsai.graph
+  -> 'd t
+
+val optional: 'a Or_error_or_stale.t option Bonsai.t -> 'a option t
 val map_pure : 'a t -> f:('a -> 'b) -> 'b t
 val map2_pure : 'a t -> 'b t -> f:('a -> 'b -> 'c) -> 'c t
 val collapse_error : 'a Or_error.t t -> 'a t

@@ -73,6 +73,15 @@ let map_pure a ~f =
   | Not_computed -> Not_computed
 ;;
 
+let optional a =
+  match%arr a with
+  | None -> Or_error_or_stale.Fresh None
+  | Some (Or_error_or_stale.Fresh a) -> Fresh (Some a)
+  | Some (Stale a) -> Stale (Some a)
+  | Some (Error e) -> Error e
+  | Some Not_computed -> Not_computed
+;;
+
 let map2_pure a b ~f =
   let a_and_b = Bonsai.both a b in
   match%arr a_and_b with
@@ -152,6 +161,38 @@ let map2 ~equal_a ~equal_b a b ~f graph =
   in
   let equal = Tuple2.equal ~eq1:equal_a ~eq2:equal_b in
   map ~equal a_and_b ~f graph
+;;
+
+let map3 ~equal_a ~equal_b ~equal_c a b c ~f graph =
+  let a_and_b_and_c =
+    let%arr a = a
+    and b = b
+    and c = c in
+    match a, b, c with
+    | Or_error_or_stale.Fresh a, Or_error_or_stale.Fresh b, Or_error_or_stale.Fresh c ->
+      Or_error_or_stale.Fresh (a, b, c)
+    | Error e1, Error e2, Error e3 -> Error (Error.of_list [ e1; e2; e3 ])
+    | Error e1, Error e2, _ -> Error (Error.of_list [ e1; e2 ])
+    | Error e1, _, Error e2 -> Error (Error.of_list [ e1; e2 ])
+    | _, Error e1, Error e2 -> Error (Error.of_list [ e1; e2 ])
+    | Error e, _, _ -> Error e
+    | _, Error e, _ -> Error e
+    | _, _, Error e -> Error e
+    | Not_computed, _, _ | _, Not_computed, _ | _, _, Not_computed -> Not_computed
+    | Stale a, Stale b, Stale c
+    | Fresh a, Stale b, Stale c
+    | Stale a, Fresh b, Stale c
+    | Stale a, Stale b, Fresh c
+    | Fresh a, Stale b, Fresh c
+    | Stale a, Fresh b, Fresh c
+    | Fresh a, Fresh b, Stale c -> Stale (a, b, c)
+  in
+  let f =
+    let%arr f = f in
+    fun (a, b, c) -> f a b c
+  in
+  let equal = Tuple3.equal ~eq1:equal_a ~eq2:equal_b ~eq3:equal_c in
+  map ~equal a_and_b_and_c ~f graph
 ;;
 
 let collapse_error t =

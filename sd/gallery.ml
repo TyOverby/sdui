@@ -357,7 +357,7 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~set_params graph =
               lazy
                 (let%bind.Effect () = set_state (`Done (image, info, `Upscaling)) in
                  dispatch_img2img
-                   { (Img2img.Query.of_txt2img params ~init_images:[ image ]) with
+                   { (Img2img.Query.of_txt2img params ~init_images:[ image ] ~mask:None) with
                      seed = info.seed
                    ; width = Int63.(params.width * of_int 2)
                    ; height = Int63.(params.width * of_int 2)

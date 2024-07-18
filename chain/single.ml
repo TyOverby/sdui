@@ -65,6 +65,7 @@ module Parameters = struct
     and denoise = Form.value denoise in
     let denoising_strength = Int63.to_float denoise /. 100.0 in
     { Sd.Img2img.Query.init_images = []
+    ; mask = None
     ; prompt
     ; negative_prompt
     ; width
@@ -166,7 +167,7 @@ let rec parallel_all = function
 
 let parallel_n n ~f = List.init n ~f:(fun i -> f i) |> parallel_all
 
-let image ~params ~prev ~pool graph =
+let image ~params ~prev ~mask ~pool graph =
   let result =
     match%sub prev with
     | None ->
@@ -209,15 +210,17 @@ let image ~params ~prev ~pool graph =
           (Parameters.for_img2img params)
           graph
       in
-      Inc.map2
+      Inc.map3
         ~equal_a:Sd.Img2img.Query.equal
         ~equal_b:[%equal: Sd.Base64_image.t list]
+        ~equal_c:[%equal: Sd.Base64_image.t option]
         query
         prev
+        (Inc.optional mask)
         graph
         ~f:
           (let%arr dispatcher = Lease_pool.dispatcher pool in
-           fun query prev ->
+           fun query prev mask ->
              let%map.Effect results =
                parallel_n 4 ~f:(fun i ->
                  let query =
@@ -227,6 +230,7 @@ let image ~params ~prev ~pool graph =
                    ; seed = Int63.(query.Sd.Img2img.Query.seed + of_int i)
                    }
                  in
+                 let query = { query with mask } in
                  dispatcher (function
                    | Error _ as e -> Effect.return e
                    | Ok (host, _) ->
@@ -247,7 +251,7 @@ let image ~params ~prev ~pool graph =
   |> Inc.collapse_error
 ;;
 
-let component ~default_size ~pool ~prev graph =
+let component ~default_size ~pool ~prev ~mask graph =
   let ({ Parameters.seed
        ; pos_prompt
        ; neg_prompt
@@ -262,7 +266,8 @@ let component ~default_size ~pool ~prev graph =
     Parameters.component ~default_size graph
   in
   let images, reset =
-    Bonsai.with_model_resetter graph ~f:(fun graph -> image ~pool ~prev ~params graph)
+    Bonsai.with_model_resetter graph ~f:(fun graph ->
+      image ~pool ~prev ~mask ~params graph)
   in
   let picked, set_picked = Bonsai.state Int.Set.empty graph in
   let view =
