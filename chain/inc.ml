@@ -101,17 +101,18 @@ let map ~equal a ~f graph =
     Bonsai.state_machine0
       ~default_model:None
       graph
-      ~apply_action:(fun _ model (id, input, result) ->
+      ~apply_action:(fun _ model (id, input, done_, change) ->
         match model with
-        | Some (old_id, _, _) when Id_gen.(old_id > id) -> model
-        | _ -> Some (id, input, result))
+        | Some (old_id, _, _, _) when Id_gen.(old_id > id) -> model
+        | Some (_, _, _, old_result) -> Some (id, input, done_, change (Some old_result))
+        | None -> Some (id, input, done_, change None))
   in
   let needs_recalc =
     let%arr a = a
     and state = state in
     match (a : _ Or_error_or_stale.t), state with
     | Fresh a, None -> Some a
-    | Fresh a, Some (_, old, _) when not (equal a old) -> Some a
+    | Fresh a, Some (_, old, _, _) when not (equal a old) -> Some a
     | _ -> None
   in
   let _ : unit Bonsai.t =
@@ -126,8 +127,9 @@ let map ~equal a ~f graph =
            and id_gen = id_gen in
            fun a ->
              let%bind.Effect id = id_gen in
-             let%bind.Effect r = f a in
-             set_state (id, a, r))
+             let update f = set_state (id, a, false, f) in
+             let%bind.Effect r = f ~update a in
+             set_state (id, a, true, fun _ -> r))
         graph;
       Bonsai.return ()
     | None -> Bonsai.return ()
@@ -136,10 +138,10 @@ let map ~equal a ~f graph =
   and state = state
   and a = a in
   match needs_recalc, a, state with
-  | None, Fresh _, Some (_, _, out) -> Or_error_or_stale.Fresh out
-  | None, _, Some (_, _, out) -> Stale out
+  | None, Fresh _, Some (_, _, true, out) -> Or_error_or_stale.Fresh out
+  | None, _, Some (_, _, _, out) -> Stale out
   | Some _, _, None | None, _, None -> Not_computed
-  | Some _, _, Some (_, _, out) -> Stale out
+  | Some _, _, Some (_, _, _, out) -> Stale out
 ;;
 
 let map2 ~equal_a ~equal_b a b ~f graph =
@@ -157,7 +159,7 @@ let map2 ~equal_a ~equal_b a b ~f graph =
   in
   let f =
     let%arr f = f in
-    fun (a, b) -> f a b
+    fun ~update (a, b) -> f ~update a b
   in
   let equal = Tuple2.equal ~eq1:equal_a ~eq2:equal_b in
   map ~equal a_and_b ~f graph
@@ -189,7 +191,7 @@ let map3 ~equal_a ~equal_b ~equal_c a b c ~f graph =
   in
   let f =
     let%arr f = f in
-    fun (a, b, c) -> f a b c
+    fun ~update (a, b, c) -> f ~update a b c
   in
   let equal = Tuple3.equal ~eq1:equal_a ~eq2:equal_b ~eq3:equal_c in
   map ~equal a_and_b_and_c ~f graph

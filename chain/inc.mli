@@ -32,7 +32,7 @@ val of_or_error_bonsai
 val map
   :  equal:('a -> 'a -> bool)
   -> 'a t
-  -> f:('a -> 'b Effect.t) Bonsai.t
+  -> f:(update:(('b option -> 'b) -> unit Effect.t) -> 'a -> 'b Effect.t) Bonsai.t
   -> Bonsai.graph
   -> 'b t
 
@@ -41,7 +41,7 @@ val map2
   -> equal_b:('b -> 'b -> bool)
   -> 'a t
   -> 'b t
-  -> f:('a -> 'b -> 'c Effect.t) Bonsai.t
+  -> f:(update:(('c option -> 'c) -> unit Effect.t) -> 'a -> 'b -> 'c Effect.t) Bonsai.t
   -> Bonsai.graph
   -> 'c t
 
@@ -52,11 +52,13 @@ val map3
   -> 'a t
   -> 'b t
   -> 'c t
-  -> f:('a -> 'b -> 'c -> 'd Effect.t) Bonsai.t
+  -> f:
+       (update:(('d option -> 'd) -> unit Effect.t) -> 'a -> 'b -> 'c -> 'd Effect.t)
+         Bonsai.t
   -> Bonsai.graph
   -> 'd t
 
-val optional: 'a Or_error_or_stale.t option Bonsai.t -> 'a option t
+val optional : 'a Or_error_or_stale.t option Bonsai.t -> 'a option t
 val map_pure : 'a t -> f:('a -> 'b) -> 'b t
 val map2_pure : 'a t -> 'b t -> f:('a -> 'b -> 'c) -> 'c t
 val collapse_error : 'a Or_error.t t -> 'a t

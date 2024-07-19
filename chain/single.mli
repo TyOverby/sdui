@@ -7,7 +7,7 @@ type t end
 
 val component
   :  default_size:int
-  -> pool:(Sd.Hosts.Host.t, 'a) Lease_pool.t
+  -> pool:(Sd.Hosts.Host.t, _, _) Lease_pool.t
   -> prev:Sd.Base64_image.t list Inc.Or_error_or_stale.t option Bonsai.t
   -> mask:Sd.Base64_image.t Inc.Or_error_or_stale.t option Bonsai.t
   -> Bonsai.graph

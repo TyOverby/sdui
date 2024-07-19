@@ -183,7 +183,27 @@ let rec parallel_all = function
     a :: rest
 ;;
 
-let parallel_n n ~f = List.init n ~f:(fun i -> f i) |> parallel_all
+let parallel_n
+  (type a)
+  ~(update : (a list list Or_error.t option -> a list list Or_error.t) -> unit Effect.t)
+  n
+  ~(f : int -> a list Or_error.t Effect.t)
+  =
+  let _ = update in
+  List.init n ~f:(fun i ->
+    let%bind.Effect r = f i in
+    let%bind.Effect () =
+      update (fun state ->
+        match state, r with
+        | (None | Some (Error _)), Ok r -> Ok [ r ]
+        | None, Error e -> Error e
+        | Some (Ok l), Ok r -> Ok (l @ [r])
+        | Some (Ok l), Error _ -> Ok l
+        | Some (Error e1), Error e2 -> (Error (Error.of_list [e1;e2])))
+    in
+    Effect.return r)
+  |> parallel_all
+;;
 
 let image ~params ~prev ~mask ~pool graph =
   let result =
@@ -204,9 +224,9 @@ let image ~params ~prev ~mask ~pool graph =
         graph
         ~f:
           (let%arr dispatcher = Lease_pool.dispatcher pool in
-           fun query ->
+           fun ~update query ->
              let%map.Effect results =
-               parallel_n 4 ~f:(fun i ->
+               parallel_n ~update 4 ~f:(fun i ->
                  dispatcher (function
                    | Error _ as error -> Effect.return error
                    | Ok (host, _) ->
@@ -220,7 +240,7 @@ let image ~params ~prev ~mask ~pool graph =
                        ~host_and_port:((host : Sd.Hosts.Host.t) :> string)
                        query))
              in
-             Or_error.all results)
+             Or_error.filter_ok_at_least_one results)
       |> Inc.collapse_error
     | Some prev ->
       let query =
@@ -242,9 +262,9 @@ let image ~params ~prev ~mask ~pool graph =
         graph
         ~f:
           (let%arr dispatcher = Lease_pool.dispatcher pool in
-           fun query prev mask ->
+           fun ~update query prev mask ->
              let%map.Effect results =
-               parallel_n 4 ~f:(fun i ->
+               parallel_n ~update 4 ~f:(fun i ->
                  let query =
                    { query with
                      Sd.Img2img.Query.init_images =
@@ -260,7 +280,7 @@ let image ~params ~prev ~mask ~pool graph =
                        ~host_and_port:((host : Sd.Hosts.Host.t) :> string)
                        query))
              in
-             Or_error.all results)
+             Or_error.filter_ok_at_least_one results)
       |> Inc.collapse_error
   in
   result

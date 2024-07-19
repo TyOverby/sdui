@@ -81,7 +81,7 @@ let apply_action ctx input model action =
     { model with waiting = Fdeque.empty }
 ;;
 
-type ('key, 'data) t =
+type ('key, 'data, 'cmp) t =
   { take :
       (info:Sexp.t option
        -> pred:('key -> 'data -> bool)
@@ -90,6 +90,7 @@ type ('key, 'data) t =
   ; return : ('key -> unit Effect.t) Bonsai.t
   ; clear_all : unit Effect.t Bonsai.t
   ; debug : Sexp.t Lazy.t Bonsai.t
+  ; leased_out : ('key, 'cmp) Set.t Bonsai.t
   }
 [@@deriving fields]
 
@@ -127,7 +128,8 @@ let create cmp ?(data_equal = phys_equal) map graph =
     let%arr model = model in
     lazy (Model.sexp_of_t model)
   in
-  { take; return; debug; clear_all }
+  let%sub { leased_out; _ } = model in
+  { take; return; debug; clear_all; leased_out }
 ;;
 
 let default_pred _ _ = true

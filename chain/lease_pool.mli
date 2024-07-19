@@ -15,22 +15,23 @@ open! Bonsai_web.Cont
      callback is immediately invoked with [Some a].
    - If all values are currently being lent out, then the effect is enqueued,
      and will be invoked as soon as a currently-lended ['a] becomes available. *)
-type ('key, 'data) t
+type ('key, 'data, 'cmp) t
 
 val create
   :  ('key, 'cmp) Comparator.Module.t
   -> ?data_equal:('data -> 'data -> bool)
   -> ('key, 'data, 'cmp) Map.t Bonsai.t
   -> Bonsai.graph
-  -> ('key, 'data) t
+  -> ('key, 'data, 'cmp) t
 
 val dispatcher
-  :  ('key, 'data) t
+  :  ('key, 'data, _) t
   -> (?info:Sexp.t
       -> ?pred:('key -> 'data -> bool)
       -> (('key * 'data) Or_error.t -> 'result Effect.t)
       -> 'result Effect.t)
        Bonsai.t
 
-val debug : ('key, 'data) t -> Sexp.t Bonsai.t
+val leased_out : ('k, _, 'cmp) t -> ('k, 'cmp) Set.t Bonsai.t
+val debug : _ t -> Sexp.t Bonsai.t
 val clear_all : _ t -> unit Effect.t Bonsai.t
