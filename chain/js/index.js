@@ -1,12 +1,14 @@
 //Provides:painter_init
 function painter_init(settings) {
-    var data_url = settings;
+    var data_url = settings.startsWith("data:image")
+        ? settings
+        : "data:image/png;base64," + settings;
 
     var stack = document.createElement("div");
     stack.className = "stack";
 
     var image = document.createElement("img");
-    image.setAttribute("src", "data:image/png;base64," + data_url);
+    image.setAttribute("src", data_url);
 
     function init(image, f) {
         if (image.complete) { f() }
@@ -58,7 +60,7 @@ function painter_init(settings) {
         }
 
         state.compositeMask = function () {
-            composite_ctx.clearRect(0,0, image.naturalWidth, image.naturalHeight);
+            composite_ctx.clearRect(0, 0, image.naturalWidth, image.naturalHeight);
             composite_ctx.globalCompositeOperation = "source-over";
             composite_ctx.fillStyle = "black";
             composite_ctx.fillRect(0, 0, image.naturalWidth, image.naturalHeight)

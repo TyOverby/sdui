@@ -5,19 +5,18 @@ module Form = Bonsai_web_ui_form.With_manual_view
 module P = Sd.Parameters.Individual
 
 module Parameters = struct
-  type 'a form = ('a, Vdom.Node.t) Form.t Bonsai.t
-
   type t =
-    { seed : Int63.t form
-    ; pos_prompt : string form
-    ; neg_prompt : string form
-    ; width : Int63.t form
-    ; height : Int63.t form
-    ; steps : Int63.t form
-    ; cfg : Int63.t form
-    ; denoise : Int63.t form
-    ; ratios : string form
+    { seed : Int63.t
+    ; pos_prompt : string
+    ; neg_prompt : string
+    ; width : Int63.t
+    ; height : Int63.t
+    ; steps : Int63.t
+    ; cfg : Int63.t
+    ; denoise : Int63.t
+    ; ratios : string
     }
+  [@@deriving typed_fields]
 
   let component ~default_size graph =
     let seed =
@@ -25,53 +24,89 @@ module Parameters = struct
         ~container_attrs:(fun ~state ~set_state ->
           [ Vdom.Attr.on_double_click (fun _ -> set_state Int63.(state + of_int 4)) ])
         graph
-    in
-    let pos_prompt =
+    and pos_prompt =
       P.prompt_form ~container_attrs:[ {%css| flex-grow: 2 |} ] ~label:"prompt" graph
-    in
-    let neg_prompt =
+    and neg_prompt =
       P.prompt_form ~container_attrs:[ {%css| flex-grow: 1 |} ] ~label:"negative" graph
-    in
-    let width = P.width_height_form ~default:default_size ~label:"width" graph in
-    let height = P.width_height_form ~default:default_size ~label:"height" graph in
-    let steps = P.min_1_form ~default:(Int63.of_int 25) ~max:150 ~label:"steps" graph in
-    let cfg = P.min_1_form ~default:(Int63.of_int 7) ~max:30 ~label:"cfg" graph in
-    let denoise = P.min_1_form ~default:(Int63.of_int 70) ~max:100 ~label:"deno" graph in
-    let ratios =
+    and width = P.width_height_form ~default:default_size ~label:"width" graph
+    and height = P.width_height_form ~default:default_size ~label:"height" graph
+    and steps = P.min_1_form ~default:(Int63.of_int 25) ~max:150 ~label:"steps" graph
+    and cfg = P.min_1_form ~default:(Int63.of_int 7) ~max:30 ~label:"cfg" graph
+    and denoise = P.min_1_form ~default:(Int63.of_int 70) ~max:100 ~label:"deno" graph
+    and ratios =
       Sd.Custom_form_elements.textarea ~label:"ratios" graph
       >>| Form.map_view ~f:(fun view -> view ?colorize:None ())
     in
-    { seed; pos_prompt; neg_prompt; width; height; steps; cfg; denoise; ratios }
+    Form.Typed.Record.make
+      (module struct
+        module Typed_field = Typed_field
+
+        type field_view = Vdom.Node.t
+
+        type resulting_view =
+          theme:View.Theme.t -> reset:unit Effect.t -> images:Vdom.Node.t -> Vdom.Node.t
+
+        type form_of_field_fn =
+          { f : 'a. 'a Typed_field.t -> ('a, Vdom.Node.t) Form.t Bonsai.t }
+
+        let form_for_field (type a) (field : a Typed_field.t) _graph
+          : (a, Vdom.Node.t) Form.t Bonsai.t
+          =
+          match field with
+          | Seed -> seed
+          | Pos_prompt -> pos_prompt
+          | Neg_prompt -> neg_prompt
+          | Width -> width
+          | Height -> height
+          | Steps -> steps
+          | Cfg -> cfg
+          | Denoise -> denoise
+          | Ratios -> ratios
+        ;;
+
+        let finalize_view { f } _graph =
+          let%arr width = f Width
+          and height = f Height
+          and steps = f Steps
+          and cfg = f Cfg
+          and denoise = f Denoise
+          and seed = f Seed
+          and ratios = f Ratios
+          and pos_prompt = f Pos_prompt
+          and neg_prompt = f Neg_prompt in
+          fun ~theme ~reset ~images ->
+            Vdom.Node.div
+              [ View.vbox
+                  [ View.hbox
+                      [ View.button theme "reset" ~on_click:reset
+                      ; View.vbox [ Form.view width; Form.view height ]
+                      ; View.vbox [ Form.view steps; Form.view cfg ]
+                      ; View.vbox [ Form.view denoise; Form.view seed ]
+                      ; Form.view ratios
+                      ; Form.view pos_prompt
+                      ; Form.view neg_prompt
+                      ]
+                  ; images
+                  ]
+              ]
+        ;;
+      end)
+      graph
   ;;
 
-  let for_img2img
-    { seed; pos_prompt; neg_prompt; width; height; steps; cfg; denoise; ratios = _ }
-    =
-    let%arr seed = seed
-    and pos_prompt = pos_prompt
-    and neg_prompt = neg_prompt
-    and width = width
-    and height = height
-    and steps = steps
-    and cfg = cfg
-    and denoise = denoise in
-    let%map.Or_error prompt = Form.value pos_prompt
-    and negative_prompt = Form.value neg_prompt
-    and width = Form.value width
-    and height = Form.value height
-    and steps = Form.value steps
-    and cfg_scale = Form.value cfg
-    and seed = Form.value seed
-    and denoise = Form.value denoise in
+  let for_img2img t =
+    let { seed; pos_prompt; neg_prompt; width; height; steps; cfg; denoise; ratios = _ } =
+      t
+    in
     let denoising_strength = Int63.to_float denoise /. 100.0 in
     { Sd.Img2img.Query.init_images = []
     ; mask = None
-    ; prompt
-    ; negative_prompt
+    ; prompt = pos_prompt
+    ; negative_prompt = neg_prompt
     ; width
     ; height
     ; steps
-    ; cfg_scale
+    ; cfg_scale = cfg
     ; seed
     ; denoising_strength
     ; sampler = Sd.Samplers.default
@@ -80,27 +115,10 @@ module Parameters = struct
     }
   ;;
 
-  let for_txt2img
-    { seed; pos_prompt; neg_prompt; width; height; steps; cfg; denoise; ratios }
-    =
-    let%arr seed = seed
-    and pos_prompt = pos_prompt
-    and neg_prompt = neg_prompt
-    and width = width
-    and height = height
-    and steps = steps
-    and cfg = cfg
-    and denoise = denoise
-    and ratios = ratios in
-    let%map.Or_error prompt = Form.value pos_prompt
-    and negative_prompt = Form.value neg_prompt
-    and width = Form.value width
-    and height = Form.value height
-    and steps = Form.value steps
-    and cfg_scale = Form.value cfg
-    and seed = Form.value seed
-    and denoise = Form.value denoise
-    and ratios = Form.value ratios in
+  let for_txt2img t =
+    let { seed; pos_prompt; neg_prompt; width; height; steps; cfg; denoise; ratios } =
+      t
+    in
     let denoising_strength = Int63.to_float denoise /. 100.0 in
     let regional_prompter =
       if String.for_all ratios ~f:Char.is_whitespace
@@ -118,12 +136,12 @@ module Parameters = struct
           let ratios = String.filter ratios ~f:(Fn.non Char.is_whitespace) in
           Some { Sd.Alwayson_scripts.Regional_prompter.Query.matrix_mode; ratios })
     in
-    { Sd.Txt2img.Query.prompt
-    ; negative_prompt
+    { Sd.Txt2img.Query.prompt = pos_prompt
+    ; negative_prompt = neg_prompt
     ; width
     ; height
     ; steps
-    ; cfg_scale
+    ; cfg_scale = cfg
     ; seed
     ; denoising_strength
     ; sampler = Sd.Samplers.default
@@ -175,7 +193,9 @@ let image ~params ~prev ~mask ~pool graph =
         Inc.of_or_error_bonsai
           ~equal:Sd.Txt2img.Query.equal
           ~time_to_stable:(Bonsai.return (Time_ns.Span.of_sec 2.0))
-          (Parameters.for_txt2img params)
+          (let%arr params = params in
+           let%map.Or_error params = Form.value params in
+           Parameters.for_txt2img params)
           graph
       in
       Inc.map
@@ -207,7 +227,9 @@ let image ~params ~prev ~mask ~pool graph =
         Inc.of_or_error_bonsai
           ~equal:Sd.Img2img.Query.equal
           ~time_to_stable:(Bonsai.return (Time_ns.Span.of_sec 2.0))
-          (Parameters.for_img2img params)
+          (let%arr params = params in
+           let%map.Or_error params = Form.value params in
+           Parameters.for_img2img params)
           graph
       in
       Inc.map3
@@ -252,39 +274,19 @@ let image ~params ~prev ~mask ~pool graph =
 ;;
 
 let component ~default_size ~pool ~prev ~mask graph =
-  let ({ Parameters.seed
-       ; pos_prompt
-       ; neg_prompt
-       ; width
-       ; height
-       ; steps
-       ; cfg
-       ; denoise
-       ; ratios
-       } as params)
-    =
-    Parameters.component ~default_size graph
-  in
+  let params = Parameters.component ~default_size graph in
   let images, reset =
     Bonsai.with_model_resetter graph ~f:(fun graph ->
       image ~pool ~prev ~mask ~params graph)
   in
   let picked, set_picked = Bonsai.state Int.Set.empty graph in
   let view =
-    let%arr seed = seed
-    and pos_prompt = pos_prompt
-    and neg_prompt = neg_prompt
-    and width = width
-    and height = height
-    and steps = steps
-    and cfg = cfg
-    and denoise = denoise
+    let%arr { view = form; _ } = params
     and images = images
     and theme = View.Theme.current graph
     and reset = reset
     and picked = picked
-    and set_picked = set_picked
-    and ratios = ratios in
+    and set_picked = set_picked in
     let images =
       let base64_to_vdom i img =
         let checked = Set.mem picked i in
@@ -327,20 +329,7 @@ let component ~default_size ~pool ~prev ~mask graph =
       | Not_computed -> Vdom.Node.div [ Vdom.Node.text "not computed yet..." ]
       | Error e -> Vdom.Node.div [ Vdom.Node.sexp_for_debugging (Error.sexp_of_t e) ]
     in
-    Vdom.Node.div
-      [ View.vbox
-          [ View.hbox
-              [ View.button theme "reset" ~on_click:reset
-              ; View.vbox [ Form.view width; Form.view height ]
-              ; View.vbox [ Form.view steps; Form.view cfg ]
-              ; View.vbox [ Form.view denoise; Form.view seed ]
-              ; Form.view ratios
-              ; Form.view pos_prompt
-              ; Form.view neg_prompt
-              ]
-          ; images
-          ]
-      ]
+    form ~theme ~reset ~images
   in
   let picked =
     Inc.of_bonsai
@@ -354,5 +343,5 @@ let component ~default_size ~pool ~prev ~mask graph =
       let result = List.filteri images ~f:(fun i _image -> Set.mem picked i) in
       if List.is_empty result then images else result)
   in
-  images, view
+  images, view, params >>| Form.map_view ~f:(fun _ -> ())
 ;;
