@@ -18,7 +18,7 @@ function painter_init(settings) {
     var state = {
         clear: function () { console.log("cleared"); },
         penSize: 20,
-        color:"rgb(255,0,0)"
+        color: "rgb(255,0,0)"
     };
 
     init(image, function () {
@@ -82,7 +82,7 @@ function painter_init(settings) {
             })
         }
 
-        function drawPill(ctx, x1, y1, x2, y2, thickness) {
+        function drawPill(ctx, x1, y1, x2, y2, radius1, radius2) {
             const angle = Math.atan2(y2 - y1, x2 - x1);
             const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
 
@@ -91,10 +91,10 @@ function painter_init(settings) {
             ctx.rotate(angle);
 
             ctx.beginPath();
-            ctx.arc(0, 0, thickness / 2, Math.PI / 2, -Math.PI / 2);
-            ctx.lineTo(length, -thickness / 2);
-            ctx.arc(length, 0, thickness / 2, -Math.PI / 2, Math.PI / 2);
-            ctx.lineTo(0, thickness / 2);
+            ctx.arc(0, 0, radius1, Math.PI / 2, -Math.PI / 2);
+            ctx.lineTo(length, -radius2);
+            ctx.arc(length, 0, radius2, -Math.PI / 2, Math.PI / 2);
+            ctx.lineTo(0, radius1);
             ctx.closePath();
             ctx.fill();
 
@@ -116,6 +116,7 @@ function painter_init(settings) {
 
             var last_x = null;
             var last_y = null;
+            var last_radius = null;
 
             function move(event) {
                 if (event.pressure === 0) {
@@ -136,10 +137,11 @@ function painter_init(settings) {
                     draw_ctx.ellipse(x, y, radius, radius, 0, Math.PI * 2, 0);
                     draw_ctx.fill();
                 } else {
-                    drawPill(draw_ctx, last_x, last_y, x, y, radius * 2);
+                    drawPill(draw_ctx, last_x, last_y, x, y, last_radius, radius);
                 }
                 last_x = x;
                 last_y = y;
+                last_radius = radius;
             }
 
             event.target.addEventListener("pointermove", move);
