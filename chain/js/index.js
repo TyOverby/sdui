@@ -17,6 +17,8 @@ function painter_init(settings) {
 
     var state = {
         clear: function () { console.log("cleared"); },
+        penSize: 20,
+        color:"rgb(255,0,0)"
     };
 
     init(image, function () {
@@ -99,7 +101,6 @@ function painter_init(settings) {
             ctx.restore();
         }
 
-        var color = "rgb(255,0,0,1.0)"
         function mousedown(event) {
             event.target.setPointerCapture(event.pointerId);
 
@@ -127,13 +128,15 @@ function painter_init(settings) {
                 var x = event.offsetX * (image.naturalWidth / image.width);
                 var y = event.offsetY * (image.naturalHeight / image.height);
 
-                draw_ctx.fillStyle = color;
+                draw_ctx.fillStyle = state.color;
+                var radius = 0;
+                if (state.penSize === 1) { radius = 1; } else { radius = state.penSize * pressure; }
                 if (last_x === null || last_y === null) {
                     draw_ctx.beginPath();
-                    draw_ctx.ellipse(x, y, 20 * pressure, 20 * pressure, 0, Math.PI * 2, 0);
+                    draw_ctx.ellipse(x, y, radius, radius, 0, Math.PI * 2, 0);
                     draw_ctx.fill();
                 } else {
-                    drawPill(draw_ctx, last_x, last_y, x, y, 40 * pressure);
+                    drawPill(draw_ctx, last_x, last_y, x, y, radius * 2);
                 }
                 last_x = x;
                 last_y = y;
@@ -165,27 +168,21 @@ function painter_init(settings) {
                 (255 - image_data.data[2]) + ")";
             outline_ctx.strokeStyle = inverse;
             if (event.ctrlKey) {
-                color = "rgb(" +
+                state.color = "rgb(" +
                     image_data.data[0] + "," +
                     image_data.data[1] + "," +
                     image_data.data[2] + ")";
                 outline_ctx.fillStyle = color;
                 outline_ctx.beginPath();
-                outline_ctx.ellipse(x, y, 20, 20, 0, Math.PI * 2, 0);
+                outline_ctx.ellipse(x, y, state.penSize, state.penSize, 0, Math.PI * 2, 0);
                 outline_ctx.fill();
             }
 
             outline_ctx.beginPath();
-            outline_ctx.ellipse(x, y, 20, 20, 0, Math.PI * 2, 0);
+            outline_ctx.ellipse(x, y, state.penSize, state.penSize, 0, Math.PI * 2, 0);
             outline_ctx.stroke();
 
         });
-
-        outline_canvas.addEventListener('auxclick', function (e) {
-            if (e.button == 1) {
-                alert("middle button clicked")
-            }
-        })
     });
 
     return [0, state, stack];

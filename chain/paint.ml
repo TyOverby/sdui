@@ -2,6 +2,7 @@ open! Core
 open! Bonsai_web.Cont
 open Bonsai.Let_syntax
 open Js_of_ocaml
+module Form = Bonsai_web_ui_form.With_manual_view
 
 module _ =
   [%css
@@ -31,6 +32,8 @@ module Output = struct
     method updateImage : Js.js_string Js.t -> unit Js.meth
     method composite : Js.js_string Js.t Js.meth
     method compositeMask : Js.js_string Js.t Js.meth
+    method penSize : int Js.prop
+    method color : Js.js_string Js.t Js.prop
   end
 end
 
@@ -60,6 +63,35 @@ module Id = Bonsai_extra.Id_gen (Int63) ()
 let component ~prev:(image : Sd.Base64_image.t Bonsai.t) ~is_mask graph =
   let data_url = image >>| Sd.Base64_image.data_url in
   let widget = Bonsai_web_ui_widget.component (module Widget) data_url graph in
+  let slider =
+    Form.Elements.Range.int
+      ~default:20
+      ~min:1
+      ~max:100
+      ~step:1
+      ~allow_updates_when_focused:`Never
+      ()
+      graph
+  in
+  Bonsai.Edge.on_change
+    (slider >>| Form.value >>| Or_error.ok)
+    ~equal:[%equal: int option]
+    ~callback:
+      (let%arr { modify; _ } = widget in
+       function
+       | None -> Effect.Ignore
+       | Some width -> modify (fun _ state -> state##.penSize := width))
+    graph;
+  let color = Form.Elements.Color_picker.hex () graph in
+  Bonsai.Edge.on_change
+    (color >>| Form.value >>| Or_error.ok)
+    ~equal:[%equal: [ `Hex of string ] option]
+    ~callback:
+      (let%arr { modify; _ } = widget in
+       function
+       | None -> Effect.Ignore
+       | Some (`Hex color) -> modify (fun _ state -> state##.color := Js.string color))
+    graph;
   let unique_id, next_id =
     Bonsai.state_machine0 ~default_model:0 ~apply_action:(fun _ i () -> i + 1) graph
   in
@@ -88,7 +120,8 @@ let component ~prev:(image : Sd.Base64_image.t Bonsai.t) ~is_mask graph =
     and unique_id = unique_id
     and next_id = next_id
     and inject = inject
-    and _value = value
+    and slider = slider
+    and color = color
     and { Bonsai_web_ui_widget.view = widget; read; _ } = widget in
     let forward =
       let%bind.Effect effects =
@@ -102,11 +135,17 @@ let component ~prev:(image : Sd.Base64_image.t Bonsai.t) ~is_mask graph =
     let is_dirty = true in
     Vdom.Node.div
       ~key:(Int.to_string unique_id)
-      [ widget
-      ; (if is_dirty
-         then View.button theme "forward" ~on_click:forward
-         else Vdom.Node.none)
-      ; View.button theme "clear" ~on_click:(next_id ())
+      [ View.vbox
+          [ widget
+          ; View.hbox
+              [ (if is_dirty
+                 then View.button theme "forward" ~on_click:forward
+                 else Vdom.Node.none)
+              ; View.button theme "clear" ~on_click:(next_id ())
+              ; Form.view slider
+              ; Form.view color
+              ]
+          ]
       ]
   in
   value, view
