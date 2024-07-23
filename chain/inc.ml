@@ -104,6 +104,8 @@ let map ~equal a ~f graph =
       ~apply_action:(fun _ model (id, input, done_, change) ->
         match model with
         | Some (old_id, _, _, _) when Id_gen.(old_id > id) -> model
+        | Some (old_id, _, _, _) when Id_gen.(old_id < id) ->
+          Some (id, input, done_, change None)
         | Some (_, _, _, old_result) -> Some (id, input, done_, change (Some old_result))
         | None -> Some (id, input, done_, change None))
   in
