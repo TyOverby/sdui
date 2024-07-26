@@ -42,11 +42,16 @@ function on_image_init(image, f) {
 function createCanvas(name, image, parent) {
     const canvas = document.createElement("canvas");
     canvas.setAttribute("data-name", name);
+
     canvas.setAttribute("width", image.naturalWidth);
     canvas.setAttribute("height", image.naturalHeight);
+    canvas.style.width = (image.naturalWidth / window.devicePixelRatio) + "px";
+    canvas.style.height = (image.naturalHeight / window.devicePixelRatio) + "px";
+
     if (parent) {
         parent.appendChild(canvas);
     }
+
     return canvas;
 }
 
@@ -146,8 +151,8 @@ function painter_init(input) {
                 }
                 var pressure = erasing ? 1 : event.pressure;
 
-                var x = event.offsetX * (image.naturalWidth / image.width);
-                var y = event.offsetY * (image.naturalHeight / image.height);
+                var x = event.offsetX * window.devicePixelRatio;
+                var y = event.offsetY * window.devicePixelRatio;
 
                 if (state.mode !== "mask") {
                     target_ctx.fillStyle = state.color;
@@ -183,8 +188,8 @@ function painter_init(input) {
         });
 
         outline_canvas.addEventListener("pointermove", function (event) {
-            var x = event.offsetX * (image.naturalWidth / image.width);
-            var y = event.offsetY * (image.naturalHeight / image.height);
+            var x = event.offsetX * window.devicePixelRatio;
+            var y = event.offsetY * window.devicePixelRatio;
 
             outline_ctx.clearRect(0, 0, outline_canvas.width, outline_canvas.height);
             var image_data = img_ctx.getImageData(Math.round(x), Math.round(y), 1, 1);
