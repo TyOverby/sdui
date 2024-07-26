@@ -39,10 +39,11 @@ function on_image_init(image, f) {
 }
 
 //Provides:createCanvas
-function createCanvas(width, height, parent) {
+function createCanvas(name, image, parent) {
     const canvas = document.createElement("canvas");
-    canvas.setAttribute("width", width);
-    canvas.setAttribute("height", height);
+    canvas.setAttribute("data-name", name);
+    canvas.setAttribute("width", image.naturalWidth);
+    canvas.setAttribute("height", image.naturalHeight);
     if (parent) {
         parent.appendChild(canvas);
     }
@@ -65,16 +66,19 @@ function painter_init(input) {
         penSize: 20,
         color: "rgb(255,0,0)",
         onColorChange: (function () { }),
-        setDirty: (function () { })
+        setDirty: (function () { }),
+        mode: "mask"
     };
 
     on_image_init(image, function () {
-        let img_canvas = createCanvas(image.naturalWidth, image.naturalHeight, stack);
-        let draw_canvas = createCanvas(image.naturalWidth, image.naturalHeight, stack);
-        let outline_canvas = createCanvas(image.naturalWidth, image.naturalHeight, stack);
-        let composite_canvas = createCanvas(image.naturalWidth, image.naturalHeight);
+        let img_canvas = createCanvas("background", image, stack);
+        let draw_canvas = createCanvas("draw", image, stack);
+        let mask_canvas = createCanvas("mask", image, stack);
+        let outline_canvas = createCanvas("outline", image, stack);
+        let composite_canvas = createCanvas("composite", image);
 
         let img_ctx = img_canvas.getContext("2d", { willReadFrequently: true });
+        let mask_ctx = mask_canvas.getContext("2d");
         let draw_ctx = draw_canvas.getContext("2d");
         let outline_ctx = outline_canvas.getContext("2d");
         let composite_ctx = composite_canvas.getContext("2d");
@@ -100,7 +104,7 @@ function painter_init(input) {
             composite_ctx.fillStyle = "black";
             composite_ctx.fillRect(0, 0, image.naturalWidth, image.naturalHeight)
             composite_ctx.globalCompositeOperation = "destination-in";
-            composite_ctx.drawImage(draw_canvas, 0, 0);
+            composite_ctx.drawImage(mask_canvas, 0, 0);
             composite_ctx.globalCompositeOperation = "source-out";
             composite_ctx.fillStyle = "white";
             composite_ctx.fillRect(0, 0, image.naturalWidth, image.naturalHeight)
@@ -120,12 +124,14 @@ function painter_init(input) {
         function mousedown(event) {
             event.target.setPointerCapture(event.pointerId);
 
+            var target_ctx = state.mode === "mask" ? mask_ctx : draw_ctx;
+
             var erasing = false;
             if (event.shiftKey) {
-                draw_ctx.globalCompositeOperation = "destination-out";
+                target_ctx.globalCompositeOperation = "destination-out";
                 erasing = true;
             } else {
-                draw_ctx.globalCompositeOperation = "source-over";
+                target_ctx.globalCompositeOperation = "source-over";
             }
 
             var last_x = null;
@@ -143,15 +149,18 @@ function painter_init(input) {
                 var x = event.offsetX * (image.naturalWidth / image.width);
                 var y = event.offsetY * (image.naturalHeight / image.height);
 
-                draw_ctx.fillStyle = state.color;
+                if (state.mode !== "mask") {
+                    target_ctx.fillStyle = state.color;
+                }
+
                 var radius = 0;
                 if (state.penSize === 1) { radius = 1; } else { radius = state.penSize * pressure; }
                 if (last_x === null || last_y === null) {
-                    draw_ctx.beginPath();
-                    draw_ctx.ellipse(x, y, radius, radius, 0, Math.PI * 2, 0);
-                    draw_ctx.fill();
+                    target_ctx.beginPath();
+                    target_ctx.ellipse(x, y, radius, radius, 0, Math.PI * 2, 0);
+                    target_ctx.fill();
                 } else {
-                    drawPill(draw_ctx, last_x, last_y, x, y, last_radius, radius);
+                    drawPill(target_ctx, last_x, last_y, x, y, last_radius, radius);
                 }
                 last_x = x;
                 last_y = y;
@@ -160,7 +169,6 @@ function painter_init(input) {
             }
 
             event.target.addEventListener("pointermove", move);
-
             event.target.addEventListener("pointerup", (function (event) {
                 event.target.releasePointerCapture(event.pointerId);
                 event.target.removeEventListener("pointermove", move);
@@ -191,12 +199,23 @@ function painter_init(input) {
 
                 outline_ctx.fillStyle = state.color;
                 outline_ctx.beginPath();
-                outline_ctx.ellipse(x, y, state.penSize, state.penSize, 0, Math.PI * 2, 0);
+                outline_ctx.ellipse(x, y, state.penSize * 2, state.penSize * 2, 0, Math.PI * 2, 0);
                 outline_ctx.fill();
+
+                outline_ctx.globalCompositeOperation = 'destination-out';
+                outline_ctx.beginPath();
+                outline_ctx.ellipse(x, y, state.penSize, state.penSize, 0, 0, Math.PI * 2);
+                outline_ctx.fill();
+                outline_ctx.globalCompositeOperation = 'source-over';
+
             }
 
             outline_ctx.beginPath();
             outline_ctx.ellipse(x, y, state.penSize, state.penSize, 0, Math.PI * 2, 0);
+            outline_ctx.stroke();
+
+            outline_ctx.beginPath();
+            outline_ctx.ellipse(x, y, 0.25, 0.25, 0, Math.PI * 2, 0);
             outline_ctx.stroke();
         });
     });
