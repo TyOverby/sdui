@@ -10,22 +10,18 @@ module Which = struct
     | Mask
 end
 
-let mask_impl ~prev graph =
-  let prev = Inc.map_pure prev ~f:List.hd_exn in
+let paint_impl ~prev graph =
   match%sub prev with
   | Inc.Or_error_or_stale.Fresh prev_for_paint | Stale prev_for_paint ->
-    let mask, view = Paint.component ~prev:prev_for_paint ~is_mask:true graph in
-    let%arr prev = prev
-    and mask = mask
+    let t, view = Paint.component ~prev:prev_for_paint graph in
+    let%arr t = t
     and view = view in
-    Inc.Or_error_or_stale.map prev ~f:List.return, Some mask, view
+    t, view
   | Error e ->
     let%arr e = e in
-    ( Inc.Or_error_or_stale.Error e
-    , None
-    , Vdom.Node.textf "Error: %s" (Error.to_string_hum e) )
+    Inc.Or_error_or_stale.Error e, Vdom.Node.textf "Error: %s" (Error.to_string_hum e)
   | Not_computed ->
-    Bonsai.return (Inc.Or_error_or_stale.Not_computed, None, Vdom.Node.text "not computed")
+    Bonsai.return (Inc.Or_error_or_stale.Not_computed, Vdom.Node.text "not computed")
 ;;
 
 let component ~index ~which ~pool ~prev ~prev_params ~mask ~reset graph =
@@ -47,16 +43,24 @@ let component ~index ~which ~pool ~prev ~prev_params ~mask ~reset graph =
       and params = params in
       image, None, view, Form.value params
     | Sketch, Some prev ->
-      let image, view = Paint.multi ~prev ~is_mask:false graph in
-      let%arr image = image
+      let%sub image, view = paint_impl ~prev graph in
+      let%arr t = image
       and view = view
-      and mask = mask
       and params = prev_params in
+      let image, mask =
+        Inc.Or_error_or_stale.(unzip (map t ~f:(fun { image; mask } -> image, mask)))
+      in
+      let mask =
+        match mask with
+        | Fresh None -> None
+        | Fresh (Some a) -> Some (Inc.Or_error_or_stale.Fresh a)
+        | Stale None -> None
+        | Stale (Some a) -> Some (Stale a)
+        | Error e -> Some (Error e)
+        | Not_computed -> None
+      in
       image, mask, view, params
-    | Mask, Some prev ->
-      let%arr image, mask, view = mask_impl ~prev graph
-      and params = prev_params in
-      image, mask, view, params
+    | Mask, Some _ -> assert false
     | (Sketch | Mask), None ->
       Bonsai.return
         ( Inc.Or_error_or_stale.Error

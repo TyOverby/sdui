@@ -55,8 +55,22 @@ function createCanvas(name, image, parent) {
     return canvas;
 }
 
+//Provides:isCanvasAllWhite
+function isCanvasAllWhite(canvas, ctx) {
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+        if (data[i] !== 255 || data[i + 1] !== 255 || data[i + 2] !== 255 || data[i + 3] !== 255) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 //Provides:painter_init
-//Requires:drawPill, sanatize_url, on_image_init, rgbToHex, createCanvas
+//Requires:drawPill, sanatize_url, on_image_init, rgbToHex, createCanvas, isCanvasAllWhite
 function painter_init(input) {
     var data_url = sanatize_url(input);
     var stack = document.createElement("div");
@@ -72,7 +86,7 @@ function painter_init(input) {
         color: "rgb(255,0,0)",
         onColorChange: (function () { }),
         setDirty: (function () { }),
-        mode: "mask"
+        mode: "paint"
     };
 
     on_image_init(image, function () {
@@ -107,13 +121,17 @@ function painter_init(input) {
             composite_ctx.clearRect(0, 0, image.naturalWidth, image.naturalHeight);
             composite_ctx.globalCompositeOperation = "source-over";
             composite_ctx.fillStyle = "black";
-            composite_ctx.fillRect(0, 0, image.naturalWidth, image.naturalHeight)
+            composite_ctx.fillRect(0, 0, image.naturalWidth, image.naturalHeight);
             composite_ctx.globalCompositeOperation = "destination-in";
             composite_ctx.drawImage(mask_canvas, 0, 0);
             composite_ctx.globalCompositeOperation = "source-out";
             composite_ctx.fillStyle = "white";
-            composite_ctx.fillRect(0, 0, image.naturalWidth, image.naturalHeight)
-            return composite_canvas.toDataURL("image/png", 1);
+            composite_ctx.fillRect(0, 0, image.naturalWidth, image.naturalHeight);
+            if (isCanvasAllWhite(composite_canvas, composite_ctx)) {
+                return ""
+            } else {
+                return composite_canvas.toDataURL("image/png", 1);
+            }
         }
 
         state.updateImage = function (data_url) {
@@ -121,6 +139,7 @@ function painter_init(input) {
             image = document.createElement("img");
             image.crossOrigin = "Anonymous";
             image.setAttribute("src", data_url);
+            state.setDirty();
             on_image_init(image, function () {
                 img_ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
             })
@@ -212,7 +231,6 @@ function painter_init(input) {
                 outline_ctx.ellipse(x, y, state.penSize, state.penSize, 0, 0, Math.PI * 2);
                 outline_ctx.fill();
                 outline_ctx.globalCompositeOperation = 'source-over';
-
             }
 
             outline_ctx.beginPath();

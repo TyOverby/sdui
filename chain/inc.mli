@@ -11,6 +11,9 @@ module Or_error_or_stale : sig
   val map : 'a t -> f:('a -> 'b) -> 'b t
   val both : 'a t -> 'b t -> ('a * 'b) t
   val all : 'a t list -> 'a list t
+  val unzip : ('a * 'b) t -> 'a t * 'b t
+  val bind : 'a t -> f:('a -> 'b t) -> 'b t
+  val join : 'a t t -> 'a t
 end
 
 type 'a t = 'a Or_error_or_stale.t Bonsai.t

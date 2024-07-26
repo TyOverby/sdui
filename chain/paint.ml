@@ -81,15 +81,19 @@ end
 
 module Id = Bonsai_extra.Id_gen (Int63) ()
 
-let component ~prev:(image : Sd.Image.t Bonsai.t) ~is_mask graph =
+type t =
+  { image : Sd.Image.t
+  ; mask : Sd.Image.t option
+  }
+
+let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
   let color_picker = Form.Elements.Color_picker.hex () graph in
   let value, inject =
     Bonsai.state_machine0
       ~default_model:Inc.Or_error_or_stale.Not_computed
       ~apply_action:(fun _ model ->
         function
-        | `Set_value string ->
-          Inc.Or_error_or_stale.Fresh (Sd.Image.of_string ~kind:Base64 string)
+        | `Set_value t -> Inc.Or_error_or_stale.Fresh t
         | `Invalidate ->
           (match model with
            | Fresh s -> Stale s
@@ -167,9 +171,13 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) ~is_mask graph =
     let forward =
       let%bind.Effect effects =
         read (fun _input state ->
-          inject
-            (`Set_value
-              (Js.to_string (if is_mask then state##compositeMask else state##composite))))
+          let image = Sd.Image.of_string ~kind:Base64 (Js.to_string state##composite) in
+          let mask =
+            match Js.to_string state##compositeMask with
+            | "" -> None
+            | mask_string -> Some (Sd.Image.of_string ~kind:Base64 mask_string)
+          in
+          inject (`Set_value { image; mask }))
       in
       Effect.all_unit effects
     in
@@ -191,7 +199,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) ~is_mask graph =
   value, view
 ;;
 
-let do_the_assoc all ~is_mask graph =
+let do_the_assoc all graph =
   let out =
     Bonsai.assoc_list
       (module Int)
@@ -200,7 +208,7 @@ let do_the_assoc all ~is_mask graph =
       graph
       ~f:(fun _ image graph ->
         let%sub _, image = image in
-        Tuple2.uncurry Bonsai.both (component ~prev:image ~is_mask graph))
+        Tuple2.uncurry Bonsai.both (component ~prev:image graph))
   in
   let%arr out = out in
   match out with
@@ -221,15 +229,14 @@ let do_the_assoc all ~is_mask graph =
 
 let multi
   ~(prev : Sd.Image.t list Inc.Or_error_or_stale.t Bonsai.t)
-  ~is_mask
   (graph : Bonsai.graph)
-  : Sd.Image.t list Inc.Or_error_or_stale.t Bonsai.t * Vdom.Node.t Bonsai.t
+  : t list Inc.Or_error_or_stale.t Bonsai.t * Vdom.Node.t Bonsai.t
   =
   let prev = Inc.map_pure prev ~f:(List.mapi ~f:Tuple2.create) in
   let%sub a, b =
     match%sub prev with
     | Inc.Or_error_or_stale.Fresh all | Stale all ->
-      let%sub results, view = do_the_assoc all ~is_mask graph in
+      let%sub results, view = do_the_assoc all graph in
       Bonsai.both (Inc.map2_pure prev results ~f:(fun _ r -> r)) view
     | Error e ->
       let%arr e = e in

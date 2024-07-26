@@ -256,7 +256,7 @@ let image ~params ~prev ~mask ~pool graph =
       in
       Inc.map3
         ~equal_a:Sd.Img2img.Query.equal
-        ~equal_b:[%equal: Sd.Image.t list]
+        ~equal_b:[%equal: Sd.Image.t]
         ~equal_c:[%equal: Sd.Image.t option]
         query
         prev
@@ -269,8 +269,7 @@ let image ~params ~prev ~mask ~pool graph =
                parallel_n ~update parallelism ~f:(fun i ->
                  let query =
                    { query with
-                     Sd.Img2img.Query.init_images =
-                       [ List.nth_exn prev (i % List.length prev) ]
+                     Sd.Img2img.Query.init_images = [ prev ]
                    ; seed = Int63.(query.Sd.Img2img.Query.seed + of_int i)
                    }
                  in
@@ -301,7 +300,7 @@ let component ~default_size ~pool ~prev ~mask graph =
     Bonsai.with_model_resetter graph ~f:(fun graph ->
       image ~pool ~prev ~mask ~params graph)
   in
-  let picked, set_picked = Bonsai.state Int.Set.empty graph in
+  let picked, set_picked = Bonsai.state_opt graph in
   let view =
     let%arr { view = form; _ } = params
     and images = images
@@ -311,10 +310,8 @@ let component ~default_size ~pool ~prev ~mask graph =
     and set_picked = set_picked in
     let images =
       let base64_to_vdom i img =
-        let checked = Set.mem picked i in
-        let toggle =
-          set_picked (if checked then Set.remove picked i else Set.add picked i)
-        in
+        let checked = [%equal: int option] picked (Some i) in
+        let toggle = set_picked (if checked then None else Some i) in
         Vdom.Node.div
           ~attrs:
             [ {%css| padding: 4px; border-radius: 4px; border:1px solid white; |}
@@ -355,15 +352,24 @@ let component ~default_size ~pool ~prev ~mask graph =
   in
   let picked =
     Inc.of_bonsai
-      ~equal:Int.Set.equal
+      ~equal:[%equal: int option]
       picked
       ~time_to_stable:(Bonsai.return (Time_ns.Span.of_sec 1.0))
       graph
   in
-  let images =
-    Inc.map2_pure images picked ~f:(fun images picked ->
-      let result = List.filteri images ~f:(fun i _image -> Set.mem picked i) in
-      if List.is_empty result then images else result)
+  let image =
+    let error =
+      Inc.Or_error_or_stale.Error (Error.of_string "you must pick an image to proceed")
+    in
+    Inc.map2_pure images picked ~f:(fun images ->
+        function
+        | None ->
+          Inc.Or_error_or_stale.Error
+            (Error.of_string "you must pick an image to proceed")
+        | Some picked ->
+          (match List.nth images picked with
+           | None -> error
+           | Some image -> Inc.Or_error_or_stale.Fresh image))
   in
-  images, view, params >>| Form.map_view ~f:(fun _ -> ())
+  image >>| Inc.Or_error_or_stale.join, view, params >>| Form.map_view ~f:(fun _ -> ())
 ;;

@@ -27,6 +27,17 @@ module Or_error_or_stale = struct
     | Not_computed -> Not_computed
   ;;
 
+  let join t =
+    match t with
+    | Fresh (Fresh a) -> Fresh a
+    | Fresh (Stale a) | Stale (Fresh a) | Stale (Stale a) -> Stale a
+    | Error e | Fresh (Error e) | Stale (Error e) -> Error e
+    | Not_computed | Fresh Not_computed | Stale Not_computed -> Not_computed
+  ;;
+
+  let bind t ~f = map t ~f |> join
+  let unzip t = map t ~f:Tuple2.get1, map t ~f:Tuple2.get2
+
   let rec all = function
     | [] -> Fresh []
     | a :: rest -> map (both a (all rest)) ~f:(fun (a, rest) -> a :: rest)
