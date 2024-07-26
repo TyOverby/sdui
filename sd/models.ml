@@ -158,7 +158,6 @@ let form ~request_host ~(available_hosts : Hosts.Host.Set.t Bonsai.t) graph =
   and current = current in
   let current = Option.first_some current state in
   let options =
-    print_s [%message (all : string list) (current : string option)];
     List.map all ~f:(fun model_name ->
       let view = Vdom.Node.text model_name in
       let picked =

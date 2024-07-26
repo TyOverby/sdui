@@ -4,6 +4,8 @@ open! Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
 module P = Sd.Parameters.Individual
 
+let parallelism = 1
+
 module Parameters = struct
   type t =
     { seed : Int63.t
@@ -226,7 +228,7 @@ let image ~params ~prev ~mask ~pool graph =
           (let%arr dispatcher = Lease_pool.dispatcher pool in
            fun ~update query ->
              let%map.Effect results =
-               parallel_n ~update 4 ~f:(fun i ->
+               parallel_n ~update parallelism ~f:(fun i ->
                  dispatcher (function
                    | Error _ as error -> Effect.return error
                    | Ok (host, _) ->
@@ -264,7 +266,7 @@ let image ~params ~prev ~mask ~pool graph =
           (let%arr dispatcher = Lease_pool.dispatcher pool in
            fun ~update query prev mask ->
              let%map.Effect results =
-               parallel_n ~update 4 ~f:(fun i ->
+               parallel_n ~update parallelism ~f:(fun i ->
                  let query =
                    { query with
                      Sd.Img2img.Query.init_images =

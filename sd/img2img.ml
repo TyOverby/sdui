@@ -120,6 +120,7 @@ module Response = struct
 
   type t =
     { images : string list
+    ; image_paths : string list
     ; info : Info.t
     }
   [@@yojson.allow_extra_fields] [@@deriving of_yojson, sexp_of]
@@ -159,11 +160,19 @@ let dispatch (host_and_port, query) =
     Yojson.Safe.from_string response_content
     |> Response.t_of_yojson
     |> (fun response -> { response with Response.images })
-    |> (fun { Response.images; info } ->
+    |> (fun { Response.images = base64_images; image_paths; info } ->
          let info = { Info.seed = Int63.of_int64_trunc info.seed; enable_hr = false } in
+         let image_paths =
+           List.map image_paths ~f:(fun path -> sprintf "%s/file=%s" host_and_port path)
+         in
+         let images, kind =
+           if List.length image_paths >= List.length base64_images
+           then image_paths, Image.Url
+           else base64_images, Image.Base64
+         in
          List.map images ~f:(fun s ->
            let width, height = query.width, query.height in
-           Image.of_string ~width ~height s, info))
+           Image.of_string ~width ~height ~kind s, info))
     |> Deferred.return)
 ;;
 

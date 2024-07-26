@@ -48,9 +48,10 @@ module Widget :
   let init ~get_input:_ input = painter_init (Js.string input)
 
   let update ~prev_input new_input state element =
-    if phys_equal prev_input new_input
+    if String.equal prev_input new_input
     then element
     else (
+      print_endline ("updating image to " ^ new_input);
       state##updateImage (Js.string new_input);
       element)
   ;;
@@ -65,6 +66,8 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) ~is_mask graph =
   let widget = Bonsai_web_ui_widget.component (module Widget) data_url graph in
   let slider =
     Form.Elements.Range.int
+      ~extra_attrs:
+        (Bonsai.return [ Vdom.Attr.style (Css_gen.create ~field:"" ~value:"") ])
       ~default:20
       ~min:1
       ~max:100
@@ -101,7 +104,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) ~is_mask graph =
       ~apply_action:(fun _ model ->
         function
         | `Set_value string ->
-          Inc.Or_error_or_stale.Fresh (Sd.Image.of_string string)
+          Inc.Or_error_or_stale.Fresh (Sd.Image.of_string ~kind:Base64 string)
         | `Invalidate ->
           (match model with
            | Fresh s -> Stale s

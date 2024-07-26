@@ -1,13 +1,15 @@
 //Provides:painter_init
 function painter_init(settings) {
-    var data_url = settings.startsWith("data:image")
-        ? settings
-        : "data:image/png;base64," + settings;
+    function sanatize_url(url) {
+        return (settings.startsWith("data:image") || settings.startsWith("http://") || settings.startsWith("https://")) ? url : "data:image/png;base64," + url;
+    }
 
+    var data_url = sanatize_url(settings);
     var stack = document.createElement("div");
     stack.className = "stack";
 
     var image = document.createElement("img");
+    image.crossOrigin = "Anonymous";
     image.setAttribute("src", data_url);
 
     function init(image, f) {
@@ -75,8 +77,10 @@ function painter_init(settings) {
         }
 
         state.updateImage = function (data_url) {
-            var image = document.createElement("img");
-            image.setAttribute("src", "data:image/png;base64," + data_url);
+            data_url = sanatize_url(data_url);
+            image = document.createElement("img");
+            image.crossOrigin = "Anonymous";
+            image.setAttribute("src", data_url);
             init(image, function () {
                 img_ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
             })
@@ -158,6 +162,7 @@ function painter_init(settings) {
         outline_canvas.addEventListener("pointerout", function (event) {
             outline_ctx.clearRect(0, 0, outline_canvas.width, outline_canvas.height);
         });
+
         outline_canvas.addEventListener("pointermove", function (event) {
             var x = event.offsetX * (image.naturalWidth / image.width);
             var y = event.offsetY * (image.naturalHeight / image.height);
@@ -174,7 +179,7 @@ function painter_init(settings) {
                     image_data.data[0] + "," +
                     image_data.data[1] + "," +
                     image_data.data[2] + ")";
-                outline_ctx.fillStyle = color;
+                outline_ctx.fillStyle = state.color;
                 outline_ctx.beginPath();
                 outline_ctx.ellipse(x, y, state.penSize, state.penSize, 0, Math.PI * 2, 0);
                 outline_ctx.fill();
