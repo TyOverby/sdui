@@ -25,35 +25,55 @@ module _ =
         }
 |}]
 
+module Input = struct
+  type t =
+    { url : string
+    ; on_color_change : Js.js_string Js.t -> unit Effect.t
+    ; set_dirty : unit Effect.t
+    }
+end
+
 module Output = struct
   class type t = object
     method clear : unit Js.meth
-    method get_data_url : Js.js_string Js.t Js.meth
     method updateImage : Js.js_string Js.t -> unit Js.meth
     method composite : Js.js_string Js.t Js.meth
     method compositeMask : Js.js_string Js.t Js.meth
     method penSize : int Js.prop
     method color : Js.js_string Js.t Js.prop
+    method onColorChange : (Js.js_string Js.t -> unit) Js.callback Js.prop
+    method setDirty : (unit -> unit) Js.callback Js.prop
   end
 end
 
 module Widget :
-  Bonsai_web_ui_widget.S with type input = string and type state = Output.t Js.t = struct
+  Bonsai_web_ui_widget.S with type input = Input.t and type state = Output.t Js.t = struct
   type element = Dom_html.divElement
-  type input = string
+  type input = Input.t
   type state = Output.t Js.t
 
   external painter_init : Js.js_string Js.t -> state * element Js.t = "painter_init"
 
-  let init ~get_input:_ input = painter_init (Js.string input)
+  let wrap_cb on_color_change =
+    Js.wrap_callback (fun arg ->
+      Effect.Expert.handle_non_dom_event_exn (on_color_change arg))
+  ;;
+
+  let init ~get_input:_ input =
+    let state, element = painter_init (Js.string input.Input.url) in
+    state##.onColorChange := wrap_cb input.on_color_change;
+    state##.setDirty := wrap_cb (fun () -> input.set_dirty);
+    state, element
+  ;;
 
   let update ~prev_input new_input state element =
-    if String.equal prev_input new_input
-    then element
-    else (
-      print_endline ("updating image to " ^ new_input);
-      state##updateImage (Js.string new_input);
-      element)
+    if not (String.equal prev_input.Input.url new_input.Input.url)
+    then state##updateImage (Js.string new_input.url);
+    if not (phys_equal prev_input.Input.on_color_change new_input.Input.on_color_change)
+    then state##.onColorChange := wrap_cb new_input.on_color_change;
+    if not (phys_equal prev_input.Input.set_dirty new_input.Input.set_dirty)
+    then state##.setDirty := wrap_cb (fun () -> new_input.set_dirty);
+    element
   ;;
 
   let destroy _input _state _element = ()
@@ -62,8 +82,40 @@ end
 module Id = Bonsai_extra.Id_gen (Int63) ()
 
 let component ~prev:(image : Sd.Image.t Bonsai.t) ~is_mask graph =
-  let data_url = image >>| Sd.Image.data_url in
-  let widget = Bonsai_web_ui_widget.component (module Widget) data_url graph in
+  let color_picker = Form.Elements.Color_picker.hex () graph in
+  let value, inject =
+    Bonsai.state_machine0
+      ~default_model:Inc.Or_error_or_stale.Not_computed
+      ~apply_action:(fun _ model ->
+        function
+        | `Set_value string ->
+          Inc.Or_error_or_stale.Fresh (Sd.Image.of_string ~kind:Base64 string)
+        | `Invalidate ->
+          (match model with
+           | Fresh s -> Stale s
+           | other -> other))
+      graph
+  in
+  Bonsai.Edge.on_change
+    image
+    ~equal:Sd.Image.equal
+    ~callback:
+      (let%arr inject = inject in
+       fun _ -> inject `Invalidate)
+    graph;
+  let widget =
+    let input =
+      let%arr url = image >>| Sd.Image.data_url
+      and set_dirty = inject >>| fun inject -> inject `Invalidate
+      and on_color_change =
+        color_picker
+        >>| Form.set
+        >>| fun setter js_string -> setter (`Hex (Js.to_string js_string))
+      in
+      { Input.url; on_color_change; set_dirty }
+    in
+    Bonsai_web_ui_widget.component (module Widget) input graph
+  in
   let slider =
     Form.Elements.Range.int
       ~extra_attrs:
@@ -85,9 +137,8 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) ~is_mask graph =
        | None -> Effect.Ignore
        | Some width -> modify (fun _ state -> state##.penSize := width))
     graph;
-  let color = Form.Elements.Color_picker.hex () graph in
   Bonsai.Edge.on_change
-    (color >>| Form.value >>| Or_error.ok)
+    (color_picker >>| Form.value >>| Or_error.ok)
     ~equal:[%equal: [ `Hex of string ] option]
     ~callback:
       (let%arr { modify; _ } = widget in
@@ -98,33 +149,20 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) ~is_mask graph =
   let unique_id, next_id =
     Bonsai.state_machine0 ~default_model:0 ~apply_action:(fun _ i () -> i + 1) graph
   in
-  let value, inject =
-    Bonsai.state_machine0
-      ~default_model:Inc.Or_error_or_stale.Not_computed
-      ~apply_action:(fun _ model ->
-        function
-        | `Set_value string ->
-          Inc.Or_error_or_stale.Fresh (Sd.Image.of_string ~kind:Base64 string)
-        | `Invalidate ->
-          (match model with
-           | Fresh s -> Stale s
-           | other -> other))
-      graph
+  let is_dirty =
+    let%arr value = value in
+    match value with
+    | Fresh _ -> false
+    | Stale _ | Error _ | Not_computed -> true
   in
-  Bonsai.Edge.on_change
-    image
-    ~equal:Sd.Image.equal
-    ~callback:
-      (let%arr inject = inject in
-       fun _ -> inject `Invalidate)
-    graph;
   let view =
     let%arr theme = View.Theme.current graph
     and unique_id = unique_id
     and next_id = next_id
     and inject = inject
     and slider = slider
-    and color = color
+    and color_picker = color_picker
+    and is_dirty = is_dirty
     and { Bonsai_web_ui_widget.view = widget; read; _ } = widget in
     let forward =
       let%bind.Effect effects =
@@ -135,7 +173,6 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) ~is_mask graph =
       in
       Effect.all_unit effects
     in
-    let is_dirty = true in
     Vdom.Node.div
       ~key:(Int.to_string unique_id)
       [ View.vbox
@@ -146,7 +183,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) ~is_mask graph =
                  else Vdom.Node.none)
               ; View.button theme "clear" ~on_click:(next_id ())
               ; Form.view slider
-              ; Form.view color
+              ; Form.view color_picker
               ]
           ]
       ]

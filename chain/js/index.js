@@ -1,10 +1,58 @@
-//Provides:painter_init
-function painter_init(settings) {
-    function sanatize_url(url) {
-        return (settings.startsWith("data:image") || settings.startsWith("http://") || settings.startsWith("https://")) ? url : "data:image/png;base64," + url;
-    }
+//Provides:drawPill
+function drawPill(ctx, x1, y1, x2, y2, radius1, radius2) {
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
 
-    var data_url = sanatize_url(settings);
+    ctx.save();
+    ctx.translate(x1, y1);
+    ctx.rotate(angle);
+
+    ctx.beginPath();
+    ctx.arc(0, 0, radius1, Math.PI / 2, -Math.PI / 2);
+    ctx.lineTo(length, -radius2);
+    ctx.arc(length, 0, radius2, -Math.PI / 2, Math.PI / 2);
+    ctx.lineTo(0, radius1);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+}
+
+//Provides:rgbToHex
+function rgbToHex(r, g, b) {
+    function componentToHex(c) {
+        const hex = c.toString(16);
+        return hex.length === 1 ? "0" + hex : hex;
+    }
+    return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+}
+
+//Provides:sanatize_url
+function sanatize_url(url) {
+    return (url.startsWith("data:image") || url.startsWith("http://") || url.startsWith("https://")) ? url : "data:image/png;base64," + url;
+}
+
+//Provides:on_image_init
+function on_image_init(image, f) {
+    if (image.complete) { f() }
+    else { image.onload = f; }
+}
+
+//Provides:createCanvas
+function createCanvas(width, height, parent) {
+    const canvas = document.createElement("canvas");
+    canvas.setAttribute("width", width);
+    canvas.setAttribute("height", height);
+    if (parent) {
+        parent.appendChild(canvas);
+    }
+    return canvas;
+}
+
+//Provides:painter_init
+//Requires:drawPill, sanatize_url, on_image_init, rgbToHex, createCanvas
+function painter_init(input) {
+    var data_url = sanatize_url(input);
     var stack = document.createElement("div");
     stack.className = "stack";
 
@@ -12,41 +60,24 @@ function painter_init(settings) {
     image.crossOrigin = "Anonymous";
     image.setAttribute("src", data_url);
 
-    function init(image, f) {
-        if (image.complete) { f() }
-        else { image.onload = f; }
-    }
-
     var state = {
         clear: function () { console.log("cleared"); },
         penSize: 20,
-        color: "rgb(255,0,0)"
+        color: "rgb(255,0,0)",
+        onColorChange: (function () { }),
+        setDirty: (function () { })
     };
 
-    init(image, function () {
-        const img_canvas = document.createElement("canvas");
-        img_canvas.setAttribute("width", image.naturalWidth);
-        img_canvas.setAttribute("height", image.naturalHeight);
-        stack.appendChild(img_canvas);
-
-        const draw_canvas = document.createElement("canvas");
-        draw_canvas.setAttribute("width", image.naturalWidth);
-        draw_canvas.setAttribute("height", image.naturalHeight);
-        stack.appendChild(draw_canvas);
-
-        const outline_canvas = document.createElement("canvas");
-        outline_canvas.setAttribute("width", image.naturalWidth);
-        outline_canvas.setAttribute("height", image.naturalHeight);
-        stack.appendChild(outline_canvas);
-
-        const composite_canvas = document.createElement("canvas");
-        composite_canvas.setAttribute("width", image.naturalWidth);
-        composite_canvas.setAttribute("height", image.naturalHeight);
+    on_image_init(image, function () {
+        let img_canvas = createCanvas(image.naturalWidth, image.naturalHeight, stack);
+        let draw_canvas = createCanvas(image.naturalWidth, image.naturalHeight, stack);
+        let outline_canvas = createCanvas(image.naturalWidth, image.naturalHeight, stack);
+        let composite_canvas = createCanvas(image.naturalWidth, image.naturalHeight);
 
         let img_ctx = img_canvas.getContext("2d", { willReadFrequently: true });
-        const draw_ctx = draw_canvas.getContext("2d");
-        const outline_ctx = outline_canvas.getContext("2d");
-        const composite_ctx = composite_canvas.getContext("2d");
+        let draw_ctx = draw_canvas.getContext("2d");
+        let outline_ctx = outline_canvas.getContext("2d");
+        let composite_ctx = composite_canvas.getContext("2d");
 
         outline_ctx.strokeStyle = "rgba(0,0,0,0.5)";
         outline_ctx.lineWidth = 1.0;
@@ -81,40 +112,19 @@ function painter_init(settings) {
             image = document.createElement("img");
             image.crossOrigin = "Anonymous";
             image.setAttribute("src", data_url);
-            init(image, function () {
+            on_image_init(image, function () {
                 img_ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
             })
-        }
-
-        function drawPill(ctx, x1, y1, x2, y2, radius1, radius2) {
-            const angle = Math.atan2(y2 - y1, x2 - x1);
-            const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
-
-            ctx.save();
-            ctx.translate(x1, y1);
-            ctx.rotate(angle);
-
-            ctx.beginPath();
-            ctx.arc(0, 0, radius1, Math.PI / 2, -Math.PI / 2);
-            ctx.lineTo(length, -radius2);
-            ctx.arc(length, 0, radius2, -Math.PI / 2, Math.PI / 2);
-            ctx.lineTo(0, radius1);
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.restore();
         }
 
         function mousedown(event) {
             event.target.setPointerCapture(event.pointerId);
 
             var erasing = false;
-            var picking = false;
             if (event.shiftKey) {
                 draw_ctx.globalCompositeOperation = "destination-out";
                 erasing = true;
-            }
-            else {
+            } else {
                 draw_ctx.globalCompositeOperation = "source-over";
             }
 
@@ -146,6 +156,7 @@ function painter_init(settings) {
                 last_x = x;
                 last_y = y;
                 last_radius = radius;
+                state.setDirty();
             }
 
             event.target.addEventListener("pointermove", move);
@@ -159,7 +170,7 @@ function painter_init(settings) {
         outline_canvas.addEventListener("pointerdown", mousedown);
         outline_canvas.addEventListener("contextmenu", (function (e) { e.preventDefault() }));
 
-        outline_canvas.addEventListener("pointerout", function (event) {
+        outline_canvas.addEventListener("pointerout", function () {
             outline_ctx.clearRect(0, 0, outline_canvas.width, outline_canvas.height);
         });
 
@@ -169,16 +180,15 @@ function painter_init(settings) {
 
             outline_ctx.clearRect(0, 0, outline_canvas.width, outline_canvas.height);
             var image_data = img_ctx.getImageData(Math.round(x), Math.round(y), 1, 1);
-            var inverse = "rgb(" +
-                (255 - image_data.data[0]) + "," +
-                (255 - image_data.data[1]) + "," +
-                (255 - image_data.data[2]) + ")";
+            var r = image_data.data[0];
+            var g = image_data.data[1];
+            var b = image_data.data[2];
+            var inverse = "rgb(" + (255 - r) + "," + (255 - g) + "," + (255 - b) + ")";
             outline_ctx.strokeStyle = inverse;
             if (event.ctrlKey) {
-                state.color = "rgb(" +
-                    image_data.data[0] + "," +
-                    image_data.data[1] + "," +
-                    image_data.data[2] + ")";
+                state.color = "rgb(" + r + "," + g + "," + b + ")";
+                state.onColorChange(rgbToHex(r, g, b));
+
                 outline_ctx.fillStyle = state.color;
                 outline_ctx.beginPath();
                 outline_ctx.ellipse(x, y, state.penSize, state.penSize, 0, Math.PI * 2, 0);
@@ -188,7 +198,6 @@ function painter_init(settings) {
             outline_ctx.beginPath();
             outline_ctx.ellipse(x, y, state.penSize, state.penSize, 0, Math.PI * 2, 0);
             outline_ctx.stroke();
-
         });
     });
 

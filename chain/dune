@@ -22,3 +22,8 @@
    ppx_typed_fields
    ppx_yojson_conv
    bonsai.ppx_bonsai)))
+
+(env
+ (dev
+  (flags
+   (:standard -warn-error -A))))
