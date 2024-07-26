@@ -17,8 +17,8 @@ let component ?params progress =
       and params = params in
       match current_image, params with
       | Some b64_image, Some { Txt2img.Query.width; height; _ } ->
-        Base64_image.to_vdom b64_image ~width ~height
-      | Some b64_image, None -> Base64_image.to_vdom b64_image
+        Image.to_vdom b64_image ~width ~height
+      | Some b64_image, None -> Image.to_vdom b64_image
       | None, _ -> Vdom.Node.p [ Vdom.Node.text "preparing image..." ]
     in
     let%arr progress = progress

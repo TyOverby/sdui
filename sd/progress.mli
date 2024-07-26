@@ -6,7 +6,7 @@ type t =
   { progress : float
   ; eta_relative : float
   ; state : Yojson_safe.t
-  ; current_image : Base64_image.t option
+  ; current_image : Image.t option
   }
 [@@deriving sexp_of]
 

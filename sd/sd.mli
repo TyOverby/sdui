@@ -1,6 +1,6 @@
 open! Core
 open! Bonsai_web.Cont
-module Base64_image = Base64_image
+module Image = Image
 module Custom_form_elements = Custom_form_elements
 module Hosts = Hosts
 module Img2img = Img2img

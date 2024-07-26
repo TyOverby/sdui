@@ -254,8 +254,8 @@ let image ~params ~prev ~mask ~pool graph =
       in
       Inc.map3
         ~equal_a:Sd.Img2img.Query.equal
-        ~equal_b:[%equal: Sd.Base64_image.t list]
-        ~equal_c:[%equal: Sd.Base64_image.t option]
+        ~equal_b:[%equal: Sd.Image.t list]
+        ~equal_c:[%equal: Sd.Image.t option]
         query
         prev
         (Inc.optional mask)
@@ -323,14 +323,14 @@ let component ~default_size ~pool ~prev ~mask graph =
              |})
             ]
           [ (let max_width =
-               match Sd.Base64_image.size img with
+               match Sd.Image.size img with
                | Some (w, _) ->
                  Float.to_string
                    (Int63.to_float w /. Js_of_ocaml.Js.Unsafe.global##.devicePixelRatio)
                  ^ "px"
                | None -> "512px"
              in
-             Sd.Base64_image.to_vdom
+             Sd.Image.to_vdom
                ~drop_size:true
                ~attrs:
                  [ {%css| width: 33vw; max-width:%{max_width};|}

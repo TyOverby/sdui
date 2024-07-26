@@ -8,8 +8,8 @@ type t end
 val component
   :  default_size:int
   -> pool:(Sd.Hosts.Host.t, _, _) Lease_pool.t
-  -> prev:Sd.Base64_image.t list Inc.Or_error_or_stale.t option Bonsai.t
-  -> mask:Sd.Base64_image.t Inc.Or_error_or_stale.t option Bonsai.t
+  -> prev:Sd.Image.t list Inc.Or_error_or_stale.t option Bonsai.t
+  -> mask:Sd.Image.t Inc.Or_error_or_stale.t option Bonsai.t
   -> Bonsai.graph
-  -> Sd.Base64_image.t list Inc.Or_error_or_stale.t Bonsai.t * Vdom.Node.t Bonsai.t
+  -> Sd.Image.t list Inc.Or_error_or_stale.t Bonsai.t * Vdom.Node.t Bonsai.t
   * (Parameters.t, unit) Form.t Bonsai.t

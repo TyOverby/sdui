@@ -60,8 +60,8 @@ end
 
 module Id = Bonsai_extra.Id_gen (Int63) ()
 
-let component ~prev:(image : Sd.Base64_image.t Bonsai.t) ~is_mask graph =
-  let data_url = image >>| Sd.Base64_image.data_url in
+let component ~prev:(image : Sd.Image.t Bonsai.t) ~is_mask graph =
+  let data_url = image >>| Sd.Image.data_url in
   let widget = Bonsai_web_ui_widget.component (module Widget) data_url graph in
   let slider =
     Form.Elements.Range.int
@@ -101,7 +101,7 @@ let component ~prev:(image : Sd.Base64_image.t Bonsai.t) ~is_mask graph =
       ~apply_action:(fun _ model ->
         function
         | `Set_value string ->
-          Inc.Or_error_or_stale.Fresh (Sd.Base64_image.of_string string)
+          Inc.Or_error_or_stale.Fresh (Sd.Image.of_string string)
         | `Invalidate ->
           (match model with
            | Fresh s -> Stale s
@@ -110,7 +110,7 @@ let component ~prev:(image : Sd.Base64_image.t Bonsai.t) ~is_mask graph =
   in
   Bonsai.Edge.on_change
     image
-    ~equal:Sd.Base64_image.equal
+    ~equal:Sd.Image.equal
     ~callback:
       (let%arr inject = inject in
        fun _ -> inject `Invalidate)
@@ -180,10 +180,10 @@ let do_the_assoc all ~is_mask graph =
 ;;
 
 let multi
-  ~(prev : Sd.Base64_image.t list Inc.Or_error_or_stale.t Bonsai.t)
+  ~(prev : Sd.Image.t list Inc.Or_error_or_stale.t Bonsai.t)
   ~is_mask
   (graph : Bonsai.graph)
-  : Sd.Base64_image.t list Inc.Or_error_or_stale.t Bonsai.t * Vdom.Node.t Bonsai.t
+  : Sd.Image.t list Inc.Or_error_or_stale.t Bonsai.t * Vdom.Node.t Bonsai.t
   =
   let prev = Inc.map_pure prev ~f:(List.mapi ~f:Tuple2.create) in
   let%sub a, b =

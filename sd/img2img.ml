@@ -7,7 +7,7 @@ module Info = Txt2img.Info
 
 module Query = struct
   type t =
-    { init_images : Base64_image.t list
+    { init_images : Image.t list
     ; prompt : string
     ; negative_prompt : string
     ; width : Int63.t
@@ -19,7 +19,7 @@ module Query = struct
     ; subseed_strength : float
     ; denoising_strength : float
     ; styles : Styles.t
-    ; mask : Base64_image.t option
+    ; mask : Image.t option
     }
   [@@deriving sexp, typed_fields, equal]
 
@@ -60,7 +60,7 @@ module Query = struct
       ; subseed_strength : float [@key "subseed_strength"]
       ; denoising_strength : float [@key "denoising_strength"]
       ; styles : Styles.t
-      ; mask : Base64_image.t option [@key "mask"] [@option]
+      ; mask : Image.t option [@key "mask"] [@option]
       ; inpainting_mask_invert : int [@key "inpainting_mask_invert"]
       ; inpainting_fill : int [@key "inpainting_fill"]
       ; resize_mode : int [@key "resize_mode"]
@@ -76,7 +76,7 @@ module Query = struct
     ;;
 
     let of_query (query : query) : t =
-      { init_images = List.map query.init_images ~f:Base64_image.data_url
+      { init_images = List.map query.init_images ~f:Image.data_url
       ; prompt = query.prompt
       ; negative_prompt = query.negative_prompt
       ; width = Int63.to_int_exn query.width
@@ -163,7 +163,7 @@ let dispatch (host_and_port, query) =
          let info = { Info.seed = Int63.of_int64_trunc info.seed; enable_hr = false } in
          List.map images ~f:(fun s ->
            let width, height = query.width, query.height in
-           Base64_image.of_string ~width ~height s, info))
+           Image.of_string ~width ~height s, info))
     |> Deferred.return)
 ;;
 

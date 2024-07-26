@@ -321,7 +321,7 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~set_params graph =
             let%arr image = image
             and info = info in
             let width, height =
-              match Base64_image.size image with
+              match Image.size image with
               | None -> None, None
               | Some (w, h) ->
                 let img_width, img_height =
@@ -331,7 +331,7 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~set_params graph =
                 in
                 Some img_width, Some img_height
             in
-            let vdom = Base64_image.to_vdom ?width ?height image in
+            let vdom = Image.to_vdom ?width ?height image in
             let aspect_ratio =
               match width, height with
               | Some img_width, Some img_height ->

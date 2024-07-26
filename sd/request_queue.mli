@@ -11,7 +11,7 @@ val component
   :  host_and_port:string Bonsai.t
   -> add_images:
        (params:Txt2img.Query.t
-        -> images:(Base64_image.t * Txt2img.Info.t) Or_error.t list
+        -> images:(Image.t * Txt2img.Info.t) Or_error.t list
         -> unit Effect.t)
          Bonsai.t
   -> Bonsai.graph

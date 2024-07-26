@@ -40,8 +40,8 @@ let txt2img_query =
   "script_args": [],
   "sampler_index": "Euler a",
   "script_name": null,
-  "send_images": true,
-  "save_images": false,
+  "send_images": false,
+  "save_images": true,
   "alwayson_scripts": {}
 }
 |}

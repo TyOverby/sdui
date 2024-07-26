@@ -9,7 +9,7 @@ type t =
   { progress : float
   ; eta_relative : float [@key "eta_relative"]
   ; state : Yojson_safe.t
-  ; current_image : Base64_image.t option [@key "current_image"]
+  ; current_image : Image.t option [@key "current_image"]
   }
 [@@yojson.allow_extra_fields] [@@deriving of_yojson, sexp_of]
 
