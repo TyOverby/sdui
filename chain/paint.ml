@@ -43,6 +43,7 @@ module Output = struct
     method color : Js.js_string Js.t Js.prop
     method onColorChange : (Js.js_string Js.t -> unit) Js.callback Js.prop
     method setDirty : (unit -> unit) Js.callback Js.prop
+    method mode : Js.js_string Js.t Js.prop
   end
 end
 
@@ -132,6 +133,15 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
       ()
       graph
   in
+  let module Layer = struct
+    type t =
+      [ `Paint
+      | `Mask
+      ]
+    [@@deriving sexp_of, equal, enumerate, compare]
+  end
+  in
+  let layer = Form.Elements.Dropdown.enumerable (module Layer) graph in
   Bonsai.Edge.on_change
     (slider >>| Form.value >>| Or_error.ok)
     ~equal:[%equal: int option]
@@ -140,6 +150,16 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
        function
        | None -> Effect.Ignore
        | Some width -> modify (fun _ state -> state##.penSize := width))
+    graph;
+  Bonsai.Edge.on_change
+    (layer >>| Form.value >>| Or_error.ok)
+    ~equal:[%equal: Layer.t option]
+    ~callback:
+      (let%arr { modify; _ } = widget in
+       function
+       | None -> Effect.Ignore
+       | Some `Paint -> modify (fun _ state -> state##.mode := Js.string "paint")
+       | Some `Mask -> modify (fun _ state -> state##.mode := Js.string "mask"))
     graph;
   Bonsai.Edge.on_change
     (color_picker >>| Form.value >>| Or_error.ok)
@@ -166,6 +186,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     and inject = inject
     and slider = slider
     and color_picker = color_picker
+    and layer = layer
     and is_dirty = is_dirty
     and { Bonsai_web_ui_widget.view = widget; read; _ } = widget in
     let forward =
@@ -192,6 +213,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
               ; View.button theme "clear" ~on_click:(next_id ())
               ; Form.view slider
               ; Form.view color_picker
+              ; Form.view layer
               ]
           ]
       ]
