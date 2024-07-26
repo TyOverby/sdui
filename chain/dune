@@ -12,7 +12,8 @@
   bonsai.web_ui_widget
   virtual_dom.svg
   bonsai.feather_icon)
- (js_of_ocaml (javascript_files ./js/index.js))
+ (js_of_ocaml
+  (javascript_files ./js/index.js))
  (preprocess
   (pps
    ppx_jane

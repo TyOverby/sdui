@@ -20,12 +20,7 @@ module Query : sig
     }
   [@@deriving sexp, typed_fields, equal]
 
-  val of_txt2img
-    :  Txt2img.Query.t
-    -> init_images:Image.t list
-    -> mask:Image.t option
-    -> t
-
+  val of_txt2img : Txt2img.Query.t -> init_images:Image.t list -> mask:Image.t option -> t
   val apply_info : t -> Txt2img.Info.t -> t
 end
 

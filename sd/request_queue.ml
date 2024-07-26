@@ -132,8 +132,8 @@ let component ~host_and_port ~add_images graph =
   let preview_view =
     match%sub ongoing with
     | `Uninitialized | `Idle -> return None
-    | `Preexisting -> Preview.component progress 
-    | `Running params -> Preview.component ~params progress 
+    | `Preexisting -> Preview.component progress
+    | `Running params -> Preview.component ~params progress
   in
   let%sub queue_request =
     let%arr modify_requests = modify_requests in

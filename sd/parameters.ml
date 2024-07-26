@@ -142,6 +142,7 @@ let between_inclusive s ~min:min_v ~max:max_v =
 ;;
 
 let validate_prompt s = s
+
 let _validate_prompt prompt =
   let translate_line line =
     line

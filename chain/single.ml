@@ -199,9 +199,9 @@ let parallel_n
         match state, r with
         | (None | Some (Error _)), Ok r -> Ok [ r ]
         | None, Error e -> Error e
-        | Some (Ok l), Ok r -> Ok (l @ [r])
+        | Some (Ok l), Ok r -> Ok (l @ [ r ])
         | Some (Ok l), Error _ -> Ok l
-        | Some (Error e1), Error e2 -> (Error (Error.of_list [e1;e2])))
+        | Some (Error e1), Error e2 -> Error (Error.of_list [ e1; e2 ]))
     in
     Effect.return r)
   |> parallel_all
