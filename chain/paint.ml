@@ -4,10 +4,10 @@ open Bonsai.Let_syntax
 open Js_of_ocaml
 module Form = Bonsai_web_ui_form.With_manual_view
 
-module _ =
+module Style =
   [%css
   stylesheet
-    ~dont_hash:[ "stack" ]
+    ~dont_hash:[ "stack"; "mask_layer"; "outline_layer" ]
     {|
         .stack {
             display: inline-grid;
@@ -22,6 +22,18 @@ module _ =
 
         * {
             touch-action: none;
+        }
+
+        .outline_layer {
+          z-index:1;
+        }
+
+        .mask_layer {
+          opacity: 0.5;
+        }
+
+        .disabled_mask_layer .mask_layer {
+          display:none;
         }
 |}]
 
@@ -82,6 +94,93 @@ end
 
 module Id = Bonsai_extra.Id_gen (Int63) ()
 
+module Layer_panel = struct
+  type t =
+    | Paint
+    | Mask
+  [@@deriving sexp_of, equal, enumerate, compare]
+
+  module Style =
+    [%css
+    stylesheet
+      {|
+    .selected {
+      background: var(--selected-bg);
+      color: var(--selected-fg);
+    }
+
+    .layers {
+      text-transform: uppercase;
+      user-select:none;
+    }
+
+    .layer {
+      padding: 0 0.5em;
+    }
+  |}]
+
+  let component graph =
+    let current_layer, set_current_layer = Bonsai.state Paint graph in
+    let paint_visible, toggle_paint_visible = Bonsai.toggle ~default_model:true graph in
+    let mask_visible, toggle_mask_visible = Bonsai.toggle ~default_model:true graph in
+    let view =
+      let%arr current_layer = current_layer
+      and set_current_layer = set_current_layer
+      and paint_visible = paint_visible
+      and toggle_paint_visible = toggle_paint_visible
+      and mask_visible = mask_visible
+      and toggle_mask_visible = toggle_mask_visible
+      and theme = View.Theme.current graph in
+      let paint_layer =
+        View.hbox
+          ~cross_axis_alignment:Center
+          ~gap:(`Em_float 0.5)
+          ~attrs:
+            [ (if equal current_layer Paint then Style.selected else Vdom.Attr.empty)
+            ; Vdom.Attr.on_click (fun _ -> set_current_layer Paint)
+            ; Style.layer
+            ]
+          [ Feather_icon.svg
+              (if paint_visible then Eye else Eye_off)
+              ~size:(`Px 16)
+              ~extra_attrs:
+                [ Vdom.Attr.on_click (fun _ ->
+                    Effect.Many [ toggle_paint_visible; Effect.Stop_propagation ])
+                ]
+          ; Vdom.Node.text "Paint"
+          ]
+      in
+      let mask_layer =
+        View.hbox
+          ~cross_axis_alignment:Center
+          ~gap:(`Em_float 0.5)
+          ~attrs:
+            [ (if equal current_layer Mask then Style.selected else Vdom.Attr.empty)
+            ; Vdom.Attr.on_click (fun _ -> set_current_layer Mask)
+            ; Style.layer
+            ]
+          [ Feather_icon.svg
+              (if mask_visible then Eye else Eye_off)
+              ~size:(`Px 16)
+              ~extra_attrs:
+                [ Vdom.Attr.on_click (fun _ ->
+                    Effect.Many [ toggle_mask_visible; Effect.Stop_propagation ])
+                ]
+          ; Vdom.Node.text "Mask"
+          ]
+      in
+      let colors =
+        let { View.Fg_bg.foreground; background } = View.intent_colors theme Info in
+        Style.Variables.set_all
+          ~selected_bg:(Css_gen.Color.to_string_css background)
+          ~selected_fg:(Css_gen.Color.to_string_css foreground)
+      in
+      View.vbox ~attrs:[ colors; Style.layers ] [ paint_layer; mask_layer ]
+    in
+    current_layer, view, mask_visible
+  ;;
+end
+
 type t =
   { image : Sd.Image.t
   ; mask : Sd.Image.t option
@@ -133,15 +232,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
       ()
       graph
   in
-  let module Layer = struct
-    type t =
-      [ `Paint
-      | `Mask
-      ]
-    [@@deriving sexp_of, equal, enumerate, compare]
-  end
-  in
-  let layer = Form.Elements.Dropdown.enumerable (module Layer) graph in
+  let current_layer, layer_view, mask_visible = Layer_panel.component graph in
   Bonsai.Edge.on_change
     (slider >>| Form.value >>| Or_error.ok)
     ~equal:[%equal: int option]
@@ -152,14 +243,13 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
        | Some width -> modify (fun _ state -> state##.penSize := width))
     graph;
   Bonsai.Edge.on_change
-    (layer >>| Form.value >>| Or_error.ok)
-    ~equal:[%equal: Layer.t option]
+    current_layer
+    ~equal:[%equal: Layer_panel.t]
     ~callback:
       (let%arr { modify; _ } = widget in
        function
-       | None -> Effect.Ignore
-       | Some `Paint -> modify (fun _ state -> state##.mode := Js.string "paint")
-       | Some `Mask -> modify (fun _ state -> state##.mode := Js.string "mask"))
+       | Layer_panel.Paint -> modify (fun _ state -> state##.mode := Js.string "paint")
+       | Mask -> modify (fun _ state -> state##.mode := Js.string "mask"))
     graph;
   Bonsai.Edge.on_change
     (color_picker >>| Form.value >>| Or_error.ok)
@@ -186,8 +276,9 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     and inject = inject
     and slider = slider
     and color_picker = color_picker
-    and layer = layer
+    and layer_view = layer_view
     and is_dirty = is_dirty
+    and mask_visible = mask_visible
     and { Bonsai_web_ui_widget.view = widget; read; _ } = widget in
     let forward =
       let%bind.Effect effects =
@@ -205,7 +296,10 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     Vdom.Node.div
       ~key:(Int.to_string unique_id)
       [ View.vbox
-          [ widget
+          [ View.hbox
+              ~attrs:
+                [ (if mask_visible then Vdom.Attr.empty else Style.disabled_mask_layer) ]
+              [ widget; layer_view ]
           ; View.hbox
               [ (if is_dirty
                  then View.button theme "forward" ~on_click:forward
@@ -213,7 +307,6 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
               ; View.button theme "clear" ~on_click:(next_id ())
               ; Form.view slider
               ; Form.view color_picker
-              ; Form.view layer
               ]
           ]
       ]

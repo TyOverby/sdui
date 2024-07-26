@@ -13,5 +13,5 @@ val component
   -> mask:Sd.Image.t Inc.Or_error_or_stale.t option Bonsai.t
   -> Bonsai.graph
   -> Sd.Image.t Inc.Or_error_or_stale.t Bonsai.t
-     * Vdom.Node.t Bonsai.t
+     * (Vdom.Node.t * Vdom.Node.t) Bonsai.t
      * (Parameters.t, unit) Form.t Bonsai.t

@@ -44,9 +44,7 @@ module Parameters = struct
         module Typed_field = Typed_field
 
         type field_view = Vdom.Node.t
-
-        type resulting_view =
-          theme:View.Theme.t -> reset:unit Effect.t -> images:Vdom.Node.t -> Vdom.Node.t
+        type resulting_view = theme:View.Theme.t -> reset:unit Effect.t -> Vdom.Node.t
 
         type form_of_field_fn =
           { f : 'a. 'a Typed_field.t -> ('a, Vdom.Node.t) Form.t Bonsai.t }
@@ -76,7 +74,7 @@ module Parameters = struct
           and ratios = f Ratios
           and pos_prompt = f Pos_prompt
           and neg_prompt = f Neg_prompt in
-          fun ~theme ~reset ~images ->
+          fun ~theme ~reset ->
             Vdom.Node.div
               [ View.vbox
                   [ View.hbox
@@ -88,7 +86,6 @@ module Parameters = struct
                       ; Form.view pos_prompt
                       ; Form.view neg_prompt
                       ]
-                  ; images
                   ]
               ]
         ;;
@@ -348,7 +345,7 @@ let component ~default_size ~pool ~prev ~mask graph =
       | Not_computed -> Vdom.Node.div [ Vdom.Node.text "not computed yet..." ]
       | Error e -> Vdom.Node.div [ Vdom.Node.sexp_for_debugging (Error.sexp_of_t e) ]
     in
-    form ~theme ~reset ~images
+    form ~theme ~reset, images
   in
   let picked =
     Inc.of_bonsai

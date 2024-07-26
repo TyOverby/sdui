@@ -43,7 +43,7 @@ let component graph =
                (parameters : Sd.Txt2img.Query.t Or_error.t Bonsai.Computation_status.t)
                (model : Sd.Models.t Or_error.t Bonsai.Computation_status.t)])
   in
-  let%sub _img, view = Pair.component ~pool:lease_pool ~prev:(Bonsai.return None) graph in
+  let%sub view = Pair.component ~pool:lease_pool graph in
   let%arr parameters = parameters
   and submit_effect = submit_effect
   and lease_pool_debug = Lease_pool.debug lease_pool

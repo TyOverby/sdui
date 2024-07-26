@@ -3,13 +3,6 @@ open! Bonsai_web.Cont
 open! Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
 
-module Which = struct
-  type t =
-    | Txt2img
-    | Sketch
-    | Mask
-end
-
 let paint_impl ~prev graph =
   match%sub prev with
   | Inc.Or_error_or_stale.Fresh prev_for_paint | Stale prev_for_paint ->
@@ -24,83 +17,85 @@ let paint_impl ~prev graph =
     Bonsai.return (Inc.Or_error_or_stale.Not_computed, Vdom.Node.text "not computed")
 ;;
 
-let component ~index ~which ~pool ~prev ~prev_params ~mask ~reset graph =
-  let%sub image, mask, view, params =
-    match%sub which, prev with
-    | Which.Txt2img, prev ->
-      let image, view, params =
-        Single.component ~pool ~prev ~mask ~default_size:512 graph
-      in
-      let%sub () =
-        match%sub prev_params with
-        | Ok prev_params ->
-          let _ = Form.Dynamic.with_default prev_params params graph in
-          return ()
-        | Error _ -> return ()
-      in
-      let%arr image = image
-      and view = view
-      and params = params in
-      image, None, view, Form.value params
-    | Sketch, Some prev ->
-      let%sub image, view = paint_impl ~prev graph in
-      let%arr t = image
-      and view = view
-      and params = prev_params in
-      let image, mask =
-        Inc.Or_error_or_stale.(unzip (map t ~f:(fun { image; mask } -> image, mask)))
-      in
-      let mask =
-        match mask with
-        | Fresh None -> None
-        | Fresh (Some a) -> Some (Inc.Or_error_or_stale.Fresh a)
-        | Stale None -> None
-        | Stale (Some a) -> Some (Stale a)
-        | Error e -> Some (Error e)
-        | Not_computed -> None
-      in
-      image, mask, view, params
-    | Mask, Some _ -> assert false
-    | (Sketch | Mask), None ->
-      Bonsai.return
-        ( Inc.Or_error_or_stale.Error
-            (Error.of_string "sketch can't be the first item in the chain")
-        , None
-        , Vdom.Node.text "sketch can't be the first item in the chain"
-        , Error (Error.of_string "sketch can't ") )
+let img2img_impl ~pool ~prev ~mask ~prev_params graph =
+  let image, view, params = Single.component ~pool ~prev ~mask ~default_size:512 graph in
+  let%sub () =
+    match%sub prev_params with
+    | Ok prev_params ->
+      let _ = Form.Dynamic.with_default prev_params params graph in
+      return ()
+    | Error _ -> return ()
+  in
+  let%arr image = image
+  and view = view
+  and params = params in
+  image, view, Form.value params
+;;
+
+let sketch_impl ~prev ~prev_params graph =
+  let%sub image, view = paint_impl ~prev graph in
+  let%arr t = image
+  and view = view
+  and params = prev_params in
+  let image, mask =
+    Inc.Or_error_or_stale.(unzip (map t ~f:(fun { image; mask } -> image, mask)))
+  in
+  let mask =
+    match mask with
+    | Fresh None -> None
+    | Fresh (Some a) -> Some (Inc.Or_error_or_stale.Fresh a)
+    | Stale None -> None
+    | Stale (Some a) -> Some (Stale a)
+    | Error e -> Some (Error e)
+    | Not_computed -> None
+  in
+  image, mask, view, params
+;;
+
+let component
+  ~(index : int Bonsai.t)
+  ~(pool : (Sd.Hosts.Host.t, 'a, 'b) Lease_pool.t)
+  ~(prev : Sd.Image.t Inc.Or_error_or_stale.t Bonsai.t)
+  ~(prev_params : (Single.Parameters.t, Error.t) result Bonsai.t)
+  ~(reset : unit Ui_effect.t Bonsai.t)
+  graph
+  =
+  let image, view, params =
+    let%sub image, mask, sketch_view, _ = sketch_impl ~prev ~prev_params graph in
+    let%sub image, img2img_view, params =
+      img2img_impl ~pool ~prev:(image >>| Option.some) ~mask ~prev_params graph
+    in
+    let view =
+      let%arr sketch_view = sketch_view
+      and params_form, gallery = img2img_view in
+      View.hbox [ sketch_view; View.vbox [ params_form; gallery ] ]
+    in
+    image, view, params
   in
   let view =
     let%arr view = view
     and theme = View.Theme.current graph
     and reset = reset
-    and index = index
-    and prev = prev in
+    and index = index in
     let header =
-      let text =
-        match prev with
-        | None -> "txt -> img"
-        | Some _ -> "img -> img"
-      in
       Vdom.Node.h2
         ~attrs:[ {%css| margin:0; |} ]
-        [ Vdom.Node.textf "#%d : %s" index text; View.button theme "x" ~on_click:reset ]
+        [ Vdom.Node.textf "#%d " index; View.button theme "x" ~on_click:reset ]
     in
     Vdom.Node.div [ header; view ]
   in
-  image, mask, view, params
+  image, view, params
 ;;
 
-let do_txt2img ~which ~prev ~prev_params ~mask ~index ~pool ~reset ~recurse graph =
-  let image, mask, view, params =
-    component ~index ~which ~pool ~prev ~mask ~reset ~prev_params graph
-  in
-  let next = recurse index (image >>| Option.some) mask params graph in
+let do_txt2img ~prev ~prev_params ~index ~pool ~reset ~recurse graph =
+  let image, view, params = component ~index ~pool ~prev ~reset ~prev_params graph in
+  let next = recurse index image params graph in
   let%arr view = view
   and image, view2 = next in
   image, View.vbox ~gap:(`Em 1) [ view; view2 ]
 ;;
 
-let fix4 a b c d ~f graph =
+let _fix4 a b c d ~f graph =
   let abcd = Bonsai.map4 a b c d ~f:(fun a b c d -> a, b, c, d) in
   Bonsai.fix abcd graph ~f:(fun ~recurse abcd graph ->
     let%sub a, b, c, d = abcd in
@@ -111,44 +106,42 @@ let fix4 a b c d ~f graph =
     f ~recurse a b c d graph)
 ;;
 
-let component ~pool ~index ~prev ~prev_params ~mask graph =
-  fix4
-    index
-    prev
-    mask
-    prev_params
-    graph
-    ~f:(fun ~recurse index prev mask prev_params graph ->
-      let index = index >>| ( + ) 1 in
-      Bonsai.with_model_resetter' graph ~f:(fun ~reset graph ->
-        let which, set_which = Bonsai.state_opt graph in
-        match%sub which, index with
-        | None, 1 ->
-          let which = Bonsai.return Which.Txt2img in
-          do_txt2img ~which ~prev ~prev_params ~mask ~index ~pool ~reset ~recurse graph
-        | Some which, _ ->
-          do_txt2img ~which ~prev ~prev_params ~mask ~index ~pool ~reset ~recurse graph
-        | None, _ ->
-          let%arr set_which = set_which
-          and prev = prev
-          and theme = View.Theme.current graph in
-          ( prev
-          , Vdom.Node.div
-              ~attrs:
-                [ {%css| font-size: 3em !important; display: flex; justify-content: center; margin: 1em; gap: 1em; |}
-                ]
-              [ View.button theme "img2img" ~on_click:(set_which (Some Which.Txt2img))
-              ; View.button theme "sketch" ~on_click:(set_which (Some Which.Sketch))
-              ; View.button theme "mask" ~on_click:(set_which (Some Which.Mask))
-              ] )))
+let fix3 a b c ~f graph =
+  let abc = Bonsai.map3 a b c ~f:(fun a b c -> a, b, c) in
+  Bonsai.fix abc graph ~f:(fun ~recurse abc graph ->
+    let%sub a, b, c = abc in
+    let recurse a b c graph =
+      let abc = Bonsai.map3 a b c ~f:(fun a b c -> a, b, c) in
+      recurse abc graph
+    in
+    f ~recurse a b c graph)
 ;;
 
-let component ~pool ~prev graph =
-  component
-    ~pool
-    ~index:(Bonsai.return 0)
-    ~prev
-    ~prev_params:(Bonsai.return (Error (Error.of_string "no previous params")))
-    ~mask:(Bonsai.return None)
-    graph
+let component ~pool ~index ~prev ~prev_params graph =
+  fix3 index prev prev_params graph ~f:(fun ~recurse index prev prev_params graph ->
+    let index = index >>| ( + ) 1 in
+    Bonsai.with_model_resetter' graph ~f:(fun ~reset graph ->
+      match%sub prev with
+      | Inc.Or_error_or_stale.Fresh _ | Stale _ ->
+        do_txt2img ~prev ~prev_params ~index ~pool ~reset ~recurse graph
+      | _ ->
+        let%arr prev = prev in
+        prev, Vdom.Node.none))
+;;
+
+let component ~pool graph =
+  let%sub image, view, params =
+    img2img_impl
+      ~pool
+      ~prev:(Bonsai.return None)
+      ~prev_params:(Bonsai.return (Error (Error.of_string "no previous params")))
+      ~mask:(Bonsai.return None)
+      graph
+  in
+  let rest =
+    component ~pool ~index:(Bonsai.return 1) ~prev:image ~prev_params:params graph
+  in
+  let%arr params, gallery = view
+  and _, rest = rest in
+  View.vbox [ View.vbox [ params; gallery ]; rest ]
 ;;

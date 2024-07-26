@@ -64,6 +64,7 @@ function isCanvasAllWhite(canvas, ctx) {
         if (data[i] !== 255 || data[i + 1] !== 255 || data[i + 2] !== 255 || data[i + 3] !== 255) {
             return false;
         }
+        data[i + 3] = 255;
     }
 
     return true;
@@ -95,12 +96,17 @@ function painter_init(input) {
         let mask_canvas = createCanvas("mask", image, stack);
         let outline_canvas = createCanvas("outline", image, stack);
         let composite_canvas = createCanvas("composite", image);
+        let composite_mask_canvas = createCanvas("composite-mask", image);
+
+        outline_canvas.className = "outline_layer"
+        mask_canvas.className = "mask_layer"
 
         let img_ctx = img_canvas.getContext("2d", { willReadFrequently: true });
         let mask_ctx = mask_canvas.getContext("2d");
         let draw_ctx = draw_canvas.getContext("2d");
         let outline_ctx = outline_canvas.getContext("2d");
         let composite_ctx = composite_canvas.getContext("2d");
+        let composite_mask_ctx = composite_mask_canvas.getContext("2d");
 
         outline_ctx.strokeStyle = "rgba(0,0,0,0.5)";
         outline_ctx.lineWidth = 1.0;
@@ -109,28 +115,27 @@ function painter_init(input) {
 
         state.clear = function () {
             draw_ctx.clearRect(0, 0, outline_canvas.width, outline_canvas.height);
+            mask_ctx.clearRect(0, 0, outline_canvas.width, outline_canvas.height);
         }
 
         state.composite = function () {
+            composite_ctx.clearRect(0, 0, image.naturalWidth, image.naturalHeight);
+            outline_ctx.globalCompositeOperation = 'source-over';
             composite_ctx.drawImage(img_canvas, 0, 0);
             composite_ctx.drawImage(draw_canvas, 0, 0);
             return composite_canvas.toDataURL("image/png", 1);
         }
 
         state.compositeMask = function () {
-            composite_ctx.clearRect(0, 0, image.naturalWidth, image.naturalHeight);
-            composite_ctx.globalCompositeOperation = "source-over";
-            composite_ctx.fillStyle = "black";
-            composite_ctx.fillRect(0, 0, image.naturalWidth, image.naturalHeight);
-            composite_ctx.globalCompositeOperation = "destination-in";
-            composite_ctx.drawImage(mask_canvas, 0, 0);
-            composite_ctx.globalCompositeOperation = "source-out";
-            composite_ctx.fillStyle = "white";
-            composite_ctx.fillRect(0, 0, image.naturalWidth, image.naturalHeight);
-            if (isCanvasAllWhite(composite_canvas, composite_ctx)) {
+            composite_mask_ctx.globalCompositeOperation = "source-over";
+            composite_mask_ctx.fillStyle = "white";
+            composite_mask_ctx.fillRect(0, 0, image.naturalWidth, image.naturalHeight);
+            composite_mask_ctx.drawImage(mask_canvas, 0, 0);
+
+            if (isCanvasAllWhite(composite_mask_canvas, composite_mask_ctx)) {
                 return ""
             } else {
-                return composite_canvas.toDataURL("image/png", 1);
+                return composite_mask_canvas.toDataURL("image/png", 1);
             }
         }
 
@@ -151,7 +156,7 @@ function painter_init(input) {
             var target_ctx = state.mode === "mask" ? mask_ctx : draw_ctx;
 
             var erasing = false;
-            if (event.shiftKey) {
+            if (event.ctrlKey) {
                 target_ctx.globalCompositeOperation = "destination-out";
                 erasing = true;
             } else {
@@ -175,6 +180,8 @@ function painter_init(input) {
 
                 if (state.mode !== "mask") {
                     target_ctx.fillStyle = state.color;
+                } else {
+                    target_ctx.fillStyle = "black";
                 }
 
                 var radius = 0;
@@ -217,7 +224,7 @@ function painter_init(input) {
             var b = image_data.data[2];
             var inverse = "rgb(" + (255 - r) + "," + (255 - g) + "," + (255 - b) + ")";
             outline_ctx.strokeStyle = inverse;
-            if (event.ctrlKey) {
+            if (event.shiftKey) {
                 state.color = "rgb(" + r + "," + g + "," + b + ")";
                 state.onColorChange(rgbToHex(r, g, b));
 
@@ -236,6 +243,12 @@ function painter_init(input) {
             outline_ctx.beginPath();
             outline_ctx.ellipse(x, y, state.penSize, state.penSize, 0, Math.PI * 2, 0);
             outline_ctx.stroke();
+
+            if (event.shiftKey) {
+                outline_ctx.beginPath();
+                outline_ctx.ellipse(x, y, state.penSize * 2, state.penSize * 2, 0, Math.PI * 2, 0);
+                outline_ctx.stroke();
+            }
 
             outline_ctx.beginPath();
             outline_ctx.ellipse(x, y, 0.25, 0.25, 0, Math.PI * 2, 0);
