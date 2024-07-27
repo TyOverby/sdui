@@ -10,4 +10,5 @@ type t =
   }
 [@@deriving sexp_of]
 
+val dispatch : string -> t Or_error.t Effect.t
 val state : host_and_port:string Bonsai.t -> Bonsai.graph -> t Or_error.t Bonsai.t

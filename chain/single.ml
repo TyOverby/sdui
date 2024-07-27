@@ -184,11 +184,10 @@ let rec parallel_all = function
 
 let parallel_n
   (type a)
-  ~(update : (a list list Or_error.t option -> a list list Or_error.t) -> unit Effect.t)
+  ~(update : (a list Or_error.t option -> a list Or_error.t) -> unit Effect.t)
   n
-  ~(f : int -> a list Or_error.t Effect.t)
+  ~(f : int -> a Or_error.t Effect.t)
   =
-  let _ = update in
   List.init n ~f:(fun i ->
     let%bind.Effect r = f i in
     let%bind.Effect () =
@@ -202,6 +201,43 @@ let parallel_n
     in
     Effect.return r)
   |> parallel_all
+;;
+
+let while_running eff ~do_this =
+  Ui_effect.Expert.of_fun ~f:(fun ~callback ->
+    let finished = ref false in
+    Ui_effect.Expert.eval eff ~f:(fun result ->
+      finished := true;
+      callback result);
+    let rec loop () =
+      if !finished then () else Ui_effect.Expert.eval do_this ~f:(fun () -> loop ())
+    in
+    loop ())
+;;
+
+let perform_dispatch ~dispatcher ~query ~update ~sleep i =
+  dispatcher (function
+    | Error _ as error -> Effect.return error
+    | Ok (host, _) ->
+      let query =
+        { query with
+          Sd.Txt2img.Query.seed = Int63.(query.Sd.Txt2img.Query.seed + of_int i)
+        }
+      in
+      while_running
+        ~do_this:
+          (match%bind.Effect
+             Sd.Progress.dispatch ((host : Sd.Hosts.Host.t) :> string)
+           with
+           | Ok { current_image = Some current_image; _ } ->
+             update (fun _ -> Ok [ current_image ])
+           | _ -> sleep (Time_ns.Span.of_sec 0.5))
+        (match%map.Effect
+           Sd.Txt2img.dispatch ~host_and_port:((host : Sd.Hosts.Host.t) :> string) query
+         with
+         | Ok [ (image, _) ] -> Ok image
+         | Error e -> Error e
+         | Ok _ -> Error (Error.of_string "unexpected number of images")))
 ;;
 
 let image ~params ~prev ~mask ~pool graph =
@@ -222,22 +258,14 @@ let image ~params ~prev ~mask ~pool graph =
         query
         graph
         ~f:
-          (let%arr dispatcher = Lease_pool.dispatcher pool in
+          (let%arr dispatcher = Lease_pool.dispatcher pool
+           and sleep = Bonsai.Clock.sleep graph in
            fun ~update query ->
              let%map.Effect results =
-               parallel_n ~update parallelism ~f:(fun i ->
-                 dispatcher (function
-                   | Error _ as error -> Effect.return error
-                   | Ok (host, _) ->
-                     let query =
-                       { query with
-                         Sd.Txt2img.Query.seed =
-                           Int63.(query.Sd.Txt2img.Query.seed + of_int i)
-                       }
-                     in
-                     Sd.Txt2img.dispatch
-                       ~host_and_port:((host : Sd.Hosts.Host.t) :> string)
-                       query))
+               parallel_n
+                 ~update
+                 parallelism
+                 ~f:(perform_dispatch ~dispatcher ~query ~update ~sleep)
              in
              Or_error.filter_ok_at_least_one results)
       |> Inc.collapse_error
@@ -274,20 +302,21 @@ let image ~params ~prev ~mask ~pool graph =
                  dispatcher (function
                    | Error _ as e -> Effect.return e
                    | Ok (host, _) ->
-                     Sd.Img2img.dispatch
-                       ~host_and_port:((host : Sd.Hosts.Host.t) :> string)
-                       query))
+                     (match%map.Effect
+                        Sd.Img2img.dispatch
+                          ~host_and_port:((host : Sd.Hosts.Host.t) :> string)
+                          query
+                      with
+                      | Ok [ (image, _) ] -> Ok image
+                      | Error e -> Error e
+                      | Ok _ -> Error (Error.of_string "unexpected number of images"))))
              in
              Or_error.filter_ok_at_least_one results)
       |> Inc.collapse_error
   in
   result
   |> Inc.map_pure ~f:(fun images ->
-    List.map images ~f:(function
-      | [ (image, _) ] -> Ok image
-      | [] -> Error (Error.of_string "no images in response")
-      | _ :: _ :: _ -> Error (Error.of_string "more than one image in response"))
-    |> Or_error.all)
+    List.map images ~f:(function image -> Ok image) |> Or_error.all)
   |> Inc.collapse_error
 ;;
 
