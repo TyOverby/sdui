@@ -288,7 +288,8 @@ let image ~params ~prev ~mask ~pool graph =
         (Inc.optional mask)
         graph
         ~f:
-          (let%arr dispatcher = Lease_pool.dispatcher pool in
+          (let%arr dispatcher = Lease_pool.dispatcher pool
+           and sleep = Bonsai.Clock.sleep graph in
            fun ~update query prev mask ->
              let%map.Effect results =
                parallel_n ~update parallelism ~f:(fun i ->
@@ -296,20 +297,18 @@ let image ~params ~prev ~mask ~pool graph =
                    { query with
                      Sd.Img2img.Query.init_images = [ prev ]
                    ; seed = Int63.(query.Sd.Img2img.Query.seed + of_int i)
+                   ; mask
                    }
                  in
-                 let query = { query with mask } in
-                 dispatcher (function
-                   | Error _ as e -> Effect.return e
-                   | Ok (host, _) ->
-                     (match%map.Effect
-                        Sd.Img2img.dispatch
-                          ~host_and_port:((host : Sd.Hosts.Host.t) :> string)
-                          query
-                      with
-                      | Ok [ (image, _) ] -> Ok image
-                      | Error e -> Error e
-                      | Ok _ -> Error (Error.of_string "unexpected number of images"))))
+                 perform_dispatch
+                   ~width:query.width
+                   ~height:query.height
+                   ~api_fun:Sd.Img2img.dispatch
+                   ~dispatcher
+                   ~query
+                   ~update
+                   ~sleep
+                   i)
              in
              results)
   in
