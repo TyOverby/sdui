@@ -184,7 +184,7 @@ let rec parallel_all = function
 
 let parallel_n
   (type a)
-  ~(update : (a list Or_error.t option -> a list Or_error.t) -> unit Effect.t)
+  ~(update : (a Or_error.t Int.Map.t option -> a Or_error.t Int.Map.t) -> unit Effect.t)
   n
   ~(f : int -> a Or_error.t Effect.t)
   =
@@ -192,15 +192,13 @@ let parallel_n
     let%bind.Effect r = f i in
     let%bind.Effect () =
       update (fun state ->
-        match state, r with
-        | (None | Some (Error _)), Ok r -> Ok [ r ]
-        | None, Error e -> Error e
-        | Some (Ok l), Ok r -> Ok (l @ [ r ])
-        | Some (Ok l), Error _ -> Ok l
-        | Some (Error e1), Error e2 -> Error (Error.of_list [ e1; e2 ]))
+        match state with
+        | None -> Int.Map.singleton i r
+        | Some map -> Map.set map ~key:i ~data:r)
     in
     Effect.return r)
   |> parallel_all
+  |> Effect.map ~f:(fun all -> List.mapi all ~f:Tuple2.create |> Int.Map.of_alist_exn)
 ;;
 
 let while_running eff ~do_this =
@@ -215,25 +213,24 @@ let while_running eff ~do_this =
     loop ())
 ;;
 
-let perform_dispatch ~dispatcher ~query ~update ~sleep i =
+let perform_dispatch ~dispatcher ~api_fun ~query ~update ~sleep ~width ~height i =
   dispatcher (function
     | Error _ as error -> Effect.return error
     | Ok (host, _) ->
-      let query =
-        { query with
-          Sd.Txt2img.Query.seed = Int63.(query.Sd.Txt2img.Query.seed + of_int i)
-        }
-      in
       while_running
         ~do_this:
           (match%bind.Effect
              Sd.Progress.dispatch ((host : Sd.Hosts.Host.t) :> string)
            with
            | Ok { current_image = Some current_image; _ } ->
-             update (fun _ -> Ok [ current_image ])
+             update (fun map ->
+               Map.set
+                 (Option.value map ~default:Int.Map.empty)
+                 ~key:i
+                 ~data:(Ok (Sd.Image.with_size current_image ~width ~height)))
            | _ -> sleep (Time_ns.Span.of_sec 0.5))
         (match%map.Effect
-           Sd.Txt2img.dispatch ~host_and_port:((host : Sd.Hosts.Host.t) :> string) query
+           api_fun ~host_and_port:((host : Sd.Hosts.Host.t) :> string) query
          with
          | Ok [ (image, _) ] -> Ok image
          | Error e -> Error e
@@ -260,15 +257,18 @@ let image ~params ~prev ~mask ~pool graph =
         ~f:
           (let%arr dispatcher = Lease_pool.dispatcher pool
            and sleep = Bonsai.Clock.sleep graph in
-           fun ~update query ->
-             let%map.Effect results =
-               parallel_n
+           fun ~update (query : Sd.Txt2img.Query.t) ->
+             parallel_n ~update parallelism ~f:(fun i ->
+               let query = { query with seed = Int63.(query.seed + of_int i) } in
+               perform_dispatch
+                 ~width:query.width
+                 ~height:query.height
+                 ~api_fun:Sd.Txt2img.dispatch
+                 ~dispatcher
+                 ~query
                  ~update
-                 parallelism
-                 ~f:(perform_dispatch ~dispatcher ~query ~update ~sleep)
-             in
-             Or_error.filter_ok_at_least_one results)
-      |> Inc.collapse_error
+                 ~sleep
+                 i))
     | Some prev ->
       let query =
         Inc.of_or_error_bonsai
@@ -311,12 +311,10 @@ let image ~params ~prev ~mask ~pool graph =
                       | Error e -> Error e
                       | Ok _ -> Error (Error.of_string "unexpected number of images"))))
              in
-             Or_error.filter_ok_at_least_one results)
-      |> Inc.collapse_error
+             results)
   in
   result
-  |> Inc.map_pure ~f:(fun images ->
-    List.map images ~f:(function image -> Ok image) |> Or_error.all)
+  |> Inc.map_pure ~f:(fun images -> images |> Map.data |> Or_error.filter_ok_at_least_one)
   |> Inc.collapse_error
 ;;
 

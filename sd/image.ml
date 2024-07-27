@@ -15,6 +15,7 @@ type t =
   }
 [@@deriving sexp, equal]
 
+let with_size t ~width ~height = { t with width = Some width; height = Some height }
 let data_url t = t.content
 let of_string ?width ?height ~kind content = { width; height; content; kind }
 let to_string t = t.content
