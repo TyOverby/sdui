@@ -120,7 +120,7 @@ module Response = struct
 
   type t =
     { images : string list
-    ; image_paths : string list
+    ; image_paths : string list [@default []]
     ; info : Info.t
     }
   [@@yojson.allow_extra_fields] [@@deriving of_yojson, sexp_of]

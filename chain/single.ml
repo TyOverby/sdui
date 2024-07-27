@@ -4,7 +4,7 @@ open! Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
 module P = Sd.Parameters.Individual
 
-let parallelism = 1
+let parallelism = 4
 
 module Parameters = struct
   type t =
@@ -364,7 +364,7 @@ let component ~default_size ~pool ~prev ~mask graph =
           Inc.Or_error_or_stale.Error
             (Error.of_string "you must pick an image to proceed")
         | Some picked ->
-          (match List.nth images picked with
+          (match List.nth images (picked mod List.length images) with
            | None -> error
            | Some image -> Inc.Or_error_or_stale.Fresh image))
   in

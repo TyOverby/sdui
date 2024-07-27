@@ -109,7 +109,7 @@ module Response = struct
 
   type t =
     { images : string list
-    ; image_paths : string list
+    ; image_paths : string list [@default []]
     ; info : Info.t
     ; parameters : Parameters.t
     }
