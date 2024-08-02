@@ -3,10 +3,26 @@ open! Bonsai_web.Cont
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
 
-module Style = [%css stylesheet {|
+module Style =
+  [%css
+  stylesheet
+    {|
   body {
     padding: 0;
     margin: 0;
+  }
+
+  .app-wrapper {
+    width: 100%;
+    height:100vh;
+    overflow:clip;
+    display:flex;
+    flex-direction:column;
+  }
+
+  .workspace-wrapper {
+    overflow-y: scroll;
+    scroll-snap-type: y proximity;
   }
 |}]
 
@@ -54,6 +70,7 @@ let component graph =
   and get_leased = Bonsai.peek (Lease_pool.leased_out lease_pool) graph in
   let on_submit = Option.value submit_effect ~default:Effect.Ignore in
   Vdom.Node.div
+    ~attrs:[ Style.app_wrapper ]
     [ (Form.view parameters) ~on_submit ~hosts_panel:hosts_view
     ; Vdom.Node.div
         ~attrs:
@@ -77,6 +94,6 @@ let component graph =
                   | Ok () -> ()
                   | Error e -> print_s [%message (e : Error.t)]))
         ]
-    ; View.vbox view
+    ; View.vbox ~attrs:[ Style.workspace_wrapper ] view
     ]
 ;;
