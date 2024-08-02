@@ -6,7 +6,7 @@ module Form = Bonsai_web_ui_form.With_manual_view
 let paint_impl ~prev graph =
   match%sub prev with
   | Inc.Or_error_or_stale.Fresh prev_for_paint | Stale prev_for_paint ->
-    let t, view = Paint.component ~prev:prev_for_paint graph in
+    let { Paint.images = t; view } = Paint.component ~prev:prev_for_paint graph in
     let%arr t = t
     and view = view in
     t, view

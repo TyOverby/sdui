@@ -181,9 +181,21 @@ module Layer_panel = struct
   ;;
 end
 
+module Images = struct
+  type t =
+    { image : Sd.Image.t
+    ; mask : Sd.Image.t option
+    }
+end
+
 type t =
-  { image : Sd.Image.t
-  ; mask : Sd.Image.t option
+  { images : Images.t Inc.t
+  ; color_picker : Vdom.Node.t Bonsai.t
+  ; pen_size_slider : Vdom.Node.t Bonsai.t
+  ; layer_panel : Vdom.Node.t Bonsai.t
+  ; forward_button : Vdom.Node.t Bonsai.t
+  ; clear_button : Vdom.Node.t Bonsai.t
+  ; widget : Vdom.Node.t Bonsai.t
   }
 
 let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
@@ -269,18 +281,21 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     | Fresh _ -> false
     | Stale _ | Error _ | Not_computed -> true
   in
-  let view =
-    let%arr theme = View.Theme.current graph
-    and unique_id = unique_id
-    and next_id = next_id
-    and inject = inject
+  let widget_view =
+    let%arr unique_id = unique_id
+    and { view; _ } = widget
     and path = Bonsai.path_id graph
-    and slider = slider
-    and color_picker = color_picker
-    and layer_view = layer_view
+    and mask_visible = mask_visible in
+    Vdom.Node.div
+      ~key:(Int.to_string unique_id ^ path)
+      ~attrs:[ (if mask_visible then Vdom.Attr.empty else Style.disabled_mask_layer) ]
+      [ view ]
+  in
+  let forward_button =
+    let%arr theme = View.Theme.current graph
+    and inject = inject
     and is_dirty = is_dirty
-    and mask_visible = mask_visible
-    and { Bonsai_web_ui_widget.view = widget; read; _ } = widget in
+    and { Bonsai_web_ui_widget.read; _ } = widget in
     let forward =
       let%bind.Effect effects =
         read (fun _input state ->
@@ -290,75 +305,23 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
             | "" -> None
             | mask_string -> Some (Sd.Image.of_string ~kind:Base64 mask_string)
           in
-          inject (`Set_value { image; mask }))
+          inject (`Set_value { Images.image; mask }))
       in
       Effect.all_unit effects
     in
-    Vdom.Node.div
-      ~key:(Int.to_string unique_id ^ path)
-      [ View.vbox
-          [ View.hbox
-              ~attrs:
-                [ (if mask_visible then Vdom.Attr.empty else Style.disabled_mask_layer) ]
-              [ widget; layer_view ]
-          ; View.hbox
-              [ (if is_dirty
-                 then View.button theme "forward" ~on_click:forward
-                 else Vdom.Node.none)
-              ; View.button theme "clear" ~on_click:(next_id ())
-              ; Form.view slider
-              ; Form.view color_picker
-              ]
-          ]
-      ]
+    if is_dirty then View.button theme "forward" ~on_click:forward else Vdom.Node.none
   in
-  value, view
-;;
-
-let do_the_assoc all graph =
-  let out =
-    Bonsai.assoc_list
-      (module Int)
-      ~get_key:Tuple2.get1
-      all
-      graph
-      ~f:(fun _ image graph ->
-        let%sub _, image = image in
-        Tuple2.uncurry Bonsai.both (component ~prev:image graph))
+  let clear_button =
+    let%arr theme = View.Theme.current graph
+    and next_id = next_id in
+    View.button theme "clear" ~on_click:(next_id ())
   in
-  let%arr out = out in
-  match out with
-  | `Ok v ->
-    let results, views = List.unzip v in
-    let results = Inc.Or_error_or_stale.all results in
-    ( results
-    , View.hbox
-        (List.mapi views ~f:(fun i view -> Vdom.Node.div ~key:(Int.to_string i) [ view ]))
-    )
-  | `Duplicate_key i ->
-    let results =
-      Inc.Or_error_or_stale.Error (Error.create_s [%message "duplicate key" (i : int)])
-    in
-    let view = Vdom.Node.textf "dupldate key: %d" i in
-    results, view
-;;
-
-let multi
-  ~(prev : Sd.Image.t list Inc.Or_error_or_stale.t Bonsai.t)
-  (graph : Bonsai.graph)
-  : t list Inc.Or_error_or_stale.t Bonsai.t * Vdom.Node.t Bonsai.t
-  =
-  let prev = Inc.map_pure prev ~f:(List.mapi ~f:Tuple2.create) in
-  let%sub a, b =
-    match%sub prev with
-    | Inc.Or_error_or_stale.Fresh all | Stale all ->
-      let%sub results, view = do_the_assoc all graph in
-      Bonsai.both (Inc.map2_pure prev results ~f:(fun _ r -> r)) view
-    | Error e ->
-      let%arr e = e in
-      Inc.Or_error_or_stale.Error e, Vdom.Node.textf "Error: %s" (Error.to_string_hum e)
-    | Not_computed ->
-      Bonsai.return (Inc.Or_error_or_stale.Not_computed, Vdom.Node.text "not computed")
-  in
-  a, b
+  { images = value
+  ; color_picker = color_picker >>| Form.view
+  ; pen_size_slider = slider >>| Form.view
+  ; layer_panel = layer_view
+  ; forward_button
+  ; clear_button
+  ; widget = widget_view
+  }
 ;;
