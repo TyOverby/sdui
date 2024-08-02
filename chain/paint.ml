@@ -18,6 +18,7 @@ module Style =
         .stack>canvas {
             grid-area: 1 / 1;
             cursor:none;
+            image-rendering: pixelated;
         }
 
         * {

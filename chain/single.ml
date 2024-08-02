@@ -4,7 +4,7 @@ open! Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
 module P = Sd.Parameters.Individual
 
-let parallelism = 4
+let parallelism = 1
 
 module Parameters = struct
   type t =
@@ -44,7 +44,12 @@ module Parameters = struct
         module Typed_field = Typed_field
 
         type field_view = Vdom.Node.t
-        type resulting_view = theme:View.Theme.t -> reset:unit Effect.t -> Vdom.Node.t
+
+        type resulting_view =
+          direction:[ `Vertical | `Horizontal ]
+          -> theme:View.Theme.t
+          -> reset:unit Effect.t
+          -> Vdom.Node.t
 
         type form_of_field_fn =
           { f : 'a. 'a Typed_field.t -> ('a, Vdom.Node.t) Form.t Bonsai.t }
@@ -74,14 +79,19 @@ module Parameters = struct
           and ratios = f Ratios
           and pos_prompt = f Pos_prompt
           and neg_prompt = f Neg_prompt in
-          fun ~theme ~reset ->
+          fun ~direction ~theme ~reset ->
+            let vbox, hbox =
+              match direction with
+              | `Horizontal -> (fun a -> View.vbox a), fun a -> View.hbox a
+              | `Vertical -> (fun a -> View.hbox a), fun a -> View.vbox a
+            in
             Vdom.Node.div
-              [ View.vbox
-                  [ View.hbox
+              [ vbox
+                  [ hbox
                       [ View.button theme "reset" ~on_click:reset
-                      ; View.vbox [ Form.view width; Form.view height ]
-                      ; View.vbox [ Form.view steps; Form.view cfg ]
-                      ; View.vbox [ Form.view denoise; Form.view seed ]
+                      ; vbox [ Form.view width; Form.view height ]
+                      ; vbox [ Form.view steps; Form.view cfg ]
+                      ; vbox [ Form.view denoise; Form.view seed ]
                       ; Form.view ratios
                       ; Form.view pos_prompt
                       ; Form.view neg_prompt
@@ -317,18 +327,28 @@ let image ~params ~prev ~mask ~pool graph =
   |> Inc.collapse_error
 ;;
 
-let component ~default_size ~pool ~prev ~mask graph =
+type t =
+  { image : Sd.Image.t Inc.t
+  ; gallery_view : Vdom.Node.t Bonsai.t
+  ; form_view : Vdom.Node.t Bonsai.t
+  ; form : (Parameters.t, unit) Form.t Bonsai.t
+  }
+
+let component ~direction ~default_size ~pool ~prev ~mask graph =
   let params = Parameters.component ~default_size graph in
   let images, reset =
     Bonsai.with_model_resetter graph ~f:(fun graph ->
       image ~pool ~prev ~mask ~params graph)
   in
   let picked, set_picked = Bonsai.state_opt graph in
-  let view =
+  let form_view =
     let%arr { view = form; _ } = params
-    and images = images
     and theme = View.Theme.current graph
-    and reset = reset
+    and reset = reset in
+    form ~theme ~reset ~direction
+  in
+  let gallery_view =
+    let%arr images = images
     and picked = picked
     and set_picked = set_picked in
     let images =
@@ -371,7 +391,7 @@ let component ~default_size ~pool ~prev ~mask graph =
       | Not_computed -> Vdom.Node.div [ Vdom.Node.text "not computed yet..." ]
       | Error e -> Vdom.Node.div [ Vdom.Node.sexp_for_debugging (Error.sexp_of_t e) ]
     in
-    form ~theme ~reset, images
+    images
   in
   let picked =
     Inc.of_bonsai
@@ -394,5 +414,9 @@ let component ~default_size ~pool ~prev ~mask graph =
            | None -> error
            | Some image -> Inc.Or_error_or_stale.Fresh image))
   in
-  image >>| Inc.Or_error_or_stale.join, view, params >>| Form.map_view ~f:(fun _ -> ())
+  { image = image >>| Inc.Or_error_or_stale.join
+  ; form = params >>| Form.map_view ~f:(fun _ -> ())
+  ; form_view
+  ; gallery_view
+  }
 ;;

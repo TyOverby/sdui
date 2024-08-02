@@ -77,6 +77,6 @@ let component graph =
                   | Ok () -> ()
                   | Error e -> print_s [%message (e : Error.t)]))
         ]
-    ; view
+    ; View.vbox view
     ]
 ;;

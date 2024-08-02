@@ -3,33 +3,61 @@ open! Bonsai_web.Cont
 open! Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
 
+type paint_view =
+  { color_picker : Vdom.Node.t
+  ; pen_size_slider : Vdom.Node.t
+  ; layer_panel : Vdom.Node.t
+  ; forward_button : Vdom.Node.t
+  ; clear_button : Vdom.Node.t
+  ; widget : Vdom.Node.t
+  }
+
 let paint_impl ~prev graph =
   match%sub prev with
   | Inc.Or_error_or_stale.Fresh prev_for_paint | Stale prev_for_paint ->
-    let { Paint.images = t; view } = Paint.component ~prev:prev_for_paint graph in
+    let { Paint.images = t
+        ; color_picker
+        ; pen_size_slider
+        ; layer_panel
+        ; forward_button
+        ; clear_button
+        ; widget
+        }
+      =
+      Paint.component ~prev:prev_for_paint graph
+    in
     let%arr t = t
-    and view = view in
-    t, view
+    and color_picker = color_picker
+    and pen_size_slider = pen_size_slider
+    and layer_panel = layer_panel
+    and forward_button = forward_button
+    and clear_button = clear_button
+    and widget = widget in
+    ( t
+    , Some
+        { color_picker
+        ; pen_size_slider
+        ; layer_panel
+        ; forward_button
+        ; clear_button
+        ; widget
+        } )
   | Error e ->
     let%arr e = e in
-    Inc.Or_error_or_stale.Error e, Vdom.Node.textf "Error: %s" (Error.to_string_hum e)
-  | Not_computed ->
-    Bonsai.return (Inc.Or_error_or_stale.Not_computed, Vdom.Node.text "not computed")
+    Inc.Or_error_or_stale.Error e, None
+  | Not_computed -> Bonsai.return (Inc.Or_error_or_stale.Not_computed, None)
 ;;
 
-let img2img_impl ~pool ~prev ~mask ~prev_params graph =
-  let image, view, params = Single.component ~pool ~prev ~mask ~default_size:512 graph in
+let img2img_impl ~direction ~pool ~prev ~mask ~prev_params graph =
+  let t = Single.component ~direction ~pool ~prev ~mask ~default_size:512 graph in
   let%sub () =
     match%sub prev_params with
     | Ok prev_params ->
-      let _ = Form.Dynamic.with_default prev_params params graph in
+      let _ = Form.Dynamic.with_default prev_params t.form graph in
       return ()
     | Error _ -> return ()
   in
-  let%arr image = image
-  and view = view
-  and params = params in
-  image, view, Form.value params
+  t
 ;;
 
 let sketch_impl ~prev ~prev_params graph =
@@ -62,15 +90,38 @@ let component
   =
   let image, view, params =
     let%sub image, mask, sketch_view, _ = sketch_impl ~prev ~prev_params graph in
-    let%sub image, img2img_view, params =
-      img2img_impl ~pool ~prev:(image >>| Option.some) ~mask ~prev_params graph
+    let { Single.image; gallery_view; form_view; form } =
+      img2img_impl
+        ~direction:`Vertical
+        ~pool
+        ~prev:(image >>| Option.some)
+        ~mask
+        ~prev_params
+        graph
     in
     let view =
-      let%arr sketch_view = sketch_view
-      and params_form, gallery = img2img_view in
-      View.hbox [ sketch_view; View.vbox [ params_form; gallery ] ]
+      match%sub sketch_view with
+      | None -> return Vdom.Node.none
+      | Some
+          { color_picker
+          ; pen_size_slider
+          ; layer_panel
+          ; forward_button
+          ; clear_button
+          ; widget
+          } ->
+        Workspace.make
+          ~color_picker
+          ~pen_size_slider
+          ~layer_panel
+          ~forward_button
+          ~clear_button
+          ~widget
+          ~gallery_view
+          ~form_view
+          graph
     in
-    image, view, params
+    image, view, form >>| Form.value
   in
   let view =
     let%arr view = view
@@ -92,7 +143,7 @@ let do_txt2img ~prev ~prev_params ~index ~pool ~reset ~recurse graph =
   let next = recurse index image params graph in
   let%arr view = view
   and image, view2 = next in
-  image, View.vbox ~gap:(`Em 1) [ view; view2 ]
+  image, view :: view2
 ;;
 
 let _fix4 a b c d ~f graph =
@@ -141,12 +192,13 @@ let component ~pool ~index ~prev ~prev_params graph =
             do_txt2img ~prev ~prev_params ~index ~pool ~reset ~recurse graph
           | _ ->
             let%arr prev = prev in
-            prev, Vdom.Node.none)))
+            prev, [])))
 ;;
 
 let component ~pool graph =
-  let%sub image, view, params =
+  let { Single.image; gallery_view; form_view; form } =
     img2img_impl
+      ~direction:`Horizontal
       ~pool
       ~prev:(Bonsai.return None)
       ~prev_params:(Bonsai.return (Error (Error.of_string "no previous params")))
@@ -154,9 +206,15 @@ let component ~pool graph =
       graph
   in
   let rest =
-    component ~pool ~index:(Bonsai.return 1) ~prev:image ~prev_params:params graph
+    component
+      ~pool
+      ~index:(Bonsai.return 1)
+      ~prev:image
+      ~prev_params:(form >>| Form.value)
+      graph
   in
-  let%arr params, gallery = view
+  let%arr params = form_view
+  and gallery = gallery_view
   and _, rest = rest in
-  View.vbox [ View.vbox [ params; gallery ]; rest ]
+  View.vbox [ params; gallery ] :: rest
 ;;

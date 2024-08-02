@@ -6,12 +6,18 @@ module Parameters : sig
   type t
 end
 
+type t =
+  { image : Sd.Image.t Inc.t
+  ; gallery_view : Vdom.Node.t Bonsai.t
+  ; form_view : Vdom.Node.t Bonsai.t
+  ; form : (Parameters.t, unit) Form.t Bonsai.t
+  }
+
 val component
-  :  default_size:int
+  :  direction:[ `Vertical | `Horizontal ]
+  -> default_size:int
   -> pool:(Sd.Hosts.Host.t, _, _) Lease_pool.t
   -> prev:Sd.Image.t Inc.Or_error_or_stale.t option Bonsai.t
   -> mask:Sd.Image.t Inc.Or_error_or_stale.t option Bonsai.t
   -> Bonsai.graph
-  -> Sd.Image.t Inc.Or_error_or_stale.t Bonsai.t
-     * (Vdom.Node.t * Vdom.Node.t) Bonsai.t
-     * (Parameters.t, unit) Form.t Bonsai.t
+  -> t
