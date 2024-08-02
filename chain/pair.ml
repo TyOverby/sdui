@@ -120,13 +120,28 @@ let fix3 a b c ~f graph =
 let component ~pool ~index ~prev ~prev_params graph =
   fix3 index prev prev_params graph ~f:(fun ~recurse index prev prev_params graph ->
     let index = index >>| ( + ) 1 in
-    Bonsai.with_model_resetter' graph ~f:(fun ~reset graph ->
-      match%sub prev with
-      | Inc.Or_error_or_stale.Fresh _ | Stale _ ->
-        do_txt2img ~prev ~prev_params ~index ~pool ~reset ~recurse graph
-      | _ ->
-        let%arr prev = prev in
-        prev, Vdom.Node.none))
+    let scope, incr_scope =
+      Bonsai.state_machine0
+        ~default_model:0
+        ~apply_action:(fun _ model () -> model + 1)
+        graph
+    in
+    Bonsai.scope_model
+      (module Int)
+      graph
+      ~on:scope
+      ~for_:(fun graph ->
+        Bonsai.with_model_resetter' graph ~f:(fun ~reset graph ->
+          let reset =
+            Bonsai.map2 reset incr_scope ~f:(fun reset incr_scope ->
+              Effect.Many [ reset; incr_scope () ])
+          in
+          match%sub prev with
+          | Inc.Or_error_or_stale.Fresh _ | Stale _ ->
+            do_txt2img ~prev ~prev_params ~index ~pool ~reset ~recurse graph
+          | _ ->
+            let%arr prev = prev in
+            prev, Vdom.Node.none)))
 ;;
 
 let component ~pool graph =

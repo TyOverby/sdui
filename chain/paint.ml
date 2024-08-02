@@ -274,6 +274,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     and unique_id = unique_id
     and next_id = next_id
     and inject = inject
+    and path = Bonsai.path_id graph
     and slider = slider
     and color_picker = color_picker
     and layer_view = layer_view
@@ -294,7 +295,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
       Effect.all_unit effects
     in
     Vdom.Node.div
-      ~key:(Int.to_string unique_id)
+      ~key:(Int.to_string unique_id ^ path)
       [ View.vbox
           [ View.hbox
               ~attrs:
