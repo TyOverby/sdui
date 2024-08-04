@@ -22,7 +22,7 @@ module Style =
 
   .workspace-wrapper {
     overflow-y: scroll;
-    scroll-snap-type: y proximity;
+    /* scroll-snap-type: y proximity; */
   }
 |}]
 

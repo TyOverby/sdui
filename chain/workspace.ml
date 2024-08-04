@@ -7,15 +7,10 @@ module Style =
   [%css
   stylesheet
     {|
-
-body {
-  scroll-snap-type: y proximity;
-}
-
 .wrapper {
   min-height: 100vh;
   width: 100%;
-  background: red; 
+  /* background: red; */
   padding: 1em;
   display: flex;
   flex-direction: column;
@@ -24,28 +19,28 @@ body {
 
 .workspace {
   flex-grow: 1;
-  background: green ; 
+  /* background: green; */
   display: flex;
   min-height: 80vh;
 }
 
 .painting-area {
   flex-grow: 1;
-  background: blue;
+  /* background: blue; */
   display: flex;
 }
 
 .painting-widget {
   flex-grow: 1;
   display: flex;
-  background: orange;
+  /* background: orange; */
   align-items: center;
   justify-content: center;
   overflow:clip;
 }
 
 .painting-controls {
-  background: purple;
+  /* background: purple; */
 }
 
 .widget {
@@ -102,7 +97,7 @@ let make
                       ]
                     [ widget ]
                 ]
-            ; Vdom.Node.div
+            ; View.vbox
                 ~attrs:[ Style.painting_controls ]
                 [ color_picker
                 ; pen_size_slider
