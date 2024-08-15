@@ -33,6 +33,7 @@ let to_vdom ?(attrs = []) ?width ?height ?(drop_size = false) t =
   in
   let src =
     match t.kind with
+    | Base64 when String.is_prefix t.content ~prefix:"data:image/" -> t.content
     | Base64 -> sprintf "data:image/png;base64, %s" t.content
     | Url -> t.content
   in
