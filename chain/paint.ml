@@ -326,3 +326,5 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
   ; widget = widget_view
   }
 ;;
+
+external empty_white_image : int -> int -> Js.js_string Js.t = "empty_white_image"

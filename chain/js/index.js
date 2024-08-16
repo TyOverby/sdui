@@ -258,3 +258,14 @@ function painter_init(input) {
 
     return [0, state, stack];
 }
+
+//Provides:empty_white_image
+function empty_white_image(width, height) {
+  const canvas = document.createElement("canvas");
+  canvas.setAttribute("width", width);
+  canvas.setAttribute("height", height);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, width, height);
+  return canvas.toDataURL("image/png", 1);
+}

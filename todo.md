@@ -2,12 +2,12 @@ Features
 - [x] remove toplevel params (easy)
 - [x] "resize by 2x / 0.5x" buttons (easy)
 - [x] better queue UI (medium)
+- [x] paint for initial image (medium)
 - [ ] background upscale / downscale (hard)
 - [ ] kill unneeded jobs (medium)
 - [ ] single-workspace UI (hard)
 - [ ] tree-based workflow (hard)
 - [ ] bigger drag/drop target for initial image (easy)
-- [ ] paint for initial image (medium)
 - [ ] parameterize lease_pool on info about work (easy)
 - paint
   - [ ] opacity (medium)
