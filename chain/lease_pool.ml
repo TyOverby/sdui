@@ -91,8 +91,31 @@ type ('key, 'data, 'cmp) t =
   ; clear_all : unit Effect.t Bonsai.t
   ; debug : Sexp.t Lazy.t Bonsai.t
   ; leased_out : ('key, 'cmp) Set.t Bonsai.t
+  ; available : ('key, 'cmp) Set.t Bonsai.t
+  ; queued_jobs : Sexp.t option list Bonsai.t
   }
 [@@deriving fields]
+
+let advise ({ take; return; _ } as t) ~on_take ~on_return =
+  let take =
+    let%arr take = take
+    and on_take = on_take in
+    fun ~info ~pred ->
+      match%bind.Effect take ~info ~pred with
+      | Ok (k, v) ->
+        let%bind.Effect () = on_take k v in
+        Effect.return (Ok (k, v))
+      | Error e -> Effect.return (Error e)
+  in
+  let return =
+    let%arr return = return
+    and on_return = on_return in
+    fun key ->
+      let%bind.Effect () = on_return key in
+      return key
+  in
+  { t with take; return }
+;;
 
 let debug t = t.debug >>| Lazy.force
 
@@ -128,8 +151,17 @@ let create cmp ?(data_equal = phys_equal) map graph =
     let%arr model = model in
     lazy (Model.sexp_of_t model)
   in
+  let available =
+    let%arr map = map
+    and { leased_out; _ } = model in
+    Set.diff (Map.key_set map) leased_out
+  in
+  let queued_jobs =
+    let%arr { waiting; _ } = model in
+    Fdeque.to_list waiting |> List.map ~f:(fun { info; _ } -> info)
+  in
   let%sub { leased_out; _ } = model in
-  { take; return; debug; clear_all; leased_out }
+  { take; return; debug; clear_all; leased_out; available; queued_jobs }
 ;;
 
 let default_pred _ _ = true

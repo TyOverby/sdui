@@ -1,0 +1,6 @@
+- [x] split toplevel params
+- [ ] better queue UI
+- [ ] background upscale / downscale 
+- [ ] kill unneeded jobs
+- [ ] easy 2x / 0.5x resize buttons
+- [ ] tree view

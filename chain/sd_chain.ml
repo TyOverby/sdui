@@ -28,51 +28,31 @@ module Style =
 |}]
 
 let component graph =
-  let%sub { view = hosts_view; request = request_host; available_hosts } =
+  let%sub { view = hosts_view; available_hosts; set_worker_in_use } =
     Sd.Hosts.component graph
   in
   let hosts = Bonsai.Map.of_set available_hosts graph in
-  let lease_pool = Lease_pool.create (module Sd.Hosts.Host) hosts graph in
-  let parameters, model_form =
-    Sd.Parameters.component ~request_host ~available_hosts graph
-  in
-  let submit_effect =
-    let%arr parameters_form = Bonsai.peek (parameters >>| Form.value) graph
-    and model_form = Bonsai.peek (model_form >>| Form.value) graph
-    and sleep = Bonsai.Clock.sleep graph
-    and dispatcher = Lease_pool.dispatcher lease_pool in
-    Some
-      (match%bind.Effect Effect.Let_syntax.Let_syntax.both parameters_form model_form with
-       | Active (Ok _parameters), Active (Ok _model) ->
-         dispatcher (function
-           | Error e -> Effect.alert (Error.to_string_hum e)
-           | Ok (host, ()) ->
-             let%bind.Effect () =
-               Effect.print_s [%message "got a host, sleeping" (host : Sd.Hosts.Host.t)]
-             in
-             let%bind.Effect () = sleep (Time_ns.Span.of_sec 2.0) in
-             Effect.print_s [%message "done!" (host : Sd.Hosts.Host.t)])
-       | parameters, model ->
-         Effect.print_s
-           [%message
-             "BUG"
-               [%here]
-               (parameters : Sd.Txt2img.Query.t Or_error.t Bonsai.Computation_status.t)
-               (model : Sd.Models.t Or_error.t Bonsai.Computation_status.t)])
+  let lease_pool =
+    let on_take =
+      let%arr set_worker_in_use = set_worker_in_use in
+      fun k _ -> set_worker_in_use k true
+    and on_return =
+      let%arr set_worker_in_use = set_worker_in_use in
+      fun k -> set_worker_in_use k false
+    in
+    Lease_pool.create (module Sd.Hosts.Host) hosts graph
+    |> Lease_pool.advise ~on_take ~on_return
   in
   let%sub view = Pair.component ~pool:lease_pool graph in
-  let%arr parameters = parameters
-  and submit_effect = submit_effect
-  and lease_pool_debug = Lease_pool.debug lease_pool
+  let%arr lease_pool_debug = Lease_pool.debug lease_pool
   and hosts_view = hosts_view
   and view = view
   and theme = View.Theme.current graph
   and clear_all = Lease_pool.clear_all lease_pool
   and get_leased = Bonsai.peek (Lease_pool.leased_out lease_pool) graph in
-  let on_submit = Option.value submit_effect ~default:Effect.Ignore in
   Vdom.Node.div
     ~attrs:[ Style.app_wrapper ]
-    [ (Form.view parameters) ~on_submit ~hosts_panel:hosts_view
+    [ hosts_view
     ; Vdom.Node.div
         ~attrs:
           [ {%css| position: fixed; top:1em; left: 1em; background: black; padding:0.25em; border-radius:0.25em; z-index:1; |}

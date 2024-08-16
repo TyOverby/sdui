@@ -8,22 +8,16 @@ end
 
 module Form = Bonsai_web_ui_form.With_manual_view
 
-module Work = struct
-  type t =
-    { host : Host.t
-    ; f : 'a. (Host.t -> 'a Or_error.t Effect.t) -> 'a Or_error.t Effect.t
-    }
-
-  let sexp_of_t { host; _ } = Sexp.Atom host
-end
-
-type request_host = Work.t Effect.t
-
 type t =
   { view : Vdom.Node.t
-  ; request : request_host
-  ; available_hosts : String.Set.t
+  ; available_hosts : Host.Set.t
+  ; set_worker_in_use : Host.t -> bool -> unit Effect.t
   }
+
+let random_healthy_host =
+  Effect.of_sync_fun (fun { available_hosts; _ } ->
+    List.random_element (Set.to_list available_hosts))
+;;
 
 let health_check host =
   let%map.Effect response = Samplers_request.dispatch host in
@@ -133,43 +127,16 @@ let component graph =
     in
     good_hosts
   in
-  let%sub write, read = Bonsai_extra.pipe (module Work) graph in
-  let%sub workers =
-    Bonsai.assoc
-      (module String)
-      available
+  let worker_state, inject_worker_state =
+    Bonsai.state_machine0
       graph
-      ~f:(fun host _data graph ->
-        let working, set_working = Bonsai.state false graph in
-        let%sub register_self =
-          let%arr write = write
-          and host = host
-          and set_working = set_working in
-          write
-            { Work.host
-            ; f =
-                (fun cb ->
-                  let%bind.Effect () = set_working true in
-                  let%bind.Effect the_result = cb host in
-                  let%bind.Effect () = set_working false in
-                  Effect.return the_result)
-            }
-        in
-        Bonsai.Edge.on_change
-          working
-          ~equal:equal_bool
-          ~callback:
-            (let%map register_self = register_self in
-             function
-             | true -> Effect.Ignore
-             | false -> register_self)
-          graph;
-        working)
+      ~default_model:Host.Map.empty
+      ~apply_action:(fun _ctx model (key, data) -> Map.set model ~key ~data)
   in
   let view =
     let%arr textbox = hosts_form
     and host_status = host_status
-    and workers = workers
+    and worker_state = worker_state
     and theme = View.Theme.current graph in
     let highlight s =
       String.split_lines s
@@ -191,7 +158,7 @@ let component graph =
             color, false
           | Some (host, (`Good | `Good_pending)) ->
             let color = (View.intent_colors theme Success).background in
-            let busy = Map.find workers host |> Option.value ~default:true in
+            let busy = Map.find worker_state host |> Option.value ~default:true in
             color, busy
         in
         Vdom.Node.span
@@ -205,7 +172,8 @@ let component graph =
     (Form.view textbox) ~colorize:highlight ()
   in
   let%arr view = view
-  and read = read
-  and available = available in
-  { view; request = read; available_hosts = Map.key_set available }
+  and available = available
+  and inject_worker_state = inject_worker_state in
+  let set_worker_in_use k v = inject_worker_state (k, v) in
+  { view; set_worker_in_use; available_hosts = Map.key_set available }
 ;;

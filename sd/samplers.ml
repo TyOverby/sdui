@@ -7,14 +7,15 @@ let default = "Euler a"
 
 include Samplers_request
 
-let all ~(request_host : Hosts.request_host Bonsai.t) graph =
+let all ~(hosts : Hosts.t Bonsai.t) graph =
   let r, refresh =
     Bonsai.Edge.Poll.manual_refresh
       (Bonsai.Edge.Poll.Starting.initial (Error (Error.of_string "loading...")))
       ~effect:
-        (let%map request_host = request_host in
-         let%bind.Effect work = request_host in
-         work.f (fun host -> dispatch (host :> string)))
+        (let%map hosts = hosts in
+         match%bind.Effect Hosts.random_healthy_host hosts with
+         | None -> Effect.return (Ok [])
+         | Some host -> dispatch (host :> string))
       graph
   in
   Bonsai.Clock.every
@@ -33,8 +34,8 @@ let str_rep ~find ~replace s =
     ~with_:replace
 ;;
 
-let form ~request_host graph =
-  let all = all ~request_host graph in
+let form ~hosts graph =
+  let all = all ~hosts graph in
   let state, set_state = Bonsai.state default graph in
   let%arr theme = View.Theme.current graph
   and all = all

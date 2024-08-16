@@ -218,7 +218,7 @@ end
 open Individual
 
 let component
-  ~(request_host : Hosts.request_host Bonsai.t)
+  ~(hosts : Hosts.t Bonsai.t)
   ~(available_hosts : Hosts.Host.Set.t Bonsai.t)
   graph
   =
@@ -251,9 +251,9 @@ let component
     min_1_form ~default:(Int63.of_int 25) ~max:150 ~label:"steps" graph
   in
   let cfg_scale_form = min_1_form ~default:(Int63.of_int 7) ~max:30 ~label:"cfg" graph in
-  let%sub sampler_form, sampler_form_view = Samplers.form ~request_host graph in
-  let upscaler_form = Upscaler.form ~request_host graph in
-  let%sub styles_form = Styles.form ~request_host graph in
+  let%sub sampler_form, sampler_form_view = Samplers.form ~hosts graph in
+  let upscaler_form = Upscaler.form ~hosts graph in
+  let%sub styles_form = Styles.form ~hosts graph in
   let hr_form = Custom_form_elements.bool_form ~title:"upscale" ~default:false graph in
   let%sub denoising_strength =
     Form.Elements.Range.float
@@ -267,7 +267,7 @@ let component
       ()
       graph
   in
-  let models_form = Models.form ~request_host ~available_hosts graph in
+  let models_form = Models.form ~hosts ~available_hosts graph in
   let form =
     Form.Typed.Record.make
       (module struct

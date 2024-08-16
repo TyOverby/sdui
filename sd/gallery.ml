@@ -223,7 +223,8 @@ module Key = struct
   include Comparable.Make (T)
 end
 
-let component ~(request_host : Hosts.request_host Bonsai.t) ~set_params graph =
+let component ~(hosts : Hosts.t Bonsai.t) ~set_params graph =
+  let _ = hosts in
   let model, modify_images =
     Bonsai.state_machine0
       ~default_model:(0, Map.empty (module Key))
@@ -249,12 +250,12 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~set_params graph =
       ~f:(fun idx params graph ->
         let state, set_state = Bonsai.state `Queued graph in
         let dispatch_img2img =
-          let%arr request_host = request_host
+          let%arr request_host = assert false
           and set_state = set_state in
           fun params ->
             let%bind.Effect work = request_host in
             Effect.ignore_m
-            @@ work.f (fun host_and_port ->
+            @@ work (*.f*) (fun host_and_port ->
               match%bind.Effect
                 Img2img.dispatch ~host_and_port:(host_and_port :> string) params
               with
@@ -270,12 +271,12 @@ let component ~(request_host : Hosts.request_host Bonsai.t) ~set_params graph =
                 Error e)
         in
         let dispatch_txt2img =
-          let%arr request_host = request_host
+          let%arr request_host = assert false
           and set_state = set_state in
           fun params ->
             let%bind.Effect work = request_host in
             Effect.ignore_m
-            @@ work.f (fun host_and_port ->
+            @@ work (*.f*) (fun host_and_port ->
               match%bind.Effect
                 Txt2img.dispatch ~host_and_port:(host_and_port :> string) params
               with

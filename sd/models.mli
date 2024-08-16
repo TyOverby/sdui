@@ -9,15 +9,11 @@ module Current_model : sig
 
   val dispatch_set : string * t -> unit Or_error.t Ui_effect.t
   val dispatch_get : string -> string Or_error.t Ui_effect.t
-
-  val current
-    :  request_host:Hosts.request_host Bonsai.t
-    -> Bonsai.graph
-    -> string option Bonsai.t
+  val current : hosts:Hosts.t Bonsai.t -> Bonsai.graph -> string option Bonsai.t
 end
 
 val form
-  :  request_host:Hosts.request_host Bonsai.t
+  :  hosts:Hosts.t Bonsai.t
   -> available_hosts:Hosts.Host.Set.t Bonsai.t
   -> Bonsai.graph
   -> (t, Vdom.Node.t) Form.t Bonsai.t

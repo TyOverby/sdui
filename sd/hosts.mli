@@ -7,20 +7,11 @@ module Host : sig
   include Comparable.S with type t := t
 end
 
-module Work : sig
-  type t =
-    { host : Host.t
-    ; f : 'a. (Host.t -> 'a Or_error.t Effect.t) -> 'a Or_error.t Effect.t
-    }
-  [@@deriving sexp_of]
-end
-
-type request_host = Work.t Effect.t
-
 type t =
   { view : Vdom.Node.t
-  ; request : request_host
   ; available_hosts : Host.Set.t
+  ; set_worker_in_use : Host.t -> bool -> unit Effect.t
   }
 
+val random_healthy_host : t -> Host.t option Effect.t
 val component : Bonsai.graph -> t Bonsai.t

@@ -27,14 +27,10 @@ module Style = [%css stylesheet {|
 |}]
 
 let component graph =
-  let%sub { view = hosts_view; request = request_host; available_hosts } =
-    Hosts.component graph
-  in
-  let parameters, _model_view =
-    Parameters.component ~request_host ~available_hosts graph
-  in
+  let%sub ({ view = hosts_view; available_hosts; _ } as hosts) = Hosts.component graph in
+  let parameters, _model_view = Parameters.component ~hosts ~available_hosts graph in
   let%sub { queue_request; view = gallery } =
-    Gallery.component ~request_host ~set_params:(parameters >>| Form.set) graph
+    Gallery.component ~hosts ~set_params:(parameters >>| Form.set) graph
   in
   let%sub submit_effect =
     let%arr form = Bonsai.peek parameters graph

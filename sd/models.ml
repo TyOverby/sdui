@@ -47,14 +47,15 @@ module Current_model = struct
 
   let dispatch_get = Effect.of_deferred_fun dispatch_get
 
-  let current ~(request_host : Hosts.request_host Bonsai.t) graph =
+  let current ~(hosts : Hosts.t Bonsai.t) graph =
     let r, refresh =
       Bonsai.Edge.Poll.manual_refresh
         (Bonsai.Edge.Poll.Starting.initial (Error (Error.of_string "loading...")))
         ~effect:
-          (let%map request_host = request_host in
-           let%bind.Effect work = request_host in
-           work.f (fun host -> dispatch_get (host :> string)))
+          (let%map hosts = hosts in
+           match%bind.Effect Hosts.random_healthy_host hosts with
+           | None -> Effect.return (Error (Error.of_string "no hosts..."))
+           | Some host -> dispatch_get (host :> string))
         graph
     in
     Bonsai.Clock.every
@@ -95,14 +96,15 @@ module Model_list = struct
 
   let dispatch_get = Effect.of_deferred_fun dispatch
 
-  let all ~(request_host : Hosts.request_host Bonsai.t) graph =
+  let all ~(hosts : Hosts.t Bonsai.t) graph =
     let r, refresh =
       Bonsai.Edge.Poll.manual_refresh
         (Bonsai.Edge.Poll.Starting.initial (Error (Error.of_string "loading...")))
         ~effect:
-          (let%map request_host = request_host in
-           let%bind.Effect work = request_host in
-           work.f (fun host -> dispatch_get (host :> string)))
+          (let%map hosts = hosts in
+           match%bind.Effect Hosts.random_healthy_host hosts with
+           | None -> Effect.return (Ok [])
+           | Some host -> dispatch_get (host :> string))
         graph
     in
     Bonsai.Clock.every
@@ -118,10 +120,10 @@ module Model_list = struct
   ;;
 end
 
-let form ~request_host ~(available_hosts : Hosts.Host.Set.t Bonsai.t) graph =
-  let all = Model_list.all ~request_host graph in
+let form ~hosts ~(available_hosts : Hosts.Host.Set.t Bonsai.t) graph =
+  let all = Model_list.all ~hosts graph in
   let state, set_state = Bonsai.state_opt graph in
-  let current = Current_model.current ~request_host graph in
+  let current = Current_model.current ~hosts graph in
   let in_progress, set_in_progress = Bonsai.state false graph in
   Bonsai.Edge.on_change
     ~equal:[%equal: Hosts.Host.Set.t * string option * string option]

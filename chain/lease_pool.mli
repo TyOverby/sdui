@@ -32,6 +32,13 @@ val dispatcher
       -> 'result Effect.t)
        Bonsai.t
 
+val available : ('k, _, 'cmp) t -> ('k, 'cmp) Set.t Bonsai.t
 val leased_out : ('k, _, 'cmp) t -> ('k, 'cmp) Set.t Bonsai.t
 val debug : _ t -> Sexp.t Bonsai.t
 val clear_all : _ t -> unit Effect.t Bonsai.t
+
+val advise
+  :  ('key, 'data, 'cmp) t
+  -> on_take:('key -> 'data -> unit Effect.t) Bonsai.t
+  -> on_return:('key -> unit Effect.t) Bonsai.t
+  -> ('key, 'data, 'cmp) t
