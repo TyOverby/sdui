@@ -34,6 +34,7 @@ val dispatcher
 
 val available : ('k, _, 'cmp) t -> ('k, 'cmp) Set.t Bonsai.t
 val leased_out : ('k, _, 'cmp) t -> ('k, 'cmp) Set.t Bonsai.t
+val queued_jobs : _ t -> Sexp.t option list Bonsai.t
 val debug : _ t -> Sexp.t Bonsai.t
 val clear_all : _ t -> unit Effect.t Bonsai.t
 

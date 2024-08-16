@@ -86,27 +86,28 @@ module Parameters = struct
               | `Vertical -> (fun a -> View.hbox a), fun a -> View.vbox a
             in
             let size_modification s ~f =
-              View.button
-                theme
-                s
-                ~on_click:
-                  (Effect.Many
-                     [ Form.value_or_default width ~default:Int63.zero
-                       |> f
-                       |> Form.set width
-                     ; Form.value_or_default height ~default:Int63.zero
-                       |> f
-                       |> Form.set height
-                     ])
+              let on_click =
+                let modify form =
+                  Form.value_or_default form ~default:Int63.zero |> f |> Form.set form
+                in
+                Effect.Many [ modify width; modify height ]
+              in
+              View.button theme s ~on_click
             in
-            let two_x_button = size_modification "* 2" ~f:Int63.(( * ) (of_int 2)) in
-            let div2_button = size_modification "/ 2" ~f:Int63.(( / ) (of_int 2)) in
+            let two_x_button = size_modification "2" ~f:Int63.(( * ) (of_int 2)) in
+            let div2_button = size_modification "1/2" ~f:Int63.(fun x -> x / of_int 2) in
+            let div3_button = size_modification "1/3" ~f:Int63.(fun x -> x / of_int 3) in
             Vdom.Node.div
               [ vbox
                   [ hbox
                       [ View.button theme "reset" ~on_click:reset
                       ; vbox
-                          [ Form.view width; Form.view height; two_x_button; div2_button ]
+                          [ Form.view width
+                          ; Form.view height
+                          ; two_x_button
+                          ; div2_button
+                          ; div3_button
+                          ]
                       ; vbox [ Form.view steps; Form.view cfg ]
                       ; vbox [ Form.view denoise; Form.view seed ]
                       ; Form.view ratios
