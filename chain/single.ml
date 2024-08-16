@@ -85,11 +85,28 @@ module Parameters = struct
               | `Horizontal -> (fun a -> View.vbox a), fun a -> View.hbox a
               | `Vertical -> (fun a -> View.hbox a), fun a -> View.vbox a
             in
+            let size_modification s ~f =
+              View.button
+                theme
+                s
+                ~on_click:
+                  (Effect.Many
+                     [ Form.value_or_default width ~default:Int63.zero
+                       |> f
+                       |> Form.set width
+                     ; Form.value_or_default height ~default:Int63.zero
+                       |> f
+                       |> Form.set height
+                     ])
+            in
+            let two_x_button = size_modification "* 2" ~f:Int63.(( * ) (of_int 2)) in
+            let div2_button = size_modification "/ 2" ~f:Int63.(( / ) (of_int 2)) in
             Vdom.Node.div
               [ vbox
                   [ hbox
                       [ View.button theme "reset" ~on_click:reset
-                      ; vbox [ Form.view width; Form.view height ]
+                      ; vbox
+                          [ Form.view width; Form.view height; two_x_button; div2_button ]
                       ; vbox [ Form.view steps; Form.view cfg ]
                       ; vbox [ Form.view denoise; Form.view seed ]
                       ; Form.view ratios
