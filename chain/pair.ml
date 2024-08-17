@@ -255,23 +255,6 @@ let create file =
   Bonsai_web_ui_file.Expert.create ~read ~filename:(File.filename file |> Js.to_string)
 ;;
 
-module _ =
-  [%css
-  stylesheet
-    {|
-    /*
-input::file-selector-button {
-  font-weight: bold;
-  color: dodgerblue;
-  padding: 0.5em;
-  border: thin solid grey;
-  border-radius: 3px;
-  margin: 0.5em;
-}
-  */
-
-|}]
-
 let component ~pool graph =
   let first_image, first_image_view =
     let state, set_state = Bonsai.state_opt graph in
