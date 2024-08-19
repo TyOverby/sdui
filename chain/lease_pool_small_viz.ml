@@ -21,6 +21,7 @@ module Style =
   width: 50px;
   height: 50px;
   border-radius: 20px;
+  background: green;
 }
 
 |}]

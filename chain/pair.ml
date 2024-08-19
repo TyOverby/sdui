@@ -101,7 +101,7 @@ let component
     in
     let view =
       match%sub sketch_view with
-      | None -> return Vdom.Node.none
+      | None -> return Workspace.empty
       | Some
           { color_picker
           ; pen_size_slider
@@ -111,6 +111,7 @@ let component
           ; widget
           } ->
         Workspace.make
+          ~index
           ~color_picker
           ~pen_size_slider
           ~layer_panel
@@ -119,31 +120,24 @@ let component
           ~widget
           ~gallery_view
           ~form_view
+          ~reset
           graph
     in
     image, view, form >>| Form.value
-  in
-  let view =
-    let%arr view = view
-    and theme = View.Theme.current graph
-    and reset = reset
-    and index = index in
-    let header =
-      Vdom.Node.h2
-        ~attrs:[ {%css| margin:0; |} ]
-        [ Vdom.Node.textf "#%d " index; View.button theme "x" ~on_click:reset ]
-    in
-    Vdom.Node.div [ header; view ]
   in
   image, view, params
 ;;
 
 let do_txt2img ~prev ~prev_params ~index ~pool ~reset ~recurse graph =
+  let path = Bonsai.path graph in
   let image, view, params = component ~index ~pool ~prev ~reset ~prev_params graph in
   let next = recurse index image params graph in
   let%arr view = view
-  and image, view2 = next in
-  image, view :: view2
+  and image, route, view2 = next
+  and path = path in
+  ( image
+  , Route.branch ~key:path ~data:() ~children:[ route ]
+  , Map.set view2 ~key:path ~data:view )
 ;;
 
 let _fix4 a b c d ~f graph =
@@ -192,170 +186,146 @@ let component ~pool ~index ~prev ~prev_params graph =
             do_txt2img ~prev ~prev_params ~index ~pool ~reset ~recurse graph
           | _ ->
             let%arr prev = prev in
-            prev, [])))
+            prev, Route.empty, Bonsai.Path.Map.empty)))
 ;;
 
-let create file =
-  let open Core in
-  let open Async_kernel in
-  let open Js_of_ocaml in
-  let read =
-    Ui_effect.of_sync_fun (fun on_progress ->
-      let file_reader = new%js File.fileReader in
-      let result = Ivar.create () in
-      let result =
-        Bonsai_web.Effect.of_deferred_fun
-          (fun () ->
-            let call_on_progress ev =
-              if Js.to_bool ev##.lengthComputable
-              then
-                on_progress
-                  { Bonsai_web_ui_file.Progress.loaded = ev##.loaded; total = ev##.total }
-                |> Ui_effect.Expert.handle
-            in
-            file_reader##.onprogress
-            := Dom.handler (fun ev ->
-                 call_on_progress ev;
-                 Js._true);
-            file_reader##.onerror
-            := Dom.handler (fun _ev ->
-                 let error =
-                   Error.create_s
-                     [%message
-                       "Error reading file"
-                         ~code:(file_reader##.error##.code : int)
-                         ~message:
-                           (Js.to_string
-                              (Js.Unsafe.get file_reader##.error (Js.string "message")))]
-                 in
-                 Ivar.fill_if_empty
-                   result
-                   (Error (Bonsai_web_ui_file.Read_error.Error error));
-                 Js._true);
-            file_reader##.onload
-            := Dom.handler (fun ev ->
-                 call_on_progress ev;
-                 (match
-                    file_reader##.result |> File.CoerceTo.string |> Js.Opt.to_option
-                  with
-                  | None ->
-                    raise_s
-                      [%message "BUG: could not coerce fileReader result to arrayBuffer"]
-                  | Some string ->
-                    let contents = Bigstring.of_string (Js.to_string string) in
-                    Ivar.fill_if_empty result (Ok contents));
-                 Js._true);
-            file_reader##readAsDataURL file;
-            Ivar.read result)
-          ()
-      in
-      let abort = Ui_effect.of_sync_fun (fun () -> file_reader##abort) () in
-      { Bonsai_web_ui_file.Expert.result; abort })
-  in
-  Bonsai_web_ui_file.Expert.create ~read ~filename:(File.filename file |> Js.to_string)
-;;
-
-let component ~pool graph =
-  let first_image, first_image_view =
-    let state, set_state = Bonsai.state_opt graph in
-    let view =
-      let%arr set_state = set_state
-      and width_form =
-        Form.Elements.Number.int
-          ~allow_updates_when_focused:`Always
-          ~step:8
-          ~default:512
-          ()
+let component ~pool ~hosts_view ~lease_pool_view graph =
+  let init_path = Bonsai.path graph in
+  let first_image, first_image_view = First_image.component graph in
+  let no_prev_params = Bonsai.return (Error (Error.of_string "no previous params")) in
+  let selected, set_selected = Bonsai.state_opt graph in
+  let%sub route, rest =
+    match%sub first_image with
+    | None ->
+      let { Single.image; gallery_view; form_view; form } =
+        img2img_impl
+          ~direction:`Vertical
+          ~pool
+          ~prev:(Bonsai.return None)
+          ~prev_params:no_prev_params
+          ~mask:(Bonsai.return None)
           graph
-      and height_form =
-        Form.Elements.Number.int
-          ~allow_updates_when_focused:`Always
-          ~step:8
-          ~default:512
-          ()
-          graph
-      and state = state
-      and theme = View.Theme.current graph in
-      let input =
-        let file_upload =
-          Vdom_input_widgets.File_select.single
-            ~on_input:(function
-              | None -> set_state None
-              | Some file ->
-                let file = create file in
-                (match%bind.Effect Bonsai_web_ui_file.contents file with
-                 | Error e -> set_state (Some (Error e))
-                 | Ok contents ->
-                   let image =
-                     Sd.Image.of_string ~kind:Base64 (Bigstring.to_string contents)
-                   in
-                   set_state (Some (Ok image))))
-            ()
-        in
-        let empty_image_form =
-          View.hbox
-            [ Form.view width_form
-            ; Form.view height_form
-            ; View.button
-                theme
-                "empty image"
-                ~on_click:
-                  (Effect.lazy_
-                     (lazy
-                       (let image =
-                          Paint.empty_white_image
-                            (Form.value_or_default width_form ~default:0)
-                            (Form.value_or_default height_form ~default:0)
-                        in
-                        set_state
-                          (Some
-                             (Ok
-                                (Sd.Image.of_string
-                                   ~kind:Base64
-                                   (Js_of_ocaml.Js.to_string image)))))))
-            ]
-        in
-        View.vbox
-          [ file_upload
-          ; empty_image_form
-          ; View.button theme "text description" ~on_click:(set_state None)
-          ]
       in
-      match state with
-      | None -> input
-      | Some (Error e) ->
-        View.vbox [ input; Vdom.Node.sexp_for_debugging [%sexp (e : Error.t)] ]
-      | Some (Ok img) -> View.vbox [ input; Sd.Image.to_vdom img ]
-    in
-    let state =
-      state
-      >>| function
-      | None -> None
-      | Some (Error _) -> None
-      | Some (Ok v) -> Some (Inc.Or_error_or_stale.Fresh v)
-    in
-    state, view
+      let rest =
+        component
+          ~pool
+          ~index:(Bonsai.return 1)
+          ~prev:image
+          ~prev_params:(form >>| Form.value)
+          graph
+      in
+      let%arr form_view = form_view
+      and gallery = gallery_view
+      and _, route, rest = rest
+      and init_path = init_path
+      and first_image_view = first_image_view in
+      let route = Route.branch ~key:init_path ~data:() ~children:[ route ] in
+      let rest =
+        Map.set
+          rest
+          ~key:init_path
+          ~data:(Workspace.for_first_node ~first_image_view ~form_view ~gallery)
+      in
+      route, rest
+    | Some image ->
+      let rest =
+        component
+          ~pool
+          ~index:(Bonsai.return 1)
+          ~prev:image
+          ~prev_params:no_prev_params
+          graph
+      in
+      let%arr _, route, rest = rest
+      and first_image_view = first_image_view
+      and init_path = init_path in
+      let route = Route.branch ~key:init_path ~data:() ~children:[ route ] in
+      let rest =
+        Map.set
+          rest
+          ~key:init_path
+          ~data:
+            (Workspace.for_first_node
+               ~first_image_view
+               ~form_view:Vdom.Node.none
+               ~gallery:Vdom.Node.none)
+      in
+      route, rest
   in
-  let { Single.image; gallery_view; form_view; form } =
-    img2img_impl
-      ~direction:`Horizontal
-      ~pool
-      ~prev:first_image
-      ~prev_params:(Bonsai.return (Error (Error.of_string "no previous params")))
-      ~mask:(Bonsai.return None)
+  let selected =
+    let%arr selected = selected
+    and init_path = init_path
+    and rest = rest in
+    match selected with
+    | None -> init_path
+    | Some selected -> if Map.mem rest selected then selected else init_path
+  in
+  let () =
+    Bonsai.Edge.on_change'
+      rest
+      ~equal:(Bonsai.Path.Map.equal (fun _ _ -> true))
       graph
+      ~callback:
+        (let%arr selected = selected
+         and set_selected = set_selected in
+         fun prev next ->
+           match prev with
+           | None -> Effect.Ignore
+           | Some prev ->
+             Map.fold_symmetric_diff
+               ~data_equal:(fun _ _ -> true)
+               prev
+               next
+               ~init:Effect.Ignore
+               ~f:(fun acc ->
+                 function
+                 | key, `Right (_ : Workspace.t) ->
+                   if [%compare: Bonsai.Path.t] selected key <= 0
+                   then set_selected (Some key)
+                   else acc
+                 | _ -> acc))
+  in
+  let route_view =
+    let%arr route = route
+    and selected = selected
+    and set_selected = set_selected in
+    Route.render route ~f:(fun key () ->
+      let background =
+        if [%equal: Bonsai.Path.t] selected key then "green" else "white"
+      in
+      Vdom.Node.div
+        ~attrs:
+          [ {%css| margin: 5px; border-radius:10px; width: 20px; height:20px; background: %{background}; |}
+          ; Vdom.Attr.on_click (fun _ -> set_selected (Some key))
+          ]
+        [])
   in
   let rest =
-    component
-      ~pool
-      ~index:(Bonsai.return 1)
-      ~prev:image
-      ~prev_params:(form >>| Form.value)
+    Bonsai.assoc
+      (module Bonsai.Path)
+      rest
       graph
+      ~f:(fun path data _graph ->
+        let%arr selected = selected
+        and path = path
+        and data = data
+        and hosts_view = hosts_view
+        and route_view = route_view
+        and lease_pool_view = lease_pool_view in
+        let maybe_visible =
+          if [%equal: Bonsai.Path.t] selected path
+          then {%css||}
+          else {%css| display: none; |}
+        in
+        Vdom.Node.div
+          ~attrs:[ maybe_visible ]
+          [ Workspace.finalize
+              data
+              ~hosts:hosts_view
+              ~queue:lease_pool_view
+              ~route:route_view
+          ])
   in
-  let%arr params = form_view
-  and gallery = gallery_view
-  and _, rest = rest
-  and first_image_view = first_image_view in
-  View.vbox [ first_image_view; params; gallery ] :: rest
+  let%arr rest = rest in
+  Vdom_node_with_map_children.make ~tag:"div" rest
 ;;

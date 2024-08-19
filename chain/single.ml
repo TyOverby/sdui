@@ -4,7 +4,7 @@ open! Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
 module P = Sd.Parameters.Individual
 
-let parallelism = 4
+let parallelism = 1
 
 module Parameters = struct
   type t =

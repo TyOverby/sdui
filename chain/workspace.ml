@@ -3,46 +3,9 @@ open! Bonsai_web.Cont
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
 
-module Style =
-  [%css
-  stylesheet
-    {|
-.wrapper {
-  min-height: 100vh;
-  width: 100%;
-  /* background: red; */
-  padding: 1em;
-  display: flex;
-  flex-direction: column;
-  scroll-snap-align: start end;
-}
+type t = hosts:Vdom.Node.t -> queue:Vdom.Node.t -> route:Vdom.Node.t -> Vdom.Node.t
 
-.workspace {
-  flex-grow: 1;
-  /* background: green; */
-  display: flex;
-  min-height: 80vh;
-}
-
-.painting-area {
-  flex-grow: 1;
-  /* background: blue; */
-  display: flex;
-}
-
-.painting-widget {
-  flex-grow: 1;
-  display: flex;
-  /* background: orange; */
-  align-items: center;
-  justify-content: center;
-  overflow:clip;
-}
-
-.painting-controls {
-  /* background: purple; */
-}
-
+module Style = [%css stylesheet {|
 .widget {
   transform: scale(var(--scale));
 }
@@ -50,6 +13,8 @@ module Style =
 |}]
 
 let make
+  ~(index : int Bonsai.t)
+  ~(reset : unit Effect.t Bonsai.t)
   ~(gallery_view : Vdom.Node.t Bonsai.t)
   ~(form_view : Vdom.Node.t Bonsai.t)
   ~(color_picker : Vdom.Node.t Bonsai.t)
@@ -70,6 +35,7 @@ let make
       ()
       graph
   in
+  let _ = index, reset in
   let%arr gallery_view = gallery_view
   and form_view = form_view
   and color_picker = color_picker
@@ -79,36 +45,62 @@ let make
   and clear_button = clear_button
   and widget = widget
   and zoom_form = zoom_form in
-  Vdom.Node.div
-    ~attrs:[ Style.wrapper ]
-    [ Vdom.Node.div
-        ~attrs:[ Style.workspace ]
-        [ Vdom.Node.div
-            ~attrs:[ Style.painting_area ]
-            [ Vdom.Node.div
-                ~attrs:[ Style.painting_widget ]
-                [ Vdom.Node.div
-                    ~attrs:
-                      [ Style.widget
-                      ; Style.Variables.set_all
-                          ~scale:
-                            (Virtual_dom.Dom_float.to_string
-                               (Form.value_or_default zoom_form ~default:1.0))
-                      ]
-                    [ widget ]
-                ]
-            ; View.vbox
-                ~attrs:[ Style.painting_controls ]
-                [ color_picker
-                ; pen_size_slider
-                ; layer_panel
-                ; forward_button
-                ; clear_button
-                ; Form.view zoom_form
-                ]
-            ]
-        ; form_view
+  fun ~hosts ~queue ~route ->
+    let open Snips.Infix in
+    let paint_controls =
+      View.vbox
+        [ color_picker
+        ; pen_size_slider
+        ; layer_panel
+        ; forward_button
+        ; clear_button
+        ; Form.view zoom_form
         ]
-    ; gallery_view
-    ]
+    in
+    Snips.top (View.hbox [ hosts; queue ])
+    |+| Snips.bottom route
+    |+| Snips.right form_view
+    |+| Snips.right paint_controls
+    |+| Snips.body
+          (View.vbox
+             [ Vdom.Node.div
+                 ~attrs:
+                   [ {%css|
+          display: flex;
+          justify-content: center;
+          align-content: center;
+          align-items: center;
+          min-height: 75vh;
+
+          --color-gray: #80808050;
+          background: repeating-conic-gradient(#80808050 0% 25%, transparent 0% 50%) 50% / 20px 20px;
+          overflow:clip;
+          |}
+                   ]
+                 [ Vdom.Node.div
+                     ~attrs:
+                       [ Style.widget
+                       ; Style.Variables.set_all
+                           ~scale:
+                             (Virtual_dom.Dom_float.to_string
+                                (Form.value_or_default zoom_form ~default:1.0))
+                       ]
+                     [ widget ]
+                 ]
+             ; gallery_view
+             ])
+    |> Snips.render
 ;;
+
+let for_first_node ~first_image_view ~form_view ~gallery =
+  Fn.id (fun ~hosts ~queue ~route ->
+    let open Snips.Infix in
+    Snips.top (View.hbox [ hosts; queue ])
+    |+| Snips.bottom route
+    |+| Snips.right form_view
+    |+| Snips.body (View.vbox [ first_image_view; gallery ])
+    |> Snips.render)
+;;
+
+let empty ~hosts:_ ~queue:_ ~route:_ = Vdom.Node.none
+let finalize = Fn.id
