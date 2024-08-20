@@ -8,7 +8,7 @@ Features
 - [x] "dev mode" (detect localhost) (easy)
   - [x] set parallelism to 1 (easy)
   - [x] set steps to 1 (easy)
-- [ ] configurable parallelism (easy)
+- [x] configurable parallelism (easy)
 - [ ] add a "commit canvas" to apply filters to
       https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/filter
 - [ ] "favorites" pane (medium)
