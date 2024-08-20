@@ -24,12 +24,13 @@ let num_images form =
   | Error _ -> 1
 ;;
 
-let component ~default_size graph =
+let component graph =
   let is_localhost =
     String.equal
       "localhost"
       (Js_of_ocaml.Js.to_string Js_of_ocaml.Dom_html.window##.location##.hostname)
   in
+  let default_size = if is_localhost then 128 else 256 in
   let seed =
     P.seed_form
       ~container_attrs:(fun ~state ~set_state ->

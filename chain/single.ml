@@ -117,8 +117,8 @@ type t =
   ; form : (Parameters.t, unit) Form.t Bonsai.t
   }
 
-let component ~direction ~default_size ~pool ~prev ~mask graph =
-  let params = Parameters.component ~default_size graph in
+let component ~direction ~pool ~prev ~mask graph =
+  let params = Parameters.component graph in
   let images, reset =
     Bonsai.with_model_resetter graph ~f:(fun graph ->
       image ~pool ~prev ~mask ~params graph)

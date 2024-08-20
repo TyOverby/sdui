@@ -1,4 +1,4 @@
-Features
+# Features
 - [x] remove toplevel params (easy)
 - [x] "resize by 2x / 0.5x" buttons (easy)
 - [x] better queue UI (medium)
@@ -8,9 +8,10 @@ Features
 - [x] "dev mode" (detect localhost) (easy)
   - [x] set parallelism to 1 (easy)
   - [x] set steps to 1 (easy)
+  - [x] default size to 128x128 (easy)
 - [x] configurable parallelism (easy)
 - [ ] add a "commit canvas" to apply filters to
-      https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/filter
+      https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/filter (hard)
 - [ ] "favorites" pane (medium)
 - [ ] background upscale / downscale (hard)
 - [ ] kill unneeded jobs (medium)
@@ -25,8 +26,11 @@ Features
   - [ ] pan
   - [ ] clear paint and mask layers separately
 
-Bugs
+# Bugs
 - [ ] race on incomplete image
 - [ ] incomplete image size is wrong
 - paint
   - [ ] sync state on component reset
+
+# Behavior
+- [ ] why is the "preview" image updated so infrequently?

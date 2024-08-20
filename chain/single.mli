@@ -11,7 +11,6 @@ type t =
 
 val component
   :  direction:[ `Vertical | `Horizontal ]
-  -> default_size:int
   -> pool:(Sd.Hosts.Host.t, _, _) Lease_pool.t
   -> prev:Sd.Image.t Inc.Or_error_or_stale.t option Bonsai.t
   -> mask:Sd.Image.t Inc.Or_error_or_stale.t option Bonsai.t

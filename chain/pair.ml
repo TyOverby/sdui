@@ -49,7 +49,7 @@ let paint_impl ~prev graph =
 ;;
 
 let img2img_impl ~direction ~pool ~prev ~mask ~prev_params graph =
-  let t = Single.component ~direction ~pool ~prev ~mask ~default_size:512 graph in
+  let t = Single.component ~direction ~pool ~prev ~mask graph in
   let%sub () =
     match%sub prev_params with
     | Ok prev_params ->
