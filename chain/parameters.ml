@@ -14,10 +14,22 @@ type t =
   ; cfg : Int63.t
   ; denoise : Int63.t
   ; ratios : string
+  ; num_images : int
   }
 [@@deriving typed_fields]
 
+let num_images form =
+  match Form.value form with
+  | Ok { num_images; _ } -> num_images
+  | Error _ -> 1
+;;
+
 let component ~default_size graph =
+  let is_localhost =
+    String.equal
+      "localhost"
+      (Js_of_ocaml.Js.to_string Js_of_ocaml.Dom_html.window##.location##.hostname)
+  in
   let seed =
     P.seed_form
       ~container_attrs:(fun ~state ~set_state ->
@@ -29,9 +41,21 @@ let component ~default_size graph =
     P.prompt_form ~container_attrs:[ {%css| flex-grow: 1 |} ] ~label:"negative" graph
   and width = P.width_height_form ~default:default_size ~label:"width" graph
   and height = P.width_height_form ~default:default_size ~label:"height" graph
-  and steps = P.min_1_form ~default:(Int63.of_int 25) ~max:150 ~label:"steps" graph
+  and steps =
+    P.min_1_form
+      ~default:(Int63.of_int (if is_localhost then 1 else 25))
+      ~max:150
+      ~label:"steps"
+      graph
   and cfg = P.min_1_form ~default:(Int63.of_int 7) ~max:30 ~label:"cfg" graph
   and denoise = P.min_1_form ~default:(Int63.of_int 70) ~max:100 ~label:"deno" graph
+  and num_images =
+    P.min_1_form
+      ~default:(Int63.of_int (if is_localhost then 1 else 4))
+      ~max:25
+      ~label:"# imgs"
+      graph
+    >>| Form.project ~parse_exn:Int63.to_int_exn ~unparse:Int63.of_int
   and ratios =
     Sd.Custom_form_elements.textarea ~label:"ratios" graph
     >>| Form.map_view ~f:(fun view -> view ?colorize:None ())
@@ -64,6 +88,7 @@ let component ~default_size graph =
         | Cfg -> cfg
         | Denoise -> denoise
         | Ratios -> ratios
+        | Num_images -> num_images
       ;;
 
       let finalize_view { f } _graph =
@@ -75,6 +100,7 @@ let component ~default_size graph =
         and seed = f Seed
         and ratios = f Ratios
         and pos_prompt = f Pos_prompt
+        and num_images = f Num_images
         and neg_prompt = f Neg_prompt in
         fun ~direction ~theme ~reset ->
           let vbox, hbox =
@@ -107,6 +133,7 @@ let component ~default_size graph =
                         ]
                     ; vbox [ Form.view steps; Form.view cfg ]
                     ; vbox [ Form.view denoise; Form.view seed ]
+                    ; Form.view num_images
                     ; Form.view ratios
                     ; Form.view pos_prompt
                     ; Form.view neg_prompt
@@ -119,7 +146,18 @@ let component ~default_size graph =
 ;;
 
 let for_img2img t =
-  let { seed; pos_prompt; neg_prompt; width; height; steps; cfg; denoise; ratios = _ } =
+  let { seed
+      ; pos_prompt
+      ; neg_prompt
+      ; width
+      ; height
+      ; steps
+      ; cfg
+      ; denoise
+      ; ratios = _
+      ; num_images = _
+      }
+    =
     t
   in
   let denoising_strength = Int63.to_float denoise /. 100.0 in
@@ -140,7 +178,20 @@ let for_img2img t =
 ;;
 
 let for_txt2img t =
-  let { seed; pos_prompt; neg_prompt; width; height; steps; cfg; denoise; ratios } = t in
+  let { seed
+      ; pos_prompt
+      ; neg_prompt
+      ; width
+      ; height
+      ; steps
+      ; cfg
+      ; denoise
+      ; ratios
+      ; num_images = _
+      }
+    =
+    t
+  in
   let denoising_strength = Int63.to_float denoise /. 100.0 in
   let regional_prompter =
     if String.for_all ratios ~f:Char.is_whitespace

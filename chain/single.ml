@@ -4,72 +4,11 @@ open! Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
 module P = Sd.Parameters.Individual
 
-let parallelism = 1
-
-let parallel_both a b =
-  Effect.Private.make ~request:() ~evaluator:(fun cb ->
-    let a_res = ref None
-    and b_res = ref None in
-    let maybe_finalize () =
-      match !a_res, !b_res with
-      | Some a, Some b ->
-        Effect.Expert.handle_non_dom_event_exn
-          (Effect.Private.Callback.respond_to cb (a, b))
-      | _ -> ()
-    in
-    Effect.Expert.handle_non_dom_event_exn
-      (let%map.Effect a = a in
-       a_res := Some a;
-       maybe_finalize ());
-    Effect.Expert.handle_non_dom_event_exn
-      (let%map.Effect b = b in
-       b_res := Some b;
-       maybe_finalize ()))
-;;
-
-let rec parallel_all = function
-  | [] -> Effect.return []
-  | a :: rest ->
-    let%map.Effect a, rest = parallel_both a (parallel_all rest) in
-    a :: rest
-;;
-
-let parallel_n
-  (type a)
-  ~(update : (a Or_error.t Int.Map.t option -> a Or_error.t Int.Map.t) -> unit Effect.t)
-  n
-  ~(f : int -> a Or_error.t Effect.t)
-  =
-  List.init n ~f:(fun i ->
-    let%bind.Effect r = f i in
-    let%bind.Effect () =
-      update (fun state ->
-        match state with
-        | None -> Int.Map.singleton i r
-        | Some map -> Map.set map ~key:i ~data:r)
-    in
-    Effect.return r)
-  |> parallel_all
-  |> Effect.map ~f:(fun all -> List.mapi all ~f:Tuple2.create |> Int.Map.of_alist_exn)
-;;
-
-let while_running eff ~do_this =
-  Ui_effect.Expert.of_fun ~f:(fun ~callback ->
-    let finished = ref false in
-    Ui_effect.Expert.eval eff ~f:(fun result ->
-      finished := true;
-      callback result);
-    let rec loop () =
-      if !finished then () else Ui_effect.Expert.eval do_this ~f:(fun () -> loop ())
-    in
-    loop ())
-;;
-
 let perform_dispatch ~dispatcher ~api_fun ~query ~update ~sleep ~width ~height i =
   dispatcher (function
     | Error _ as error -> Effect.return error
     | Ok (host, _) ->
-      while_running
+      Effect_utils.while_running
         ~do_this:
           (match%bind.Effect
              Sd.Progress.dispatch ((host : Sd.Hosts.Host.t) :> string)
@@ -108,9 +47,10 @@ let image ~params ~prev ~mask ~pool graph =
         graph
         ~f:
           (let%arr dispatcher = Lease_pool.dispatcher pool
+           and num_images = params >>| Parameters.num_images
            and sleep = Bonsai.Clock.sleep graph in
            fun ~update (query : Sd.Txt2img.Query.t) ->
-             parallel_n ~update parallelism ~f:(fun i ->
+             Effect_utils.parallel_n ~update num_images ~f:(fun i ->
                let query = { query with seed = Int63.(query.seed + of_int i) } in
                perform_dispatch
                  ~width:query.width
@@ -141,10 +81,11 @@ let image ~params ~prev ~mask ~pool graph =
         graph
         ~f:
           (let%arr dispatcher = Lease_pool.dispatcher pool
-           and sleep = Bonsai.Clock.sleep graph in
+           and sleep = Bonsai.Clock.sleep graph
+           and num_images = params >>| Parameters.num_images in
            fun ~update query prev mask ->
              let%map.Effect results =
-               parallel_n ~update parallelism ~f:(fun i ->
+               Effect_utils.parallel_n ~update num_images ~f:(fun i ->
                  let query =
                    { query with
                      Sd.Img2img.Query.init_images = [ prev ]

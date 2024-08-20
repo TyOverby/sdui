@@ -5,10 +5,10 @@ Features
 - [x] paint for initial image (medium)
 - [x] bigger drag/drop target for initial image (easy)
 - [x] min-size on initial image preview (easy)
+- [x] "dev mode" (detect localhost) (easy)
+  - [x] set parallelism to 1 (easy)
+  - [x] set steps to 1 (easy)
 - [ ] configurable parallelism (easy)
-- [ ] "dev mode" (detect localhost) (easy)
-  - [ ] set parallelism to 1 (easy)
-  - [ ] set steps to 1 (easy)
 - [ ] add a "commit canvas" to apply filters to
       https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/filter
 - [ ] "favorites" pane (medium)
