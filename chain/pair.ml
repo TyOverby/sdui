@@ -84,7 +84,7 @@ let component
   ~(index : int Bonsai.t)
   ~(pool : (Sd.Hosts.Host.t, 'a, 'b) Lease_pool.t)
   ~(prev : Sd.Image.t Inc.Or_error_or_stale.t Bonsai.t)
-  ~(prev_params : (Single.Parameters.t, Error.t) result Bonsai.t)
+  ~(prev_params : (Parameters.t, Error.t) result Bonsai.t)
   ~(reset : unit Ui_effect.t Bonsai.t)
   graph
   =

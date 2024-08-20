@@ -2,10 +2,6 @@ open! Core
 open! Bonsai_web.Cont
 module Form := Bonsai_web_ui_form.With_manual_view
 
-module Parameters : sig
-  type t
-end
-
 type t =
   { image : Sd.Image.t Inc.t
   ; gallery_view : Vdom.Node.t Bonsai.t
