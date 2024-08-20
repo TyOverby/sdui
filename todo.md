@@ -18,6 +18,7 @@
 - [ ] single-workspace UI (hard)
 - [ ] tree-based workflow (hard)
 - [ ] parameterize lease_pool on info about work (easy)
+- [ ] initialize paint zoom to fit canvas on screen
 - paint
   - [ ] opacity (medium)
   - [ ] color picker samples painting layer (easy)
@@ -28,6 +29,9 @@
 
 # Cleanup
 - [x] collapse `Bonsai.t` in `paint.ml`
+- [x] split navigation out of `pair.ml`
+- [x] rename `pair` to `chain`
+- [ ] remove `snips.ml` when public-released
 - [ ] upstream `file_data_url.ml`
 - [ ] upstsream `file_upload_zone.ml`
 
