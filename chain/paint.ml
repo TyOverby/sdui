@@ -189,14 +189,20 @@ module Images = struct
     }
 end
 
+module View_ = struct
+  type t =
+    { color_picker : Vdom.Node.t
+    ; pen_size_slider : Vdom.Node.t
+    ; layer_panel : Vdom.Node.t
+    ; forward_button : Vdom.Node.t
+    ; clear_button : Vdom.Node.t
+    ; widget : Vdom.Node.t
+    }
+end
+
 type t =
   { images : Images.t Inc.t
-  ; color_picker : Vdom.Node.t Bonsai.t
-  ; pen_size_slider : Vdom.Node.t Bonsai.t
-  ; layer_panel : Vdom.Node.t Bonsai.t
-  ; forward_button : Vdom.Node.t Bonsai.t
-  ; clear_button : Vdom.Node.t Bonsai.t
-  ; widget : Vdom.Node.t Bonsai.t
+  ; view : View_.t Bonsai.t
   }
 
 let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
@@ -317,14 +323,24 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     and next_id = next_id in
     View.button theme "clear" ~on_click:(next_id ())
   in
-  { images = value
-  ; color_picker = color_picker >>| Form.view
-  ; pen_size_slider = slider >>| Form.view
-  ; layer_panel = layer_view
-  ; forward_button
-  ; clear_button
-  ; widget = widget_view
-  }
+  let view =
+    let%arr color_picker = color_picker >>| Form.view
+    and pen_size_slider = slider >>| Form.view
+    and layer_panel = layer_view
+    and forward_button = forward_button
+    and clear_button = clear_button
+    and widget = widget_view in
+    { View_.color_picker
+    ; pen_size_slider
+    ; layer_panel
+    ; forward_button
+    ; clear_button
+    ; widget
+    }
+  in
+  { images = value; view }
 ;;
 
 external empty_white_image : int -> int -> Js.js_string Js.t = "empty_white_image"
+
+module View = View_

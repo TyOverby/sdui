@@ -26,11 +26,17 @@
   - [ ] pan
   - [ ] clear paint and mask layers separately
 
+# Cleanup
+- [x] collapse `Bonsai.t` in `paint.ml`
+- [ ] upstream `file_data_url.ml`
+- [ ] upstsream `file_upload_zone.ml`
+
 # Bugs
 - [ ] race on incomplete image
 - [ ] incomplete image size is wrong
 - paint
   - [ ] sync state on component reset
+
 
 # Behavior
 - [ ] why is the "preview" image updated so infrequently?

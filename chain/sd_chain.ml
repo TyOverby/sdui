@@ -42,5 +42,5 @@ let component graph =
     and theme = View.Theme.current graph in
     View.hbox [ queue_view; View.button theme "clear" ~on_click:clear_queue ]
   in
-  Pair.component ~pool:lease_pool ~hosts_view ~lease_pool_view graph
+  Navigation.component ~pool:lease_pool ~hosts_view ~lease_pool_view graph
 ;;
