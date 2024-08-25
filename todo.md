@@ -15,7 +15,7 @@
 - [ ] "favorites" pane (medium)
 - [ ] background upscale / downscale (hard)
 - [ ] kill unneeded jobs (medium)
-- [ ] single-workspace UI (hard)
+- [x] single-workspace UI (hard)
 - [ ] tree-based workflow (hard)
 - [ ] parameterize lease_pool on info about work (easy)
 - [ ] initialize paint zoom to fit canvas on screen
@@ -31,9 +31,11 @@
 - [x] collapse `Bonsai.t` in `paint.ml`
 - [x] split navigation out of `pair.ml`
 - [x] rename `pair` to `chain`
-- [ ] remove `snips.ml` when public-released
-- [ ] upstream `file_data_url.ml`
-- [ ] upstsream `file_upload_zone.ml`
+- [ ] use upstreamed `snips.ml` 
+- [x] upstream `file_data_url.ml`
+  - [ ] use upstreamed `file_data_url.ml`
+- [x] upstsream `file_upload_zone.ml`
+  - [ ] use upstsreamed `file_upload_zone.ml`
 
 # Bugs
 - [ ] race on incomplete image
