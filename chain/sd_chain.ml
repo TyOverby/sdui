@@ -3,6 +3,12 @@ open! Bonsai_web.Cont
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
 
+module _ = [%css stylesheet {|
+body {
+  overflow-y: clip;
+}
+|}]
+
 let component graph =
   let%sub { view = hosts_view; available_hosts; set_worker_in_use } =
     Sd.Hosts.component graph

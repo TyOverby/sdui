@@ -45,7 +45,7 @@ let make
   and clear_button = clear_button
   and widget = widget
   and zoom_form = zoom_form in
-  fun ~hosts ~queue ~route ->
+  fun ~hosts:_ ~queue ~route ->
     let open Snips.Infix in
     let paint_controls =
       View.vbox
@@ -57,7 +57,7 @@ let make
         ; Form.view zoom_form
         ]
     in
-    Snips.top (View.hbox [ hosts; queue ])
+    Snips.top (View.hbox [ queue ])
     |+| Snips.bottom route
     |+| Snips.right form_view
     |+| Snips.right paint_controls
