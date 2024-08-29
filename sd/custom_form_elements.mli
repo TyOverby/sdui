@@ -3,7 +3,8 @@ open! Bonsai_web.Cont
 module Form = Bonsai_web_ui_form.With_manual_view
 
 val textarea
-  :  ?validate:(string -> string)
+  :  ?default:string
+  -> ?validate:(string -> string)
   -> ?container_attrs:Vdom.Attr.t list
   -> ?textarea_attrs:Vdom.Attr.t list
   -> ?label:string

@@ -204,9 +204,10 @@ module Individual = struct
       graph
   ;;
 
-  let prompt_form ?textarea_attrs ?container_attrs ~label graph =
+  let prompt_form ?default ?textarea_attrs ?container_attrs ~label graph =
     Custom_form_elements.textarea
       ~validate:validate_prompt
+      ?default
       ?container_attrs
       ?textarea_attrs
       ~label

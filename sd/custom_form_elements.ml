@@ -122,9 +122,16 @@ let textarea
     ~on_blur
 ;;
 
-let textarea ?validate ?(container_attrs = []) ?(textarea_attrs = []) ?label graph =
+let textarea
+  ?(default = "")
+  ?validate
+  ?(container_attrs = [])
+  ?(textarea_attrs = [])
+  ?label
+  graph
+  =
   let theme = View.Theme.current graph in
-  let state, set_state = Bonsai.state "" graph in
+  let state, set_state = Bonsai.state default graph in
   let%arr theme = theme
   and state = state
   and set_state = set_state in

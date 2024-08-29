@@ -37,9 +37,17 @@ let component graph =
         [ Vdom.Attr.on_double_click (fun _ -> set_state Int63.(state + of_int 4)) ])
       graph
   and pos_prompt =
-    P.prompt_form ~container_attrs:[ {%css| flex-grow: 2 |} ] ~label:"prompt" graph
+    P.prompt_form
+      ~default:"score_9, score_8_up, score_7_up,\n"
+      ~container_attrs:[ {%css| flex-grow: 2 |} ]
+      ~label:"prompt"
+      graph
   and neg_prompt =
-    P.prompt_form ~container_attrs:[ {%css| flex-grow: 1 |} ] ~label:"negative" graph
+    P.prompt_form
+      ~default:"score_1, score_2, score_3,\n"
+      ~container_attrs:[ {%css| flex-grow: 1 |} ]
+      ~label:"negative"
+      graph
   and width = P.width_height_form ~default:default_size ~label:"width" graph
   and height = P.width_height_form ~default:default_size ~label:"height" graph
   and steps =
