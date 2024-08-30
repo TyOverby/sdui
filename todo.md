@@ -36,6 +36,7 @@
   - [ ] use upstreamed `file_data_url.ml`
 - [x] upstsream `file_upload_zone.ml`
   - [ ] use upstsreamed `file_upload_zone.ml`
+- [x] delete old "sd" binary
 
 # Bugs
 - [ ] race on incomplete image
