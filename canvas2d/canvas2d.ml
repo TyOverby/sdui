@@ -83,7 +83,7 @@ module Canvas1 = struct
   ;;
 
   let width (t : t) = t##.width
-  let height (t : t) = t##.width
+  let height (t : t) = t##.height
 
   let ctx2d ?(will_read_frequently = false) (t : t) : Ctx2d0.t =
     let ctx =

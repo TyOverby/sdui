@@ -8,6 +8,7 @@
   async_js
   bonsai.web_ui_form
   bonsai.vdom_node_with_map_children
+  bonsai.web_ui_reorderable_list
   bonsai.kado
   virtual_dom.svg
   bonsai.feather_icon)

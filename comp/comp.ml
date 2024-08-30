@@ -83,14 +83,50 @@ let find_offset img1 img2 =
 let file_upload graph =
   let images, inject =
     Bonsai.state_machine0
-      ~default_model:String.Map.empty
+      ~default_model:(String.Map.empty : Canvas2d.Image.t Or_error.t String.Map.t)
       ~apply_action:(fun _ctx _ files -> files)
       graph
   in
+  let%sub images, reorderable_list =
+    Bonsai_web_ui_reorderable_list.simple
+      (module String)
+      (images >>| Map.key_set)
+      ~render:(fun ~index:_ ~source key _graph ->
+        let data =
+          let%arr images = images
+          and key = key in
+          Map.find images key
+        in
+        let%arr data = data
+        and key = key
+        and source = source in
+        let view =
+          match data with
+          | None -> Vdom.Node.div ~attrs:[ source ] [ Vdom.Node.text key ]
+          | Some (Ok img) ->
+            let raw_image =
+              Sd.Image.to_vdom
+                ~attrs:[ source; {%css| max-width: 100px; |} ]
+                (Sd.Image.of_string ~kind:Base64 (Canvas2d.Image.to_data_url img))
+            in
+            View.vbox [ Vdom.Node.text key; raw_image ]
+          | Some (Error e) ->
+            View.vbox
+              ~attrs:[ source ]
+              [ Vdom.Node.text key; Vdom.Node.sexp_for_debugging ([%sexp_of: Error.t] e) ]
+        in
+        data, view)
+      graph
+  in
+  let images_for_processing, update_images_for_processing = Bonsai.state [] graph in
   let images_and_offsets =
-    let%arr images = images in
+    let%arr images = images_for_processing in
     let open Canvas2d in
-    let good_images = List.filter_map (Map.data images) ~f:Result.ok in
+    let good_images =
+      List.filter_map images ~f:(function
+        | _, Some (Ok img) -> Some img
+        | _ -> None)
+    in
     let height =
       List.max_elt ~compare:Int.compare (List.map good_images ~f:Image.height)
       |> Option.value ~default:1
@@ -159,10 +195,14 @@ let file_upload graph =
       ~kind:Base64
       (Canvas.to_data_url canvas)
   in
-  let%arr images = images
-  and inject = inject
+  let%arr inject = inject
   and composed = composed
-  and gap_form = gap_form >>| Form.view in
+  and gap_form = gap_form >>| Form.view
+  and reorderable_list = reorderable_list
+  and images = images
+  and theme = View.Theme.current graph
+  and images_for_processing = images_for_processing
+  and update_images_for_processing = update_images_for_processing in
   let upload_zone =
     Vdom.Node.div
       ~attrs:
@@ -179,21 +219,15 @@ let file_upload graph =
           ()
       ]
   in
-  let gallery =
-    View.vbox
-      (List.map (Map.to_alist images) ~f:(function
-        | name, Ok img ->
-          let raw_image =
-            Sd.Image.to_vdom
-              ~attrs:[ {%css| max-width: 100px; |} ]
-              (Sd.Image.of_string ~kind:Base64 (Canvas2d.Image.to_data_url img))
-          in
-          View.vbox [ Vdom.Node.text name; raw_image ]
-        | name, Error e ->
-          View.vbox
-            [ Vdom.Node.text name; Vdom.Node.sexp_for_debugging ([%sexp_of: Error.t] e) ]))
-  in
-  View.vbox [ upload_zone; gallery; gap_form; Sd.Image.to_vdom composed ]
+  View.vbox
+    [ upload_zone
+    ; reorderable_list
+    ; (if phys_equal images images_for_processing
+       then Vdom.Node.none
+       else View.button theme "process" ~on_click:(update_images_for_processing images))
+    ; gap_form
+    ; Sd.Image.to_vdom composed
+    ]
 ;;
 
 let component graph =
