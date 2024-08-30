@@ -8,7 +8,7 @@ let perform_dispatch ~dispatcher ~api_fun ~query ~update ~sleep ~width ~height i
   dispatcher (function
     | Error _ as error -> Effect.return error
     | Ok (host, _) ->
-      Effect_utils.while_running
+      Shared.Effect_utils.while_running
         ~do_this:
           (match%bind.Effect
              Sd.Progress.dispatch ((host : Sd.Hosts.Host.t) :> string)
@@ -49,7 +49,7 @@ let image ~params ~prev ~mask ~pool graph =
           (let%arr dispatcher = Lease_pool.dispatcher pool
            and sleep = Bonsai.Clock.sleep graph in
            fun ~update (num_images, (query : Sd.Txt2img.Query.t)) ->
-             Effect_utils.parallel_n ~update num_images ~f:(fun i ->
+             Shared.Effect_utils.parallel_n ~update num_images ~f:(fun i ->
                let query = { query with seed = Int63.(query.seed + of_int i) } in
                perform_dispatch
                  ~width:query.width
@@ -83,7 +83,7 @@ let image ~params ~prev ~mask ~pool graph =
            and sleep = Bonsai.Clock.sleep graph in
            fun ~update (num_images, query) prev mask ->
              let%map.Effect results =
-               Effect_utils.parallel_n ~update num_images ~f:(fun i ->
+               Shared.Effect_utils.parallel_n ~update num_images ~f:(fun i ->
                  let query =
                    { query with
                      Sd.Img2img.Query.init_images = [ prev ]

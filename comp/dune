@@ -1,21 +1,16 @@
-(executables
- (names main)
+(library
+ (name comp)
  (libraries
-  ; sd
-  sd_chain
-  comp
   shared
   bonsai.web
+  sd
+  canvas2d
   async_js
-  yojson
   bonsai.web_ui_form
   bonsai.vdom_node_with_map_children
   bonsai.kado
-  virtual_dom.svg)
- (js_of_ocaml
-  (flags :standard --no-sourcemap)
-  (link_flags :standard --no-sourcemap))
- (modes js)
+  virtual_dom.svg
+  bonsai.feather_icon)
  (preprocess
   (pps
    ppx_jane

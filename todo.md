@@ -10,22 +10,31 @@
   - [x] set steps to 1 (easy)
   - [x] default size to 128x128 (easy)
 - [x] configurable parallelism (easy)
-- [ ] add a "commit canvas" to apply filters to
-      https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/filter (hard)
+- [x] single-workspace UI (hard)
 - [ ] "favorites" pane (medium)
+  - [ ] send to compositor (unknown)
 - [ ] background upscale / downscale (hard)
 - [ ] kill unneeded jobs (medium)
-- [x] single-workspace UI (hard)
 - [ ] tree-based workflow (hard)
 - [ ] parameterize lease_pool on info about work (easy)
 - [ ] initialize paint zoom to fit canvas on screen
-- paint
-  - [ ] opacity (medium)
-  - [ ] color picker samples painting layer (easy)
-  - [ ] layers (hard)
-  - [ ] blur (unknown)
-  - [ ] pan
-  - [ ] clear paint and mask layers separately
+- [ ] clean up initial screen (medium)
+- [ ] 
+
+## paint
+- [ ] opacity (medium)
+- [ ] color picker samples painting layer (easy)
+- [ ] layers (hard)
+- [ ] blur (unknown)
+- [ ] soft brush (unknown)
+- [ ] pan
+- [ ] clear paint and mask layers separately
+- [ ] add a "commit canvas" to apply filters to
+      https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/filter (hard)
+
+## Compositor
+- [ ] basic horizontal compositing of same-size images 
+- [ ] background overlap compositing 
 
 # Cleanup
 - [x] collapse `Bonsai.t` in `paint.ml`

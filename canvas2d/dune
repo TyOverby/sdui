@@ -1,0 +1,12 @@
+(library
+ (name canvas2d)
+ (libraries core js_of_ocaml virtual_dom)
+ (js_of_ocaml
+  (javascript_files ./bindings.js))
+ (preprocess
+  (pps ppx_jane js_of_ocaml-ppx)))
+
+(env
+ (dev
+  (flags
+   (:standard -warn-error -A))))

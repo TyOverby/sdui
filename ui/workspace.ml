@@ -2,6 +2,7 @@ open! Core
 open! Bonsai_web.Cont
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
+module Snips = Shared.Snips
 
 type t = hosts:Vdom.Node.t -> queue:Vdom.Node.t -> route:Vdom.Node.t -> Vdom.Node.t
 

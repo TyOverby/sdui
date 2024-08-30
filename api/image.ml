@@ -24,12 +24,20 @@ let to_vdom ?(attrs = []) ?width ?height ?(drop_size = false) t =
   let width =
     match drop_size, Option.first_some width t.width with
     | true, _ | _, None -> Vdom.Attr.empty
-    | false, Some width -> Vdom.Attr.create "width" (Int63.to_string width)
+    | false, Some width ->
+      Vdom.Attr.create
+        "width"
+        (Virtual_dom.Dom_float.to_string
+           (Int63.to_float width /. Js_of_ocaml.Dom_html.window##.devicePixelRatio))
   in
   let height =
     match drop_size, Option.first_some height t.height with
     | true, _ | _, None -> Vdom.Attr.empty
-    | _, Some height -> Vdom.Attr.create "height" (Int63.to_string height)
+    | _, Some height ->
+      Vdom.Attr.create
+        "height"
+        (Virtual_dom.Dom_float.to_string
+           (Int63.to_float height /. Js_of_ocaml.Dom_html.window##.devicePixelRatio))
   in
   let src =
     match t.kind with

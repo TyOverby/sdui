@@ -27,7 +27,7 @@ let component graph =
       let file_upload =
         let process_file file =
           print_endline (Js_of_ocaml.Js.to_string file##._type);
-          let file = File_data_url.create file in
+          let file = Shared.File_data_url.create file in
           match%bind.Effect Bonsai_web_ui_file.contents file with
           | Error e -> set_state (Some (Error e))
           | Ok contents ->
@@ -36,7 +36,7 @@ let component graph =
         in
         Vdom.Node.div
           ~attrs:
-            [ File_upload_zone.attr
+            [ Shared.File_upload_zone.attr
                 ()
                 ~mime_types:[ "image/png" ]
                 ~on_file_upload:(fun files ->
@@ -47,7 +47,7 @@ let component graph =
               ~on_input:(function
                 | None -> set_state None
                 | Some file ->
-                  let file = File_data_url.create file in
+                  let file = Shared.File_data_url.create file in
                   (match%bind.Effect Bonsai_web_ui_file.contents file with
                    | Error e -> set_state (Some (Error e))
                    | Ok contents ->
