@@ -18,11 +18,7 @@ type t =
   }
 [@@deriving typed_fields]
 
-let num_images form =
-  match Form.value form with
-  | Ok { num_images; _ } -> num_images
-  | Error _ -> 1
-;;
+let num_images { num_images; _ } = num_images
 
 let component graph =
   let is_localhost =

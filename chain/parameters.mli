@@ -13,4 +13,4 @@ type view :=
 val component : Bonsai.graph -> (t, view) Form.t Bonsai.t
 val for_txt2img : t -> Sd.Txt2img.Query.t
 val for_img2img : t -> Sd.Img2img.Query.t
-val num_images : (t, _) Form.t -> int
+val num_images : t -> int

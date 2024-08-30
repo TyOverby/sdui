@@ -34,22 +34,21 @@ let image ~params ~prev ~mask ~pool graph =
     | None ->
       let query =
         Inc.of_or_error_bonsai
-          ~equal:Sd.Txt2img.Query.equal
+          ~equal:[%equal: int * Sd.Txt2img.Query.t]
           ~time_to_stable:(Bonsai.return (Time_ns.Span.of_sec 2.0))
           (let%arr params = params in
            let%map.Or_error params = Form.value params in
-           Parameters.for_txt2img params)
+           Parameters.num_images params, Parameters.for_txt2img params)
           graph
       in
       Inc.map
-        ~equal:Sd.Txt2img.Query.equal
+        ~equal:[%equal: int * Sd.Txt2img.Query.t]
         query
         graph
         ~f:
           (let%arr dispatcher = Lease_pool.dispatcher pool
-           and num_images = params >>| Parameters.num_images
            and sleep = Bonsai.Clock.sleep graph in
-           fun ~update (query : Sd.Txt2img.Query.t) ->
+           fun ~update (num_images, (query : Sd.Txt2img.Query.t)) ->
              Effect_utils.parallel_n ~update num_images ~f:(fun i ->
                let query = { query with seed = Int63.(query.seed + of_int i) } in
                perform_dispatch
@@ -64,15 +63,15 @@ let image ~params ~prev ~mask ~pool graph =
     | Some prev ->
       let query =
         Inc.of_or_error_bonsai
-          ~equal:Sd.Img2img.Query.equal
+          ~equal:[%equal: int * Sd.Img2img.Query.t]
           ~time_to_stable:(Bonsai.return (Time_ns.Span.of_sec 2.0))
           (let%arr params = params in
            let%map.Or_error params = Form.value params in
-           Parameters.for_img2img params)
+           Parameters.num_images params, Parameters.for_img2img params)
           graph
       in
       Inc.map3
-        ~equal_a:Sd.Img2img.Query.equal
+        ~equal_a:[%equal: int * Sd.Img2img.Query.t]
         ~equal_b:[%equal: Sd.Image.t]
         ~equal_c:[%equal: Sd.Image.t option]
         query
@@ -81,9 +80,8 @@ let image ~params ~prev ~mask ~pool graph =
         graph
         ~f:
           (let%arr dispatcher = Lease_pool.dispatcher pool
-           and sleep = Bonsai.Clock.sleep graph
-           and num_images = params >>| Parameters.num_images in
-           fun ~update query prev mask ->
+           and sleep = Bonsai.Clock.sleep graph in
+           fun ~update (num_images, query) prev mask ->
              let%map.Effect results =
                Effect_utils.parallel_n ~update num_images ~f:(fun i ->
                  let query =
