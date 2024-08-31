@@ -40,7 +40,12 @@ module Image0 = struct
 end
 
 module Image_data0 = struct
-  type t = Dom_html.imageData Js.t
+  type t =
+    { obj : Dom_html.imageData Js.t
+    ; data : Dom_html.canvasPixelArray Js.t
+    ; width : int
+    ; height : int
+    }
 end
 
 module Ctx2d0 = struct
@@ -48,7 +53,7 @@ module Ctx2d0 = struct
     inherit Dom_html.canvasRenderingContext2D
 
     method putImageData_all :
-      Image_data0.t -> int -> int -> int -> int -> int -> int -> unit Js.meth
+      Dom_html.imageData Js.t -> int -> int -> int -> int -> int -> int -> unit Js.meth
   end
 
   type t = Canvas0.t * extendedCanvasContext Js.t
@@ -152,7 +157,14 @@ module Ctx2d1 = struct
   let get_image_data ?(x = 0) ?(y = 0) ?w ?h ((canvas, ctx) : t) =
     let w = Option.value_or_thunk w ~default:(fun () -> Canvas1.width canvas - x) in
     let h = Option.value_or_thunk h ~default:(fun () -> Canvas1.height canvas - y) in
-    ctx##getImageData (Int.to_float x) (Int.to_float y) (Int.to_float w) (Int.to_float h)
+    let obj =
+      ctx##getImageData
+        (Int.to_float x)
+        (Int.to_float y)
+        (Int.to_float w)
+        (Int.to_float h)
+    in
+    { Image_data0.obj; width = obj##.width; height = obj##.height; data = obj##.data }
   ;;
 
   let put_image_data
@@ -171,11 +183,15 @@ module Ctx2d1 = struct
     let dirty_h =
       Option.value_or_thunk dirty_h ~default:(fun () -> Canvas1.height canvas - dirty_y)
     in
-    ctx##putImageData_all img_data x y dirty_x dirty_y dirty_w dirty_h
+    ctx##putImageData_all img_data.obj x y dirty_x dirty_y dirty_w dirty_h
   ;;
 
   let set_fill_style (_, ctx) s = ctx##.fillStyle := Js.string s
   let fill_rect (_, ctx) ~x ~y ~w ~h = ctx##fillRect x y w h
+
+  let set_global_composite_operation (_, ctx) s =
+    ctx##.globalCompositeOperation := Js.string s
+  ;;
 end
 
 module Pixel_array1 = struct
@@ -197,18 +213,31 @@ end
 module Image_data1 = struct
   include Image_data0
 
-  let data (t : t) = t##.data
-  let width (t : t) = t##.width
-  let height (t : t) = t##.height
+  let data (t : t) = t.data
+  let width (t : t) = t.width
+  let height (t : t) = t.height
 
   let[@inline always] get_rgba (t : t) ~x ~y =
-    let index = ((y * width t) + x) * 4 in
+    let index = ((y * t.width) + x) * 4 in
     let data = data t in
     let r = Pixel_array1.get data index in
     let g = Pixel_array1.get data (index + 1) in
     let b = Pixel_array1.get data (index + 2) in
     let a = Pixel_array1.get data (index + 3) in
     r, g, b, a
+  ;;
+
+  let[@inline always] get_rgba' (t : t) ~x ~y ~into =
+    let index = ((y * t.width) + x) * 4 in
+    let data = t.data in
+    let r = Pixel_array1.get data index in
+    let g = Pixel_array1.get data (index + 1) in
+    let b = Pixel_array1.get data (index + 2) in
+    let a = Pixel_array1.get data (index + 3) in
+    Array.unsafe_set into 0 r;
+    Array.unsafe_set into 1 g;
+    Array.unsafe_set into 2 b;
+    Array.unsafe_set into 3 a
   ;;
 
   let get_r (t : t) ~x ~y =
@@ -236,8 +265,8 @@ module Image_data1 = struct
   ;;
 
   let set (t : t) ~x ~y ~r ~g ~b ~a =
-    let index = ((y * width t) + x) * 4 in
-    let data = data t in
+    let index = ((y * t.width) + x) * 4 in
+    let data = t.data in
     Pixel_array1.set data index r;
     Pixel_array1.set data (index + 1) g;
     Pixel_array1.set data (index + 2) b;

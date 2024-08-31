@@ -51,6 +51,7 @@ and Ctx2d : sig
 
   val set_fill_style : t -> string -> unit
   val fill_rect : t -> x:float -> y:float -> w:float -> h:float -> unit
+  val set_global_composite_operation : t -> string -> unit
 
   (** draws another canvas onto this context
       - [sx], [sy] specify the "source" x and y position; defaults to 0
@@ -133,6 +134,9 @@ and Image_data : sig
 
   (** pixel rgb getters *)
   val get_rgba : t -> x:int -> y:int -> int * int * int * int
+
+  (** write rgba values into an array *)
+  val get_rgba' : t -> x:int -> y:int -> into:int array -> unit
 
   val get_r : t -> x:int -> y:int -> int
   val get_g : t -> x:int -> y:int -> int

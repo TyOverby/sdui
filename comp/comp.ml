@@ -43,41 +43,67 @@ let process_files ~files ~inject =
   inject map
 ;;
 
-let close_to_white (r, g, b, a) = a < 5 || (r > 250 && g > 250 && b > 250)
-let printed = ref 0
+let close_to_white arr =
+  let r = Array.unsafe_get arr 0 in
+  let g = Array.unsafe_get arr 1 in
+  let b = Array.unsafe_get arr 2 in
+  let a = Array.unsafe_get arr 3 in
+  a < 5 || (r > 250 && g > 250 && b > 250)
+;;
 
-let find_offset img1 img2 =
+let find_offset ctx1 img2 =
   let open Canvas2d in
-  let _c1, ctx1 = Canvas.of_image ~will_read_frequently:true img1 in
   let c2, ctx2 = Canvas.of_image ~will_read_frequently:true img2 in
   let data1 = Ctx2d.get_image_data ctx1 in
   let data2 = Ctx2d.get_image_data ctx2 in
   let height = Int.min (Image_data.height data1) (Image_data.height data2) in
   let width1 = Image_data.width data1 in
-  let offset =
-    With_return.with_return (fun { return } ->
-      let maximum_possible_x_offset =
-        Int.min (Image_data.width data1) (Image_data.width data2)
-      in
-      for x_offset = 0 to maximum_possible_x_offset - 1 do
-        for x = 0 to x_offset - 1 do
-          let left_pos = width1 - x_offset + x in
-          let right_pos = x in
-          for y = 0 to height - 1 do
-            let p1 = (Image_data.get_rgba [@inlined]) data1 ~x:left_pos ~y in
-            let p2 = (Image_data.get_rgba [@inlined]) data2 ~x:right_pos ~y in
+  let maximum_possible_x_offset =
+    Int.min (Image_data.width data1) (Image_data.width data2)
+  in
+  print_endline "find offset";
+  let result =
+    Core.Binary_search.binary_search_segmented
+      ()
+      ~length:(fun () -> maximum_possible_x_offset)
+      `Last_on_left
+      ~segment_of:(function
+        | false -> `Left
+        | true -> `Right)
+      ~get:(fun () x_offset ->
+        let collided = ref false in
+        let x = ref 0 in
+        let p1 = [| 0; 0; 0; 0 |] in
+        let p2 = [| 0; 0; 0; 0 |] in
+        while Int.(!x < x_offset) do
+          let left_pos = width1 - x_offset + !x in
+          let right_pos = !x in
+          let y = ref 0 in
+          while Int.(!y < height) do
+            Image_data.get_rgba' data1 ~x:left_pos ~y:!y ~into:p1;
+            Image_data.get_rgba' data2 ~x:right_pos ~y:!y ~into:p2;
             if close_to_white p2
-            then Image_data.set_a data2 ~x:right_pos ~y 0
+            then () (* Image_data.set_a data2 ~x:right_pos ~y:!y 0 *)
             else if close_to_white p1
             then ()
-            else return (x_offset - 1)
-          done
-        done
-      done;
-      maximum_possible_x_offset)
+            else (
+              print_s
+                [%message
+                  (left_pos : int)
+                    (right_pos : int)
+                    (!y : int)
+                    (p1 : int array)
+                    (p2 : int array)];
+              x := Int.max_value_30_bits;
+              y := Int.max_value_30_bits;
+              collided := true);
+            incr y
+          done;
+          incr x
+        done;
+        !collided)
   in
-  Ctx2d.put_image_data ctx2 data2 ~x:0 ~y:0;
-  offset, c2
+  Option.value result ~default:0, c2, ctx2
 ;;
 
 let file_upload graph =
@@ -127,50 +153,46 @@ let file_upload graph =
         | _, Some (Ok img) -> Some img
         | _ -> None)
     in
-    let height =
-      List.max_elt ~compare:Int.compare (List.map good_images ~f:Image.height)
-      |> Option.value ~default:1
-    in
-    let width = List.sum (module Int) good_images ~f:Image.width in
-    let canvas = Canvas.create ~width ~height in
-    let ctx = Canvas.ctx2d canvas in
-    Ctx2d.set_fill_style ctx "white";
-    Ctx2d.fill_rect
-      ctx
-      ~x:0.0
-      ~y:0.0
-      ~w:(Int.to_float (Ctx2d.width ctx))
-      ~h:(Int.to_float (Ctx2d.height ctx));
     List.folding_map good_images ~init:(0, None) ~f:(fun (acc, prev) img ->
-      let offset, canvas =
+      let offset, canvas, ctx =
         match prev with
         | None ->
-          let canvas, _ctx = Canvas.of_image img in
-          0, canvas
+          let canvas, ctx = Canvas.of_image img in
+          0, canvas, ctx
         | Some prev -> find_offset prev img
       in
       let acc = acc - offset in
-      (acc + Canvas.width canvas, Some img), (canvas, acc))
+      (acc + Canvas.width canvas, Some ctx), (canvas, acc))
   in
   let gap_form =
-    Form.Elements.Range.int
+    Form.Elements.Range.float
       ~allow_updates_when_focused:`Always
-      ~min:(-100)
-      ~max:100
-      ~step:1
-      ~default:0
+      ~min:(-0.5)
+      ~max:0.5
+      ~step:0.001
+      ~default:0.0
+      ~extra_attrs:(Bonsai.return [ {%css| max-width: 500px; width: 50vw; |} ])
       ()
       graph
   in
   let composed =
     let%arr images_and_offsets = images_and_offsets
-    and gap = gap_form >>| Form.value_or_default ~default:0 in
+    and gap_percentage = gap_form >>| Form.value_or_default ~default:0.0 in
     let open Canvas2d in
     let height =
       List.max_elt
         ~compare:Int.compare
         (List.map images_and_offsets ~f:(fun (canvas, _) -> Canvas.height canvas))
       |> Option.value ~default:1
+    in
+    let gap =
+      let max_width =
+        List.max_elt
+          ~compare:Int.compare
+          (List.map images_and_offsets ~f:(fun (canvas, _) -> Canvas.width canvas))
+        |> Option.value ~default:1
+      in
+      Float.to_int (gap_percentage *. Float.of_int max_width)
     in
     let width =
       match List.last images_and_offsets with
@@ -180,6 +202,7 @@ let file_upload graph =
     let width = (gap * (List.length images_and_offsets - 1)) + width in
     let canvas = Canvas.create ~width ~height in
     let ctx = Canvas.ctx2d canvas in
+    Ctx2d.set_global_composite_operation ctx "darken";
     Ctx2d.set_fill_style ctx "white";
     Ctx2d.fill_rect
       ctx
