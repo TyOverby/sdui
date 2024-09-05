@@ -1,0 +1,5 @@
+(library
+ (name codemirror_rainbow_parentheses_kernel)
+ (libraries core parsexp_symbolic_automaton)
+ (preprocess
+  (pps ppx_jane)))

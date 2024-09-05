@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 
 module Or_error_or_stale : sig
   type 'a t =

@@ -1,0 +1,6 @@
+(library
+ (name focus_ring)
+ (public_name bonsai_web_components.focus_ring)
+ (libraries core)
+ (preprocess
+  (pps ppx_jane)))

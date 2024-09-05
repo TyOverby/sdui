@@ -1,0 +1,6 @@
+(library
+ (name bonsai_web_ui_gauge_test)
+ (libraries bonsai_web bonsai_web_test bonsai_web_ui_gauge core
+   virtual_dom.css_gen)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 open Bonsai.Let_syntax
 module Snips = Shared.Snips
 module Form = Bonsai_web_ui_form.With_manual_view

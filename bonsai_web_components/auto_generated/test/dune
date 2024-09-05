@@ -1,0 +1,7 @@
+(library
+ (name bonsai_web_ui_auto_generated_test)
+ (preprocess
+  (pps bonsai.ppx_bonsai ppx_jane))
+ (libraries bonsai_web_ui_auto_generated bonsai bonsai_web bonsai_web_test
+   bonsai_web_ui_form core expect_test_helpers_core.expect_test_helpers_base
+   sexp_grammar virtual_dom))

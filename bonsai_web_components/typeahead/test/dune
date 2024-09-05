@@ -1,0 +1,6 @@
+(library
+ (name bonsai_ui_components_typeahead_test)
+ (libraries bonsai_web_ui_typeahead bonsai_web bonsai_web_test core
+   patdiff.expect_test_patdiff virtual_dom.ui_effect)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

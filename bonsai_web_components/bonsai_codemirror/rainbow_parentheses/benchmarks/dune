@@ -1,0 +1,5 @@
+(library
+ (name codemirror_rainbow_parentheses_benchmarks)
+ (libraries core codemirror_rainbow_parentheses_kernel)
+ (preprocess
+  (pps ppx_jane ppx_bench)))

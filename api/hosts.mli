@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 
 module Host : sig
   type t = private string [@@deriving sexp_of]

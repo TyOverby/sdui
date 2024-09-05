@@ -1,0 +1,59 @@
+opam-version: "2.0"
+maintainer: "Jane Street developers"
+authors: ["Jane Street Group, LLC"]
+homepage: "https://github.com/janestreet/bonsai_web_components"
+bug-reports: "https://github.com/janestreet/bonsai_web_components/issues"
+dev-repo: "git+https://github.com/janestreet/bonsai_web_components.git"
+doc: "https://ocaml.janestreet.com/ocaml-core/latest/doc/bonsai_web_components/index.html"
+license: "MIT"
+build: [
+  ["dune" "build" "-p" name "-j" jobs]
+]
+depends: [
+  "ocaml" {>= "5.1.0"}
+  "async_kernel"
+  "bin_prot"
+  "bonsai"
+  "bonsai_web"
+  "bonsai_web_test"
+  "core"
+  "core_kernel"
+  "expect_test_helpers_core"
+  "fuzzy_match"
+  "incr_dom"
+  "incr_map"
+  "incremental"
+  "js_of_ocaml_patches"
+  "ordinal_abbreviation"
+  "parsexp_prefix"
+  "patdiff"
+  "ppx_bench"
+  "ppx_css"
+  "ppx_expect"
+  "ppx_jane"
+  "ppx_module_timer"
+  "ppx_pattern_bind"
+  "ppx_typed_fields"
+  "profunctor"
+  "record_builder"
+  "sexp_grammar"
+  "sexplib0"
+  "textutils"
+  "uri_parsing"
+  "virtual_dom"
+  "virtual_dom_toplayer"
+  "dune"                     {>= "3.11.0"}
+  "gen_js_api"               {>= "1.0.8"}
+  "js_of_ocaml"              {>= "5.1.1" & < "5.7.0"}
+  "js_of_ocaml-ppx"          {>= "5.1.1" & < "5.7.0"}
+  "ocaml-embed-file"
+  "re"                       {>= "1.8.0"}
+  "uri"                      {>= "3.0.0"}
+]
+available: arch != "arm32" & arch != "x86_32"
+synopsis: "Examples for bonsai_web, a library for building dynamic webapps, using Js_of_ocaml"
+description: "
+A collection of bonsai_web examples. Bonsai is a library for building
+    reusable UI components inside an Incremental-style UI framework such as
+    Incr_dom or React. This repository contains its examples.
+"

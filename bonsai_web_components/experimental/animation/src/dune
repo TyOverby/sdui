@@ -1,0 +1,5 @@
+(library
+ (name bonsai_experimental_animation)
+ (libraries core bonsai incr_dom.ui_incr)
+ (preprocess
+  (pps bonsai.ppx_bonsai ppx_jane)))

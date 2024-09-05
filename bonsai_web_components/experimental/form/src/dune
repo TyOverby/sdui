@@ -1,0 +1,6 @@
+(library
+ (name bonsai_form_experimental)
+ (libraries bonsai.extra bonsai_web core virtual_dom.ui_effect
+   virtual_dom.input_widgets)
+ (preprocess
+  (pps bonsai.ppx_bonsai ppx_jane)))

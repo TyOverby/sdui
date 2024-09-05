@@ -1,0 +1,9 @@
+(library
+ (name codemirror)
+ (public_name bonsai_web_components.codemirror)
+ (js_of_ocaml
+  (javascript_files ../../../codemirror/for_ocaml_bindings.js))
+ (libraries js_of_ocaml gen_js_api ppx_bench.runtime-lib ppx_expect.runtime
+   ppx_module_timer.runtime)
+ (preprocess
+  (pps ppx_jane js_of_ocaml-ppx gen_js_api.ppx)))

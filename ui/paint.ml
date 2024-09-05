@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 open Bonsai.Let_syntax
 open Js_of_ocaml
 module Form = Bonsai_web_ui_form.With_manual_view
@@ -61,7 +61,7 @@ module Output = struct
 end
 
 module Widget :
-  Bonsai_web_ui_widget.S with type input = Input.t and type state = Output.t Js.t = struct
+ Bonsai_web_ui_low_level_vdom.Widget.S with type input = Input.t and type state = Output.t Js.t = struct
   type element = Dom_html.divElement
   type input = Input.t
   type state = Output.t Js.t
@@ -237,7 +237,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
       in
       { Input.url; on_color_change; set_dirty }
     in
-    Bonsai_web_ui_widget.component (module Widget) input graph
+    Bonsai_web_ui_low_level_vdom.Widget.component (module Widget) input graph
   in
   let slider =
     Form.Elements.Range.int
@@ -302,7 +302,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     let%arr theme = View.Theme.current graph
     and inject = inject
     and is_dirty = is_dirty
-    and { Bonsai_web_ui_widget.read; _ } = widget in
+    and { Bonsai_web_ui_low_level_vdom.Widget.read; _ } = widget in
     let forward =
       let%bind.Effect effects =
         read (fun _input state ->

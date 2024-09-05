@@ -1,0 +1,7 @@
+(library
+ (name bonsai_web_ui_split_pane)
+ (public_name bonsai_web_components.web_ui_split_pane)
+ (libraries bonsai_web bonsai_web_ui_element_size_hooks core
+   virtual_dom.css_gen js_of_ocaml)
+ (preprocess
+  (pps bonsai.ppx_bonsai ppx_jane ppx_css js_of_ocaml-ppx)))

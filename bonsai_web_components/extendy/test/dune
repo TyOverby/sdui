@@ -1,0 +1,6 @@
+(library
+ (name bonsai_web_ui_extendy_test)
+ (libraries bonsai_web_ui_extendy bonsai_web bonsai_web_test core
+   virtual_dom.ui_effect)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

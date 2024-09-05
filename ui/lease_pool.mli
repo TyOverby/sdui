@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 
 (* A lease-pool is a data structure for lending out values of type ['a] to
    a user of the pool for the duration of an effect.

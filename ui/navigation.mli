@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 
 val component
   :  pool:(Sd.Hosts.Host.t, 'a, 'b) Lease_pool.t

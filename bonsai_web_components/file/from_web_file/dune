@@ -1,0 +1,7 @@
+(library
+ (name bonsai_web_ui_file_from_web_file)
+ (public_name bonsai_web_components.web_ui_file_from_web_file)
+ (libraries async_kernel bonsai_web bonsai_web_ui_file core js_of_ocaml
+   virtual_dom.ui_effect)
+ (preprocess
+  (pps ppx_jane js_of_ocaml-ppx)))

@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 module Form = Bonsai_web_ui_form.With_automatic_view
 
 type t [@@deriving sexp, yojson, equal]

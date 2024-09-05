@@ -1,0 +1,6 @@
+(library
+ (name bonsai_web_ui_codemirror_themes_test)
+ (libraries bonsai_web_ui_codemirror bonsai_web bonsai_web_test codemirror
+   codemirror_themes core sexp_grammar)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

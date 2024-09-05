@@ -1,4 +1,4 @@
-open! Bonsai_web.Cont
+open! Bonsai_web
 
 type t
 

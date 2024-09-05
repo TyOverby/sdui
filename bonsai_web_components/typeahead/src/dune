@@ -1,0 +1,7 @@
+(library
+ (name bonsai_web_ui_typeahead)
+ (public_name bonsai_web_components.web_ui_typeahead)
+ (libraries core bonsai_web bonsai_web_ui_common_components
+   virtual_dom.css_gen virtual_dom.ui_effect)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

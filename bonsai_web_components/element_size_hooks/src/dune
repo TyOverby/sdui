@@ -1,0 +1,8 @@
+(library
+ (name bonsai_web_ui_element_size_hooks)
+ (public_name bonsai_web_components.web_ui_element_size_hooks)
+ (libraries bonsai_web core core_kernel.reversed_list virtual_dom.css_gen
+   js_of_ocaml virtual_dom.jsoo_weak_collections virtual_dom.ui_effect
+   virtual_dom)
+ (preprocess
+  (pps js_of_ocaml-ppx ppx_jane gen_js_api.ppx bonsai.ppx_bonsai)))

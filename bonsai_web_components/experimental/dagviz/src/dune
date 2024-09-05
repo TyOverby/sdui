@@ -1,0 +1,7 @@
+(library
+ (name bonsai_experimental_dagviz)
+ (public_name bonsai_web_components.bonsai_experimental_dagviz)
+ (libraries core bonsai bonsai_web bonsai_web_ui_element_size_hooks
+   virtual_dom.css_gen virtual_dom.svg)
+ (preprocess
+  (pps ppx_jane ppx_css bonsai.ppx_bonsai)))

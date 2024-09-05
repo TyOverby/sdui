@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 
 val img2img_impl
   :  direction:[ `Horizontal | `Vertical ]

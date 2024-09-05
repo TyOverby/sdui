@@ -1,0 +1,6 @@
+(library
+ (name bonsai_web_ui_low_level_vdom)
+ (public_name bonsai_web_components.web_ui_low_level_vdom)
+ (libraries bonsai bonsai_web core js_of_ocaml virtual_dom)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

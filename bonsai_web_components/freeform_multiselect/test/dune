@@ -1,0 +1,6 @@
+(library
+ (name bonsai_ui_components_freeform_multiselect_test)
+ (libraries bonsai_web_ui_freeform_multiselect bonsai_web bonsai_web_test
+   core virtual_dom.ui_effect)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

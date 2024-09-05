@@ -2,16 +2,14 @@
  (name comp)
  (libraries
   shared
-  bonsai.web
+  bonsai_web
   sd
   canvas2d
   async_js
-  bonsai.web_ui_form
-  bonsai.vdom_node_with_map_children
-  bonsai.web_ui_reorderable_list
-  bonsai.kado
-  virtual_dom.svg
-  bonsai.feather_icon)
+  bonsai_web_components.web_ui_form
+  bonsai_web_components.web_ui_reorderable_list
+  bonsai_web.kado
+  virtual_dom.svg)
  (preprocess
   (pps
    ppx_jane

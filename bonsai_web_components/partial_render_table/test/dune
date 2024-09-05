@@ -1,0 +1,9 @@
+(library
+ (name bonsai_web_ui_partial_render_table_test)
+ (libraries virtual_dom.vdom_test_helpers bonsai_web_ui_element_size_hooks
+   bonsai_web_ui_partial_render_table bonsai_web_ui_partial_render_table_ansi
+   core bonsai bonsai.perf_shared bonsai_web bonsai_web_test
+   bonsai_web_ui_partial_render_table_protocol incr_map.collate js_of_ocaml
+   incr_map.erase_key virtual_dom.ui_effect)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai ppx_typed_fields)))

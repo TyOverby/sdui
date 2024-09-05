@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 open! Bonsai.Let_syntax
 module Callback = Effect.Private.Callback
 module Computation_status = Bonsai.Computation_status
@@ -35,7 +35,7 @@ module Action = struct
     | Clear_all
 end
 
-let no_items_in_pool_error = Error.of_string "no items in pool"
+let no_items_in_pool_error = Error.of_string "no items in pool x"
 
 let take_impl ~schedule_event ~cb ~all ~pred ~info ~(model : _ Model.t) =
   let pickable = List.filter (Map.to_alist all) ~f:(fun (k, v) -> pred k v) in

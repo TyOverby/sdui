@@ -1,0 +1,6 @@
+(library
+ (name bonsai_experimental_table_form)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai ppx_css))
+ (libraries core bonsai bonsai_web bonsai_web_ui_form
+   bonsai_web_ui_partial_render_table virtual_dom.css_gen js_of_ocaml))

@@ -1,6 +1,6 @@
 open! Core
 open! Async_kernel
-open! Bonsai_web.Cont
+open! Bonsai_web
 
 module Query : sig
   type t =

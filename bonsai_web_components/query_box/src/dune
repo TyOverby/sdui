@@ -1,0 +1,8 @@
+(library
+ (name bonsai_web_ui_query_box)
+ (public_name bonsai_web_components.web_ui_query_box)
+ (libraries bonsai_web core virtual_dom.css_gen fuzzy_match.match
+   fuzzy_match.search incr_map js_of_ocaml js_of_ocaml_patches
+   virtual_dom.ui_effect incr_dom.ui_incr)
+ (preprocess
+  (pps ppx_jane js_of_ocaml-ppx ppx_pattern_bind bonsai.ppx_bonsai)))
