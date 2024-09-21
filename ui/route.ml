@@ -27,3 +27,5 @@ let rec render t ~f =
   | Branch { key; data; children } ->
     View.hbox [ f key data; View.vbox (List.map children ~f:(render ~f)) ]
 ;;
+
+let render t ~f = Vdom.Node.div ~attrs:[ [%css {| height: 50px; |}] ] [ render t ~f ]

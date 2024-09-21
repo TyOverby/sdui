@@ -31,6 +31,7 @@ module Individual : sig
   val seed_form
     :  ?container_attrs:
          (state:Int63.t -> set_state:(Int63.t -> unit Effect.t) -> Vdom.Attr.t list)
+           Bonsai.t
     -> Bonsai.graph
     -> (Int63.t, Vdom.Node.t) Form.t Bonsai.t
 

@@ -16,6 +16,7 @@ val int_form
   :  ?input_attrs:Vdom.Attr.t list
   -> ?container_attrs:
        (state:Int63.t -> set_state:(Int63.t -> unit Effect.t) -> Vdom.Attr.t list)
+         Bonsai.t
   -> title:string
   -> default:Int63.t
   -> step:int

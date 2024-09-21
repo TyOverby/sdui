@@ -27,12 +27,7 @@ let component graph =
       (Js_of_ocaml.Js.to_string Js_of_ocaml.Dom_html.window##.location##.hostname)
   in
   let default_size = if is_localhost then 128 else 256 in
-  let seed =
-    P.seed_form
-      ~container_attrs:(fun ~state ~set_state ->
-        [ Vdom.Attr.on_double_click (fun _ -> set_state Int63.(state + of_int 4)) ])
-      graph
-  and pos_prompt =
+  let pos_prompt =
     P.prompt_form
       ~default:"score_9, score_8_up, score_7_up,\n"
       ~container_attrs:[ {%css| flex-grow: 2 |} ]
@@ -64,6 +59,17 @@ let component graph =
   and ratios =
     Sd.Custom_form_elements.textarea ~label:"ratios" graph
     >>| Form.map_view ~f:(fun view -> view ?colorize:None ())
+  in
+  let seed =
+    P.seed_form
+      ~container_attrs:
+        (let%arr num_images = num_images in
+         fun ~state ~set_state ->
+           [ Vdom.Attr.on_double_click (fun _ ->
+               set_state
+                 Int63.(state + of_int (Form.value_or_default num_images ~default:1)))
+           ])
+      graph
   in
   Form.Typed.Record.make
     (module struct

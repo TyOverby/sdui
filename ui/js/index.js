@@ -87,7 +87,8 @@ function painter_init(input) {
         color: "rgb(255,0,0)",
         onColorChange: (function () { }),
         setDirty: (function () { }),
-        mode: "paint"
+        mode: "paint",
+        onUpdateImage: (function () { })
     };
 
     on_image_init(image, function () {
@@ -261,11 +262,11 @@ function painter_init(input) {
 
 //Provides:empty_white_image
 function empty_white_image(width, height) {
-  const canvas = document.createElement("canvas");
-  canvas.setAttribute("width", width);
-  canvas.setAttribute("height", height);
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "white";
-  ctx.fillRect(0, 0, width, height);
-  return canvas.toDataURL("image/png", 1);
+    const canvas = document.createElement("canvas");
+    canvas.setAttribute("width", width);
+    canvas.setAttribute("height", height);
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, width, height);
+    return canvas.toDataURL("image/png", 1);
 }

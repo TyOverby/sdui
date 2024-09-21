@@ -28,7 +28,7 @@ module Label_modifications =
 
 let int_form
   ?(input_attrs = [])
-  ?(container_attrs = fun ~state:_ ~set_state:_ -> [])
+  ?(container_attrs = Bonsai.return (fun ~state:_ ~set_state:_ -> []))
   ~title
   ~default
   ~step
@@ -42,6 +42,7 @@ let int_form
   let state, set_state = Bonsai.state (Int63.to_string default) graph in
   let%arr theme = theme
   and state = state
+  and container_attrs = container_attrs
   and set_state = set_state in
   let value_or_corrected = validate_or_correct state in
   let is_error = Result.is_ok value_or_corrected in

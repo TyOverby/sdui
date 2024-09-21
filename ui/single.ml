@@ -162,12 +162,14 @@ let component ~direction ~pool ~prev ~mask graph =
                img)
           ]
       in
+      let gallery_attrs = [%css {| overflow-x: scroll|}] in
       match images with
-      | Fresh img -> View.hbox ~gap:(`Em 1) (List.mapi img ~f:base64_to_vdom)
+      | Fresh img ->
+        View.hbox ~gap:(`Em 1) ~attrs:[ gallery_attrs ] (List.mapi img ~f:base64_to_vdom)
       | Stale img ->
         View.hbox
           ~gap:(`Em 1)
-          ~attrs:[ {%css| opacity: 0.5;|} ]
+          ~attrs:[ gallery_attrs; {%css| opacity: 0.5;|} ]
           (List.mapi img ~f:base64_to_vdom)
       | Not_computed -> Vdom.Node.div [ Vdom.Node.text "not computed yet..." ]
       | Error e -> Vdom.Node.div [ Vdom.Node.sexp_for_debugging (Error.sexp_of_t e) ]
