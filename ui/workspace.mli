@@ -1,4 +1,4 @@
-open! Bonsai_web.Cont
+open! Bonsai_web
 
 type t
 
@@ -15,7 +15,7 @@ val make
   -> forward_button:Vdom.Node.t Bonsai.t
   -> clear_button:Vdom.Node.t Bonsai.t
   -> widget:Vdom.Node.t Bonsai.t
-  -> Bonsai.graph
+  -> local_ Bonsai.graph
   -> t Bonsai.t
 
 val for_first_node

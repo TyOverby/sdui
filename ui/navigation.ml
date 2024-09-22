@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 open! Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
 
@@ -139,5 +139,5 @@ let component ~pool ~hosts_view ~lease_pool_view graph =
           ])
   in
   let%arr rest = rest in
-  Vdom_node_with_map_children.make ~tag:"div" rest
+  Vdom.Node.Map_children.make ~tag:"div" rest
 ;;

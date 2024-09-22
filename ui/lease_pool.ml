@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 open! Bonsai.Let_syntax
 module Callback = Effect.Private.Callback
 module Computation_status = Bonsai.Computation_status

@@ -1,4 +1,4 @@
-open! Bonsai_web.Cont
+open! Bonsai_web
 open! Js_of_ocaml
 
 val attr

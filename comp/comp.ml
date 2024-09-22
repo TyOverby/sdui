@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 open Bonsai.Let_syntax
 module Snips = Shared.Snips
 module Form = Bonsai_web_ui_form.With_manual_view
@@ -103,7 +103,12 @@ let find_offset ctx1 img2 =
         done;
         !collided)
   in
-  Option.value result ~default:0, c2, ctx2
+  let r = 
+    match result with 
+    | None -> 0
+    | Some x -> x 
+  in 
+  r, c2, ctx2
 ;;
 
 let file_upload graph =
@@ -253,7 +258,7 @@ let file_upload graph =
     ]
 ;;
 
-let component graph =
+let component (local_ graph) =
   let%arr upload = file_upload graph in
   Snips.body upload |> Snips.render
 ;;

@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
 
@@ -9,7 +9,7 @@ body {
 }
 |}]
 
-let component graph =
+let component (local_ graph) =
   let%sub { view = hosts_view; available_hosts; set_worker_in_use } =
     Sd.Hosts.component graph
   in

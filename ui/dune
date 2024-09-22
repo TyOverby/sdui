@@ -2,16 +2,15 @@
  (name sd_chain)
  (libraries
   shared
-  bonsai.web
+  bonsai_web
   async_js
   yojson
   sd
-  bonsai.web_ui_form
-  bonsai.vdom_node_with_map_children
-  bonsai.kado
-  bonsai.web_ui_widget
+  bonsai_web_components.web_ui_form
+  bonsai_web.kado
+  bonsai_web_components.web_ui_low_level_vdom
   virtual_dom.svg
-  bonsai.feather_icon)
+  bonsai_web_components.feather_icon)
  (js_of_ocaml
   (javascript_files ./js/index.js))
  (preprocess

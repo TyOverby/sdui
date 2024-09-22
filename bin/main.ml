@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 open Bonsai.Let_syntax
 
 let () = Ui_incr.State.set_max_height_allowed Ui_incr.State.t (Int.shift_left 1024 3)
@@ -9,10 +9,12 @@ module Tab = struct
     | Gen
     | Comp
   [@@deriving sexp, enumerate, equal]
+
+  let default = Gen
 end
 
-let ui graph =
-  let tab, set_tab = Bonsai.state Tab.Comp graph in
+let ui (local_ graph) =
+  let tab, set_tab = Bonsai.state Tab.default graph in
   let which =
     match%sub tab with
     | Gen -> Sd_chain.component graph
@@ -36,5 +38,5 @@ let () =
   Bonsai_web.Start.start
     (View.Theme.set_for_app
        (Bonsai.return (Kado.theme ~style:Dark ~version:Bleeding ()))
-       (fun graph -> ui graph))
+       (fun graph -> ui graph [@nontail]))
 ;;

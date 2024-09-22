@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 
 (* A lease-pool is a data structure for lending out values of type ['a] to
    a user of the pool for the duration of an effect.
@@ -21,7 +21,7 @@ val create
   :  ('key, 'cmp) Comparator.Module.t
   -> ?data_equal:('data -> 'data -> bool)
   -> ('key, 'data, 'cmp) Map.t Bonsai.t
-  -> Bonsai.graph
+  -> local_ Bonsai.graph
   -> ('key, 'data, 'cmp) t
 
 val dispatcher

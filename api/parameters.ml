@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 open! Async_kernel
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
@@ -286,7 +286,7 @@ let component
         let finalize_view _ _ = Bonsai.return ()
 
         let form_for_field
-          : type a. a Typed_field.t -> Bonsai.graph -> (a, unit) Form.t Bonsai.t
+          : type a. a Typed_field.t -> local_ Bonsai.graph -> (a, unit) Form.t Bonsai.t
           =
           fun field _graph ->
           match field with

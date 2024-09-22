@@ -27,10 +27,13 @@ Additionally you may wish to pass
 ## Building
 
 ```bash
+# Add the janestreet bleeding repo that has js-only extensions
+opam repo add janestreet-bleeding-with-extensions https://github.com/janestreet/opam-repository.git#with-extensions
+
 git clone git@github.com:TyOverby/sdui.git
 cd sdui
 
-opam switch create ./ 4.14.1
+opam switch create ./ 5.1.1+flambda2 --repos janestreet-bleeding-with-extensions,default
 eval $(opam env)
 
 opam repo add janestreet-bleeding https://ocaml.janestreet.com/opam-repository

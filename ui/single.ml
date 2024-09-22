@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 open! Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
 module P = Sd.Parameters.Individual
@@ -28,7 +28,7 @@ let perform_dispatch ~dispatcher ~api_fun ~query ~update ~sleep ~width ~height i
          | Ok _ -> Error (Error.of_string "unexpected number of images")))
 ;;
 
-let image ~params ~prev ~mask ~pool graph =
+let image ~params ~prev ~mask ~pool (local_ graph) =
   let result =
     match%sub prev with
     | None ->
@@ -119,7 +119,7 @@ let component ~direction ~pool ~prev ~mask graph =
   let params = Parameters.component graph in
   let images, reset =
     Bonsai.with_model_resetter graph ~f:(fun graph ->
-      image ~pool ~prev ~mask ~params graph)
+      image ~pool ~prev ~mask ~params graph [@nontail])
   in
   let picked, set_picked = Bonsai.state_opt graph in
   let form_view =

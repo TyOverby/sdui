@@ -17,7 +17,7 @@ let rec sexp_of_t sexp_of_k sexp_of_v = function
 let empty = Empty
 let branch ~key ~data ~children = Branch { key; data; children }
 
-open Bonsai_web.Cont
+open Bonsai_web
 
 let rec render t ~f =
   match t with

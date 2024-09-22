@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 open Shared
 
 type t =
@@ -11,4 +11,4 @@ type t =
 [@@deriving sexp_of]
 
 val dispatch : string -> t Or_error.t Effect.t
-val state : host_and_port:string Bonsai.t -> Bonsai.graph -> t Or_error.t Bonsai.t
+val state : host_and_port:string Bonsai.t -> local_ Bonsai.graph -> t Or_error.t Bonsai.t

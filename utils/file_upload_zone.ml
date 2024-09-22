@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 open Js_of_ocaml
 
 module Bindings = struct

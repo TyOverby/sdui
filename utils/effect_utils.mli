@@ -1,5 +1,5 @@
 open! Core
-open Bonsai_web.Cont
+open Bonsai_web
 
 val parallel_both : 'a Effect.t -> 'b Effect.t -> ('a * 'b) Effect.t
 val parallel_all : 'a Effect.t list -> 'a list Effect.t

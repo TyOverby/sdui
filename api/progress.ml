@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 open! Async_kernel
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives
 open Bonsai.Let_syntax

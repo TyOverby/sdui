@@ -77,9 +77,9 @@ module Canvas1 = struct
     canvas##setAttribute the_string_''width'' (Js.string (Int.to_string width));
     canvas##setAttribute the_string_''height'' (Js.string (Int.to_string height));
     canvas##.style##.width
-    := Dom_float.to_js_string (Int.to_float width /. Dom_html.window##.devicePixelRatio);
+    := Dom_float.to_js_string (Int.to_float width /.  (Js_of_ocaml.Js.float_of_number Dom_html.window##.devicePixelRatio));
     canvas##.style##.height
-    := Dom_float.to_js_string (Int.to_float height /. Dom_html.window##.devicePixelRatio);
+    := Dom_float.to_js_string (Int.to_float height /. (Js_of_ocaml.Js.float_of_number Dom_html.window##.devicePixelRatio));
     (Obj.magic : Dom_html.canvasElement Js.t -> extendedCanvasElement Js.t) canvas
   ;;
 
@@ -130,14 +130,14 @@ module Ctx2d1 = struct
     let h = Option.value h ~default:sh in
     ctx##drawImage_fullFromCanvas
       (canvas :> Dom_html.canvasElement Js.t)
-      sx
-      sy
-      sw
-      sh
-      x
-      y
-      w
-      h
+      (Js_of_ocaml.Js.number_of_float sx)
+      (Js_of_ocaml.Js.number_of_float sy)
+      (Js_of_ocaml.Js.number_of_float sw)
+      (Js_of_ocaml.Js.number_of_float sh)
+      (Js_of_ocaml.Js.number_of_float x)
+      (Js_of_ocaml.Js.number_of_float y)
+      (Js_of_ocaml.Js.number_of_float w)
+      (Js_of_ocaml.Js.number_of_float h)
   ;;
 
   let draw_image ?sx ?sy ?sw ?sh ?w ?h ((_, ctx) : t) (image : Image0.t) ~x ~y =
@@ -151,7 +151,15 @@ module Ctx2d1 = struct
     in
     let w = Option.value w ~default:sw in
     let h = Option.value h ~default:sh in
-    ctx##drawImage_full (Image0.to_image_element image) sx sy sw sh x y w h
+    ctx##drawImage_full (Image0.to_image_element image) 
+ (Js_of_ocaml.Js.number_of_float sx)
+ (Js_of_ocaml.Js.number_of_float sy)
+ (Js_of_ocaml.Js.number_of_float sw)
+ (Js_of_ocaml.Js.number_of_float sh)
+ (Js_of_ocaml.Js.number_of_float x)
+ (Js_of_ocaml.Js.number_of_float y)
+ (Js_of_ocaml.Js.number_of_float w)
+ (Js_of_ocaml.Js.number_of_float h)
   ;;
 
   let get_image_data ?(x = 0) ?(y = 0) ?w ?h ((canvas, ctx) : t) =
@@ -159,10 +167,10 @@ module Ctx2d1 = struct
     let h = Option.value_or_thunk h ~default:(fun () -> Canvas1.height canvas - y) in
     let obj =
       ctx##getImageData
-        (Int.to_float x)
-        (Int.to_float y)
-        (Int.to_float w)
-        (Int.to_float h)
+        (Js_of_ocaml.Js.number_of_float (Int.to_float x))
+        (Js_of_ocaml.Js.number_of_float (Int.to_float y))
+        (Js_of_ocaml.Js.number_of_float (Int.to_float w))
+        (Js_of_ocaml.Js.number_of_float (Int.to_float h))
     in
     { Image_data0.obj; width = obj##.width; height = obj##.height; data = obj##.data }
   ;;
@@ -187,7 +195,11 @@ module Ctx2d1 = struct
   ;;
 
   let set_fill_style (_, ctx) s = ctx##.fillStyle := Js.string s
-  let fill_rect (_, ctx) ~x ~y ~w ~h = ctx##fillRect x y w h
+  let fill_rect (_, ctx) ~x ~y ~w ~h = ctx##fillRect 
+    (Js_of_ocaml.Js.number_of_float x)
+    (Js_of_ocaml.Js.number_of_float y)
+    (Js_of_ocaml.Js.number_of_float w)
+    (Js_of_ocaml.Js.number_of_float h)
 
   let set_global_composite_operation (_, ctx) s =
     ctx##.globalCompositeOperation := Js.string s

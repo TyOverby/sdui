@@ -1,6 +1,6 @@
 open! Core
 open! Async_kernel
-open! Bonsai_web.Cont
+open! Bonsai_web
 
 let dispatch ~host_and_port =
   Deferred.Or_error.try_with (fun () ->

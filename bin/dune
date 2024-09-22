@@ -5,12 +5,11 @@
   sd_chain
   comp
   shared
-  bonsai.web
+  bonsai_web
   async_js
   yojson
-  bonsai.web_ui_form
-  bonsai.vdom_node_with_map_children
-  bonsai.kado
+  bonsai_web_components.web_ui_form
+  bonsai_web.kado
   virtual_dom.svg)
  (js_of_ocaml
   (flags :standard --no-sourcemap)

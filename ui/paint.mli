@@ -1,5 +1,5 @@
 open! Core
-open! Bonsai_web.Cont
+open! Bonsai_web
 
 module Images : sig
   type t =
@@ -24,5 +24,5 @@ type t =
   ; view : View.t Bonsai.t
   }
 
-val component : prev:Sd.Image.t Bonsai.t -> Bonsai.graph -> t
+val component : prev:Sd.Image.t Bonsai.t -> local_ Bonsai.graph -> t
 val empty_white_image : int -> int -> Js_of_ocaml.Js.js_string Js_of_ocaml.Js.t
