@@ -70,8 +70,101 @@ function isCanvasAllWhite(canvas, ctx) {
     return true;
 }
 
+//Provides:randomPointInCircle
+function randomPointInCircle(cx, cy, r, dist_x, dist_y, stddev) {
+    function randn_bm() {
+        let u = 0, v = 0;
+        while (u === 0) u = Math.random(); // Convert [0,1) to (0,1)
+        while (v === 0) v = Math.random();
+        return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+
+    let x, y;
+    do {
+        x = dist_x + randn_bm() * stddev;
+        y = dist_y + randn_bm() * stddev;
+    } while (Math.sqrt((x - cx) ** 2 + (y - cy) ** 2) > r);
+
+    return { x: x, y: y };
+}
+
+//Provides:is_in_circle
+function is_in_circle(cx, cy, r, x, y) {
+    const d2 = (x - cx) * (x - cx) + (y - cy) * (y - cy);
+    return d2 <= r * r;
+}
+
+//Requires:randomPointInCircle,is_in_circle
+//Provides:scramble
+function scramble(img_data, draw_data, cx, cy, r, prev_cx, prev_cy, prev_r, w, h) {
+    cx = Math.round(cx);
+    cy = Math.round(cy);
+    function lookup(x, y) {
+        let idx = (y * w + x) * 4;
+        let draw_a = draw_data.data[idx + 3];
+        if (draw_a > 0) {
+            return [
+                idx,
+                draw_data.data[idx + 0],
+                draw_data.data[idx + 1],
+                draw_data.data[idx + 2]
+            ]
+        } else {
+            return [
+                idx,
+                img_data.data[idx + 0],
+                img_data.data[idx + 1],
+                img_data.data[idx + 2]
+            ]
+        }
+    }
+
+    function swap_colors(ax, ay, bx, by) {
+        let [a_idx, ar, ag, ab] = lookup(ax, ay);
+        let [b_idx, br, bg, bb] = lookup(bx, by);
+        draw_data.data[a_idx + 0] = br;
+        draw_data.data[a_idx + 1] = bg;
+        draw_data.data[a_idx + 2] = bb;
+        draw_data.data[a_idx + 3] = 255;
+
+        draw_data.data[b_idx + 0] = ar;
+        draw_data.data[b_idx + 1] = ag;
+        draw_data.data[b_idx + 2] = ab;
+        draw_data.data[b_idx + 3] = 255;
+    }
+
+    r = Math.round(r);
+    for (let dy = -r; dy < r; dy++) {
+        let y = dy + cy;
+        if (y < 0) { continue; }
+        if (y >= h) { break; }
+
+        for (let dx = -r; dx < r; dx++) {
+            let x = dx + cx;
+            if (x < 0) { continue; }
+            if (x >= w) { break; }
+            if (dx * dx + dy * dy > r * r) { continue; }
+
+            if (prev_cx != null && prev_cy != null && prev_r != null) {
+                if (is_in_circle(prev_cx, prev_cy, prev_r, x, y)) {
+                    continue;
+                }
+            }
+
+            let next_x, next_y;
+            do {
+                let { x: rand_x, y: rand_y } = randomPointInCircle(cx, cy, r, x, y, r / 10);
+                next_x = Math.round(rand_x);
+                next_y = Math.round(rand_y);
+            } while (next_x < 0 || next_y < 0 || next_x >= w || next_y >= h);
+
+            swap_colors(x, y, next_x, next_y);
+        }
+    }
+}
+
 //Provides:painter_init
-//Requires:drawPill, sanatize_url, on_image_init, rgbToHex, createCanvas, isCanvasAllWhite
+//Requires:drawPill, sanatize_url, on_image_init, rgbToHex, createCanvas, isCanvasAllWhite, scramble
 function painter_init(input) {
     var data_url = sanatize_url(input);
     var stack = document.createElement("div");
@@ -104,7 +197,7 @@ function painter_init(input) {
 
         let img_ctx = img_canvas.getContext("2d", { willReadFrequently: true });
         let mask_ctx = mask_canvas.getContext("2d");
-        let draw_ctx = draw_canvas.getContext("2d");
+        let draw_ctx = draw_canvas.getContext("2d", { willReadFrequently: true });
         let outline_ctx = outline_canvas.getContext("2d");
         let composite_ctx = composite_canvas.getContext("2d");
         let composite_mask_ctx = composite_mask_canvas.getContext("2d");
@@ -157,9 +250,11 @@ function painter_init(input) {
             var target_ctx = state.mode === "mask" ? mask_ctx : draw_ctx;
 
             var erasing = false;
+            var shuffling = false;
             if (event.ctrlKey) {
-                target_ctx.globalCompositeOperation = "destination-out";
-                erasing = true;
+                // target_ctx.globalCompositeOperation = "destination-out";
+                //erasing = true;
+                shuffling = true;
             } else {
                 target_ctx.globalCompositeOperation = "source-over";
             }
@@ -174,6 +269,7 @@ function painter_init(input) {
                     last_y = null;
                     return;
                 }
+
                 var pressure = erasing ? 1 : event.pressure;
 
                 var x = event.offsetX * window.devicePixelRatio;
@@ -187,12 +283,20 @@ function painter_init(input) {
 
                 var radius = 0;
                 if (state.penSize === 1) { radius = 1; } else { radius = state.penSize * pressure; }
-                if (last_x === null || last_y === null) {
-                    target_ctx.beginPath();
-                    target_ctx.ellipse(x, y, radius, radius, 0, Math.PI * 2, 0);
-                    target_ctx.fill();
+
+                if (shuffling) {
+                    let img_data = img_ctx.getImageData(0, 0, img_canvas.width, img_canvas.height);
+                    let target_data = draw_ctx.getImageData(0, 0, draw_canvas.width, draw_canvas.height);
+                    scramble(img_data, target_data, x, y, radius, last_x, last_y, last_radius, img_canvas.width, img_canvas.height);
+                    target_ctx.putImageData(target_data, 0, 0);
                 } else {
-                    drawPill(target_ctx, last_x, last_y, x, y, last_radius, radius);
+                    if (last_x === null || last_y === null) {
+                        target_ctx.beginPath();
+                        target_ctx.ellipse(x, y, radius, radius, 0, Math.PI * 2, 0);
+                        target_ctx.fill();
+                    } else {
+                        drawPill(target_ctx, last_x, last_y, x, y, last_radius, radius);
+                    }
                 }
                 last_x = x;
                 last_y = y;

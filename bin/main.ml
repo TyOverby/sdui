@@ -9,10 +9,12 @@ module Tab = struct
     | Gen
     | Comp
   [@@deriving sexp, enumerate, equal]
+
+  let default = Gen
 end
 
 let ui graph =
-  let tab, set_tab = Bonsai.state Tab.Comp graph in
+  let tab, set_tab = Bonsai.state Tab.default graph in
   let which =
     match%sub tab with
     | Gen -> Sd_chain.component graph
