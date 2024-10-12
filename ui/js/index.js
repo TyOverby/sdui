@@ -252,9 +252,9 @@ function painter_init(input) {
             var erasing = false;
             var shuffling = false;
             if (event.ctrlKey) {
-                // target_ctx.globalCompositeOperation = "destination-out";
-                //erasing = true;
-                shuffling = true;
+                target_ctx.globalCompositeOperation = "destination-out";
+                erasing = true;
+                //shuffling = true;
             } else {
                 target_ctx.globalCompositeOperation = "source-over";
             }
