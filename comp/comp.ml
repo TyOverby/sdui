@@ -10,14 +10,7 @@ let rec insert_with_dedupe map ~key ~data =
   | `Ok map -> map
 ;;
 
-let load_image =
-  let load_image_deferred url =
-    let ivar = Async_kernel.Ivar.create () in
-    Canvas2d.Image.of_url url ~on_load:(Async_kernel.Ivar.fill_if_empty ivar);
-    Async_kernel.Ivar.read ivar
-  in
-  Effect.of_deferred_fun load_image_deferred
-;;
+let load_image = Sd.Load_image_effect.load_image
 
 let process_file file =
   let file = Shared.File_data_url.create file in

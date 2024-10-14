@@ -23,6 +23,7 @@ let make
   ~(layer_panel : Vdom.Node.t Bonsai.t)
   ~(forward_button : Vdom.Node.t Bonsai.t)
   ~(clear_button : Vdom.Node.t Bonsai.t)
+  ~(padding : Vdom.Node.t Bonsai.t)
   ~(widget : Vdom.Node.t Bonsai.t)
   graph
   =
@@ -44,6 +45,7 @@ let make
   and layer_panel = layer_panel
   and forward_button = forward_button
   and clear_button = clear_button
+  and padding = padding
   and widget = widget
   and zoom_form = zoom_form in
   fun ~hosts:_ ~queue ~route ->
@@ -56,6 +58,7 @@ let make
         ; forward_button
         ; clear_button
         ; Form.view zoom_form
+        ; padding
         ]
     in
     Snips.top (View.hbox [ queue ])

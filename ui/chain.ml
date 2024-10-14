@@ -75,6 +75,7 @@ let component
           ; forward_button
           ; clear_button
           ; widget
+          ; padding
           } ->
         Workspace.make
           ~index
@@ -86,6 +87,7 @@ let component
           ~widget
           ~gallery_view
           ~form_view
+          ~padding
           ~reset
           graph
     in

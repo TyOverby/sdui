@@ -8,6 +8,7 @@
   bonsai.web_ui_form
   bonsai.vdom_node_with_map_children
   bonsai.kado
+  canvas2d
   virtual_dom.svg
   bonsai.feather_icon)
  (preprocess
