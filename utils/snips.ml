@@ -164,6 +164,7 @@ module Builder = struct
         Edge { kind; view; next; rows; cols; attr; size; scroll_config = scroll })
   ;;
 
+  let none = Continuation Fn.id
   let top ?scroll ?size ?attr view = make_edge Top ?scroll ?size ?attr view
   let right ?scroll ?size ?attr view = make_edge Right ?scroll ?size ?attr view
   let bottom ?scroll ?size ?attr view = make_edge Bottom ?scroll ?size ?attr view

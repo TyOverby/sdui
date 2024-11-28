@@ -1,22 +1,18 @@
-(executables
- (names main)
+(library
+ (name evolve)
  (libraries
-  ; sd
-  sd_chain
-  comp
   shared
   bonsai.web
+  sd
+  sd_chain
+  canvas2d
   async_js
-  yojson
   bonsai.web_ui_form
   bonsai.vdom_node_with_map_children
-  evolve
+  bonsai.web_ui_reorderable_list
   bonsai.kado
-  virtual_dom.svg)
- (js_of_ocaml
-  (flags :standard --no-sourcemap)
-  (link_flags :standard --no-sourcemap))
- (modes js)
+  virtual_dom.svg
+  bonsai.feather_icon)
  (preprocess
   (pps
    ppx_jane

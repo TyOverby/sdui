@@ -39,6 +39,7 @@ module Scroll_config : sig
 end
 
 val ( |+| ) : open_ t -> 'b t -> 'b t
+val none : open_ t
 
 val top
   :  ?scroll:Scroll_config.t

@@ -16,7 +16,7 @@ type t =
   ; ratios : string
   ; num_images : int
   }
-[@@deriving typed_fields]
+[@@deriving typed_fields, equal]
 
 let num_images { num_images; _ } = num_images
 
@@ -47,7 +47,7 @@ let component graph =
       ~max:150
       ~label:"steps"
       graph
-  and cfg = P.min_1_form ~default:(Int63.of_int 7) ~max:30 ~label:"cfg" graph
+  and cfg = P.min_1_form ~default:(Int63.of_int 14) ~max:30 ~label:"cfg" graph
   and denoise = P.min_1_form ~default:(Int63.of_int 70) ~max:100 ~label:"deno" graph
   and num_images =
     P.min_1_form

@@ -8,9 +8,10 @@ module Tab = struct
   type t =
     | Gen
     | Comp
+    | Evolve
   [@@deriving sexp, enumerate, equal]
 
-  let default = Gen
+  let default = Evolve
 end
 
 let ui graph =
@@ -19,6 +20,7 @@ let ui graph =
     match%sub tab with
     | Gen -> Sd_chain.component graph
     | Comp -> Comp.component graph
+    | Evolve -> Evolve.component graph
   in
   let%arr which = which
   and tab = tab
