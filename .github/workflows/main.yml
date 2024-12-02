@@ -15,5 +15,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Install ts
+        run: sudo apt install ts
+
       - name: Install opam & packages
         run: bash -x ./setup_dev.sh | ts '[%Y-%m-%d %H:%M:%S]'
