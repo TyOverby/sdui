@@ -22,3 +22,5 @@ eval $(opam env --switch=5.2.0+flambda2)
  ocaml-lsp-server.1.19.0+jst
 
 ./opam install --yes ./
+
+dune build bin/main.bc.js
