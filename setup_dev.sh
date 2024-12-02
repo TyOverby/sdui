@@ -9,7 +9,6 @@ chmod +x install_opam.sh
 ./install_opam.sh --download-only --version 2.3.0
 mv opam-2.3.0-x86_64-linux ./opam
 chmod +x opam
-rm sdui.opam
 
 ./opam init
 ./opam repo add with-extensions https://github.com/janestreet/opam-repository.git#with-extensions --dont-select
