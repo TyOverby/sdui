@@ -1,6 +1,6 @@
 #!/bin/bash
 
-bash -c "sh <(curl -fsSL https://opam.ocaml.org/install.sh)"
+sudo bash -c "sh <(curl -fsSL https://opam.ocaml.org/install.sh)"
 opam init
 opam update
 
