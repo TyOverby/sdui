@@ -8,14 +8,17 @@ chmod +x install_opam.sh
 mv opam-2.3.0-x86_64-linux ./opam
 chmod +x opam
 
-./opam init
+./opam init --bare
 ./opam update
 
 ./opam repo add with-extensions https://github.com/janestreet/opam-repository.git#with-extensions
 ./opam switch create ./ 5.2.0+flambda2 --repos with-extensions,default --empty
 eval $(./opam env)
 
-./opam install ./ \
+./opam install \
+ dune \
  ocamlformat.0.26.2+jst \
  merlin.5.2.1-502+jst \
  ocaml-lsp-server.1.19.0+jst
+
+./opam install ./
