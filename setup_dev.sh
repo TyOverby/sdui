@@ -11,7 +11,7 @@ mv opam-2.3.0-x86_64-linux ./opam
 chmod +x opam
 rm sdui.opam
 
-./opam init --bare
+./opam init
 ./opam repo add with-extensions https://github.com/janestreet/opam-repository.git#with-extensions --dont-select
 ./opam update
 ./opam switch create ./ 5.2.0+flambda2 --repos with-extensions,default --no-install
