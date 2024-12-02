@@ -7,7 +7,6 @@ chmod +x install_opam.sh
 ./install_opam.sh --download-only --version 2.3.0
 mv opam-2.3.0-x86_64-linux ./opam
 chmod +x opam
-tree
 rm sdui.opam
 
 ./opam init --bare
@@ -16,6 +15,7 @@ rm sdui.opam
 ./opam repo add with-extensions https://github.com/janestreet/opam-repository.git#with-extensions --dont-select
 ./opam switch create ./ 5.2.0+flambda2 --repos with-extensions,default --no-install
 eval $(./opam env)
+./opam update
 
 ./opam install \
  dune \
