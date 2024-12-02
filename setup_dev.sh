@@ -15,9 +15,9 @@ rm sdui.opam
 ./opam repo add with-extensions https://github.com/janestreet/opam-repository.git#with-extensions --dont-select
 ./opam update
 ./opam switch create 5.2.0+flambda2 --repos with-extensions,default
-eval $(./opam env)
+eval $(opam env --switch=5.2.0+flambda2)
 
-./opam install \
+./opam install --yes \
  ocamlformat.0.26.2+jst \
  merlin.5.2.1-502+jst \
  ocaml-lsp-server.1.19.0+jst
