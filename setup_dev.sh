@@ -14,7 +14,7 @@ rm sdui.opam
 ./opam init
 ./opam repo add with-extensions https://github.com/janestreet/opam-repository.git#with-extensions --dont-select
 ./opam update
-./opam switch create ./ 5.2.0+flambda2 --repos with-extensions,default --no-install
+./opam switch create 5.2.0+flambda2 --repos with-extensions,default
 eval $(./opam env)
 
 ./opam install \
