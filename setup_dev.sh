@@ -20,7 +20,6 @@ eval $(./opam env)
 ./opam update
 
 ./opam install \
- dune \
  ocamlformat.0.26.2+jst \
  merlin.5.2.1-502+jst \
  ocaml-lsp-server.1.19.0+jst
