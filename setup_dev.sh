@@ -4,6 +4,7 @@ curl -fsSL https://opam.ocaml.org/install.sh > install_opam.sh
 chmod +x install_opam.sh
 ./install_opam.sh --download-only --version 2.3.0
 mv opam-2.3.0-x86_64-linux ./opam
+chmod +x opam
 
 ./opam init
 ./opam update
