@@ -1,5 +1,7 @@
 #!/bin/bash
 
+sudo apt install bubblewrap
+
 curl -fsSL https://opam.ocaml.org/install.sh > install_opam.sh
 chmod +x install_opam.sh
 ./install_opam.sh --download-only --version 2.3.0
