@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 sudo apt install bubblewrap
 
 curl -fsSL https://opam.ocaml.org/install.sh > install_opam.sh
