@@ -22,4 +22,4 @@ eval $(opam env --switch=5.2.0+flambda2)
  merlin.5.2.1-502+jst \
  ocaml-lsp-server.1.19.0+jst
 
-./opam install ./
+./opam install --yes ./
