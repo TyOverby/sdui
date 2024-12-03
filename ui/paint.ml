@@ -196,6 +196,7 @@ module View_ = struct
     ; layer_panel : Vdom.Node.t
     ; forward_button : Vdom.Node.t
     ; clear_button : Vdom.Node.t
+    ; padding : Vdom.Node.t
     ; widget : Vdom.Node.t
     }
 end
@@ -252,6 +253,62 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
       graph
   in
   let current_layer, layer_view, mask_visible = Layer_panel.component graph in
+  let padding_left =
+    Sd.Custom_form_elements.int_form
+      ~title:"left"
+      ~step:1
+      ~default:(Int63.of_int 0)
+      ~validate_or_correct:(fun s ->
+        match Int63.of_string_opt s with
+        | None -> Error (Int63.of_int 0)
+        | Some i -> Ok i)
+      ~length:(`Em 5)
+      ~min:(Int63.of_int 0)
+      ~max:(Int63.of_int 1024)
+      graph
+  in
+  let padding_right =
+    Sd.Custom_form_elements.int_form
+      ~title:"right"
+      ~step:1
+      ~default:(Int63.of_int 0)
+      ~validate_or_correct:(fun s ->
+        match Int63.of_string_opt s with
+        | None -> Error (Int63.of_int 0)
+        | Some i -> Ok i)
+      ~length:(`Em 5)
+      ~min:(Int63.of_int 0)
+      ~max:(Int63.of_int 1024)
+      graph
+  in
+  let padding_top =
+    Sd.Custom_form_elements.int_form
+      ~title:"top"
+      ~step:1
+      ~default:(Int63.of_int 0)
+      ~validate_or_correct:(fun s ->
+        match Int63.of_string_opt s with
+        | None -> Error (Int63.of_int 0)
+        | Some i -> Ok i)
+      ~length:(`Em 5)
+      ~min:(Int63.of_int 0)
+      ~max:(Int63.of_int 1024)
+      graph
+  in
+  let padding_bottom =
+    Sd.Custom_form_elements.int_form
+      ~title:"bottom"
+      ~step:1
+      ~default:(Int63.of_int 0)
+      ~validate_or_correct:(fun s ->
+        match Int63.of_string_opt s with
+        | None -> Error (Int63.of_int 0)
+        | Some i -> Ok i)
+      ~length:(`Em 5)
+      ~min:(Int63.of_int 0)
+      ~max:(Int63.of_int 1024)
+      graph
+  in
   Bonsai.Edge.on_change
     (slider >>| Form.value >>| Or_error.ok)
     ~equal:[%equal: int option]
@@ -302,15 +359,48 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     let%arr theme = View.Theme.current graph
     and inject = inject
     and is_dirty = is_dirty
+    and padding_left = padding_left >>| Form.value_or_default ~default:(Int63.of_int 0)
+    and padding_right = padding_left >>| Form.value_or_default ~default:(Int63.of_int 0)
+    and padding_top = padding_left >>| Form.value_or_default ~default:(Int63.of_int 0)
+    and padding_bottom = padding_left >>| Form.value_or_default ~default:(Int63.of_int 0)
     and { Bonsai_web_ui_low_level_vdom.Widget.read; _ } = widget in
     let forward =
       let%bind.Effect effects =
         read (fun _input state ->
-          let image = Sd.Image.of_string ~kind:Base64 (Js.to_string state##composite) in
-          let mask =
+          let%bind.Effect image =
+            Sd.Load_image_effect.load_image (Js.to_string state##composite)
+          in
+          let%bind.Effect image =
+            Sd.Load_image_effect.load_image_generic
+              (Canvas2d.Image.add_padding
+                 ~left:(Int63.to_int_trunc padding_left)
+                 ~right:(Int63.to_int_trunc padding_right)
+                 ~top:(Int63.to_int_trunc padding_top)
+                 ~bottom:(Int63.to_int_trunc padding_bottom)
+                 image
+                 ~fill_color:"white")
+          in
+          print_s [%message "" (Canvas2d.Image.width image : int)];
+          let image =
+            Sd.Image.of_string ~kind:Base64 (Canvas2d.Image.to_data_url image)
+          in
+          let%bind.Effect mask =
             match Js.to_string state##compositeMask with
-            | "" -> None
-            | mask_string -> Some (Sd.Image.of_string ~kind:Base64 mask_string)
+            | "" -> Effect.return None
+            | mask_string ->
+              let%bind.Effect mask = Sd.Load_image_effect.load_image mask_string in
+              let%bind.Effect mask =
+                Sd.Load_image_effect.load_image_generic
+                  (Canvas2d.Image.add_padding
+                     ~left:(Int63.to_int_trunc padding_left)
+                     ~right:(Int63.to_int_trunc padding_right)
+                     ~top:(Int63.to_int_trunc padding_top)
+                     ~bottom:(Int63.to_int_trunc padding_bottom)
+                     mask
+                     ~fill_color:"white")
+              in
+              Effect.return
+                (Some (Sd.Image.of_string ~kind:Base64 (Canvas2d.Image.to_data_url mask)))
           in
           inject (`Set_value { Images.image; mask }))
       in
@@ -323,19 +413,31 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     and next_id = next_id in
     View.button theme "clear" ~on_click:(next_id ())
   in
+  let padding =
+    let%arr padding_left = padding_left
+    and padding_right = padding_right
+    and padding_top = padding_top
+    and padding_bottom = padding_bottom in
+    View.vbox
+      [ View.hbox [ Form.view padding_left; Form.view padding_right ]
+      ; View.hbox [ Form.view padding_top; Form.view padding_bottom ]
+      ]
+  in
   let view =
     let%arr color_picker = color_picker >>| Form.view
     and pen_size_slider = slider >>| Form.view
     and layer_panel = layer_view
     and forward_button = forward_button
     and clear_button = clear_button
-    and widget = widget_view in
+    and widget = widget_view
+    and padding = padding in
     { View_.color_picker
     ; pen_size_slider
     ; layer_panel
     ; forward_button
     ; clear_button
     ; widget
+    ; padding
     }
   in
   { images = value; view }

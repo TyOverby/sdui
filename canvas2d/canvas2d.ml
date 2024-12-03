@@ -366,6 +366,36 @@ module Image1 = struct
   ;;
 
   let dom_element = to_image_element
+
+  let add_padding
+    ?(left = 0)
+    ?(right = 0)
+    ?(top = 0)
+    ?(bottom = 0)
+    img
+    ~fill_color
+    ~on_load
+    =
+    match left, right, top, bottom with
+    | 0, 0, 0, 0 -> on_load img
+    | _ ->
+      print_s [%message "adding padding" (left : int)];
+      let canvas =
+        Canvas2.create
+          ~width:(width img + left + right)
+          ~height:(height img + top + bottom)
+      in
+      let ctx = Canvas2.ctx2d canvas in
+      Ctx2d1.set_fill_style ctx fill_color;
+      Ctx2d1.fill_rect
+        ~x:0.0
+        ~y:0.0
+        ~w:(Float.of_int (Canvas2.width canvas))
+        ~h:(Float.of_int (Canvas2.height canvas))
+        ctx;
+      Ctx2d1.draw_image ctx img ~x:(Float.of_int left) ~y:(Float.of_int top);
+      of_ctx ctx ~on_load
+  ;;
 end
 
 module Ctx2d2 = struct

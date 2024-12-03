@@ -15,6 +15,7 @@ module View : sig
     ; layer_panel : Vdom.Node.t
     ; forward_button : Vdom.Node.t
     ; clear_button : Vdom.Node.t
+    ; padding : Vdom.Node.t
     ; widget : Vdom.Node.t
     }
 end

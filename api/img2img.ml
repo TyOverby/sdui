@@ -142,6 +142,10 @@ let strip_images_field_from_json json =
     obj##.parameters
     (Js_of_ocaml.Js.string "init_images")
     (new%js Js_of_ocaml.Js.array_empty);
+  Js_of_ocaml.Js.Unsafe.set
+    obj##.parameters
+    (Js_of_ocaml.Js.string "mask")
+    (new%js Js_of_ocaml.Js.array_empty);
   Js_of_ocaml.Firebug.console##log_2 (Js_of_ocaml.Js.string "after") obj;
   ( Js_of_ocaml.Json.output obj |> Js_of_ocaml.Js.to_string
   , Js_of_ocaml.Js.to_array stripped

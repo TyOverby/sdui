@@ -10,14 +10,7 @@ let rec insert_with_dedupe map ~key ~data =
   | `Ok map -> map
 ;;
 
-let load_image =
-  let load_image_deferred url =
-    let ivar = Async_kernel.Ivar.create () in
-    Canvas2d.Image.of_url url ~on_load:(Async_kernel.Ivar.fill_if_empty ivar);
-    Async_kernel.Ivar.read ivar
-  in
-  Effect.of_deferred_fun load_image_deferred
-;;
+let load_image = Sd.Load_image_effect.load_image
 
 let process_file file =
   let file = Shared.File_data_url.create file in
@@ -25,7 +18,6 @@ let process_file file =
   | Error e -> Effect.return (Error e)
   | Ok contents ->
     let%bind.Effect image = load_image (Bigstring.to_string contents) in
-    (* Sd.Image.of_string ~kind:Base64 (Bigstring.to_string contents) in *)
     Effect.return (Ok image)
 ;;
 
@@ -61,7 +53,6 @@ let find_offset ctx1 img2 =
   let maximum_possible_x_offset =
     Int.min (Image_data.width data1) (Image_data.width data2)
   in
-  print_endline "find offset";
   let result =
     Core.Binary_search.binary_search_segmented
       ()
@@ -83,7 +74,7 @@ let find_offset ctx1 img2 =
             Image_data.get_rgba' data1 ~x:left_pos ~y:!y ~into:p1;
             Image_data.get_rgba' data2 ~x:right_pos ~y:!y ~into:p2;
             if close_to_white p2
-            then () (* Image_data.set_a data2 ~x:right_pos ~y:!y 0 *)
+            then ()
             else if close_to_white p1
             then ()
             else (

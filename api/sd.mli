@@ -11,3 +11,4 @@ module Samplers = Samplers
 module Styles = Styles
 module Upscaler = Upscaler
 module Alwayson_scripts = Alwayson_scripts
+module Load_image_effect = Load_image_effect

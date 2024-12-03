@@ -1,19 +1,8 @@
 (library
  (name sd)
- (libraries
-  shared
-  bonsai_web
-  async_js
-  yojson
-  bonsai_web_components.web_ui_form
-  bonsai_web.kado
-  virtual_dom.svg
+ (libraries shared bonsai_web async_js yojson
+  bonsai_web_components.web_ui_form bonsai_web.kado canvas2d virtual_dom.svg
   bonsai_web_components.feather_icon)
  (preprocess
-  (pps
-   ppx_jane
-   js_of_ocaml-ppx
-   ppx_css
-   ppx_typed_fields
-   ppx_yojson_conv
+  (pps ppx_jane js_of_ocaml-ppx ppx_css ppx_typed_fields ppx_yojson_conv
    bonsai.ppx_bonsai)))

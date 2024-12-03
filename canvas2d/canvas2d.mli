@@ -197,4 +197,14 @@ and Image : sig
 
   (** Returns the dom element underlying this image object *)
   val dom_element : t -> Js_of_ocaml.Dom_html.imageElement Js_of_ocaml.Js.t
+
+  val add_padding
+    :  ?left:int
+    -> ?right:int
+    -> ?top:int
+    -> ?bottom:int
+    -> t
+    -> fill_color:string
+    -> on_load:(Image.t -> unit)
+    -> unit
 end

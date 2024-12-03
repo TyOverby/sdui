@@ -14,6 +14,7 @@ val make
   -> layer_panel:Vdom.Node.t Bonsai.t
   -> forward_button:Vdom.Node.t Bonsai.t
   -> clear_button:Vdom.Node.t Bonsai.t
+  -> padding:Vdom.Node.t Bonsai.t
   -> widget:Vdom.Node.t Bonsai.t
   -> local_ Bonsai.graph
   -> t Bonsai.t
