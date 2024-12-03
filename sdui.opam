@@ -12,6 +12,12 @@ depends: [
   "ocaml"
   "dune" {>= "3.7"}
   "bonsai"
+  "bonsai_web_components"
+  "bonsai_web"
+  "virtual_dom"
+  "async_js"
+  "js_of_ocaml"
+  "yojson"
   "odoc" {with-doc}
 ]
 build: [
