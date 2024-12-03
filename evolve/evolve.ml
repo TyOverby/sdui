@@ -175,7 +175,10 @@ module Image_tree = struct
   module Action = struct
     type t =
       | Add_root
-      | Remove of Unique_id.t
+      | Remove of
+          { id : Unique_id.t
+          ; from_kbd : bool
+          }
       | Add of
           { parent_id : Unique_id.t
           ; stage : Stage.t
@@ -197,7 +200,8 @@ module Image_tree = struct
       ~apply_action:(fun ctx model action ->
         match action with
         | Action.Add_root -> Model.add_root model
-        | Remove id -> Model.remove ~id model
+        | Remove { id; from_kbd } ->
+          if from_kbd && Set.mem model.roots id then model else Model.remove ~id model
         | Set { id; stage = { desc; state } } -> Model.set model ~id ~desc ~state
         | Set_seen id -> { model with seen = Set.add model.seen id }
         | Add { parent_id; stage = { desc; state }; dispatch; on_complete } ->
@@ -555,7 +559,7 @@ let state_tree =
           print_s
             [%message (state.parents : Image_tree.Unique_id.t Image_tree.Unique_id.Map.t)];
           Effect.Many
-            [ inject (Image_tree.Action.Remove id)
+            [ inject (Image_tree.Action.Remove { id; from_kbd = false })
             ; (if [%equal: Image_tree.Unique_id.t option] (Some id) current_id
                then
                  Option.value_map
@@ -783,7 +787,8 @@ let component graph =
                        | None, None -> Effect.Ignore
                        | Some succ, _ -> set_current_id succ
                        | None, Some pred -> set_current_id pred)
-                    ; inject (Image_tree.Action.Remove current_id)
+                    ; inject
+                        (Image_tree.Action.Remove { id = current_id; from_kbd = true })
                     ])
         }
       ]

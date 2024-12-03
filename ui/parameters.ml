@@ -108,16 +108,18 @@ let component graph =
         and steps = f Steps
         and cfg = f Cfg
         and denoise = f Denoise
-        and seed = f Seed
+        and _seed = f Seed
         and ratios = f Ratios
         and pos_prompt = f Pos_prompt
-        and num_images = f Num_images
+        and _num_images = f Num_images
         and neg_prompt = f Neg_prompt in
-        fun ~direction ~theme ~reset ->
+        fun ~direction ~theme ~reset:_ ->
           let vbox, hbox =
             match direction with
-            | `Horizontal -> (fun a -> View.vbox a), fun a -> View.hbox a
-            | `Vertical -> (fun a -> View.hbox a), fun a -> View.vbox a
+            | `Horizontal ->
+              (fun ?gap a -> View.vbox ?gap a), fun ?gap a -> View.hbox ?gap a
+            | `Vertical ->
+              (fun ?gap a -> View.hbox ?gap a), fun ?gap a -> View.vbox ?gap a
           in
           let size_modification s ~f =
             let on_click =
@@ -128,23 +130,45 @@ let component graph =
             in
             View.button theme s ~on_click
           in
+          let flip_button =
+            let on_click =
+              let w = Form.value_or_default width ~default:Int63.zero in
+              let h = Form.value_or_default height ~default:Int63.zero in
+              Effect.Many [ Form.set width h; Form.set height w ]
+            in
+            View.button theme "flip" ~on_click
+          in
+          let preset ~w ~h =
+            let on_click =
+              Effect.Many
+                [ Form.set width (Int63.of_int w); Form.set height (Int63.of_int h) ]
+            in
+            let label = sprintf "%dx%d" w h in
+            View.button theme label ~on_click
+          in
           let two_x_button = size_modification "2" ~f:Int63.(( * ) (of_int 2)) in
           let div2_button = size_modification "1/2" ~f:Int63.(fun x -> x / of_int 2) in
           let div3_button = size_modification "1/3" ~f:Int63.(fun x -> x / of_int 3) in
+          let x640_1536 = preset ~w:640 ~h:1536 in
+          let x768_1344 = preset ~w:768 ~h:1344 in
+          let x832_1216 = preset ~w:832 ~h:1216 in
+          let x896_1152 = preset ~w:896 ~h:1152 in
           Vdom.Node.div
             [ vbox
                 [ hbox
-                    [ View.button theme "reset" ~on_click:reset
-                    ; vbox
+                    [ (* View.button theme "reset" ~on_click:reset ; *)
+                      vbox
                         [ Form.view width
                         ; Form.view height
-                        ; two_x_button
-                        ; div2_button
-                        ; div3_button
+                        ; hbox
+                            ~gap:(`Em 1)
+                            [ vbox [ flip_button; two_x_button; div2_button; div3_button ]
+                            ; vbox [ x640_1536; x768_1344; x832_1216; x896_1152 ]
+                            ]
                         ]
-                    ; vbox [ Form.view steps; Form.view cfg ]
-                    ; vbox [ Form.view denoise; Form.view seed ]
-                    ; Form.view num_images
+                    ; vbox [ Form.view steps; Form.view cfg; Form.view denoise ]
+                      (* ; vbox [ Form.view seed ] *)
+                      (*                     ; Form.view num_images *)
                     ; Form.view ratios
                     ; Form.view pos_prompt
                     ; Form.view neg_prompt
