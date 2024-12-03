@@ -1,8 +1,0 @@
-(library
- (name bonsai_web_ui_codemirror)
- (public_name bonsai_web_components.web_ui_codemirror)
- (libraries core bonsai_web virtual_dom sexp_grammar.completion_protocol
-   sexp_grammar.completion codemirror js_of_ocaml parsexp_prefix sexp_grammar
-   incr_dom.ui_incr)
- (preprocess
-  (pps js_of_ocaml-ppx ppx_jane bonsai.ppx_bonsai)))

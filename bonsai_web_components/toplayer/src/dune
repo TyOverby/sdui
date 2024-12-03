@@ -1,7 +1,0 @@
-(library
- (name bonsai_web_ui_toplayer)
- (public_name bonsai_web_components.web_ui_toplayer)
- (preprocess
-  (pps js_of_ocaml-ppx ppx_jane bonsai.ppx_bonsai ppx_css))
- (libraries bonsai bonsai_web core virtual_dom_toplayer.floating_positioning
-   js_of_ocaml virtual_dom_toplayer.popover))

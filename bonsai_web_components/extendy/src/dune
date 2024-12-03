@@ -1,6 +1,0 @@
-(library
- (name bonsai_web_ui_extendy)
- (public_name bonsai_web_components.web_ui_extendy)
- (libraries bonsai bonsai_web core incr_map)
- (preprocess
-  (pps ppx_jane ppx_pattern_bind bonsai.ppx_bonsai)))

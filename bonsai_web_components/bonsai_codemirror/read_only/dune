@@ -1,6 +1,0 @@
-(library
- (name bonsai_web_ui_codemirror_read_only)
- (libraries bonsai_web.ui_view codemirror codemirror_themes core gen_js_api
-   js_of_ocaml virtual_dom.ui_effect virtual_dom)
- (preprocess
-  (pps ppx_jane js_of_ocaml-ppx bonsai.ppx_bonsai)))

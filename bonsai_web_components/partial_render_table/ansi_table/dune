@@ -1,8 +1,0 @@
-(library
- (name bonsai_web_ui_partial_render_table_ansi)
- (public_name bonsai_web_components.web_ui_partial_render_table_ansi)
- (libraries core bonsai_web_ui_partial_render_table
-   textutils.ascii_table_kernel virtual_dom.vdom_test_helpers
-   incr_map.erase_key)
- (preprocess
-  (pps ppx_jane)))

@@ -1,8 +1,0 @@
-(library
- (name bonsai_web_ui_multi_select)
- (public_name bonsai_web_components.web_ui_multi_select)
- (libraries textutils.ascii_table_kernel bonsai bonsai_web core focus_ring
-   virtual_dom.keyboard virtual_dom.layout js_of_ocaml
-   virtual_dom.input_widgets virtual_dom)
- (preprocess
-  (pps ppx_jane js_of_ocaml-ppx bonsai.ppx_bonsai)))

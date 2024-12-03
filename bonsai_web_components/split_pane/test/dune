@@ -1,7 +1,0 @@
-(library
- (name bonsai_web_ui_split_pane_test)
- (public_name bonsai_web_components.web_ui_split_pane_test)
- (libraries textutils.ascii_table_kernel bonsai_web bonsai_web_test
-   bonsai_web_ui_split_pane core)
- (preprocess
-  (pps ppx_jane bonsai.ppx_bonsai)))

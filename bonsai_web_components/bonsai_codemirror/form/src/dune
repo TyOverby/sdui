@@ -1,6 +1,0 @@
-(library
- (name bonsai_web_ui_codemirror_form)
- (libraries bonsai bonsai_web bonsai_web_ui_codemirror bonsai_web_ui_form
-   codemirror core sexp_grammar virtual_dom)
- (preprocess
-  (pps ppx_jane bonsai.ppx_bonsai)))

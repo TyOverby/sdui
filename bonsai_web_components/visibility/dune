@@ -1,6 +1,0 @@
-(library
- (name bonsai_web_ui_visibility)
- (public_name bonsai_web_components.web_ui_visibility)
- (libraries core bonsai_web virtual_dom.css_gen js_of_ocaml)
- (preprocess
-  (pps ppx_jane js_of_ocaml-ppx bonsai.ppx_bonsai ppx_css)))

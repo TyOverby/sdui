@@ -1,7 +1,0 @@
-(library
- (name bonsai_experimental_dagviz_test)
- (libraries bonsai_experimental_dagviz
-   bonsai_web_ui_element_size_hooks_testing core bonsai_web bonsai_web_test
-   expect_test_helpers_core)
- (preprocess
-  (pps ppx_jane bonsai.ppx_bonsai)))

@@ -1,6 +1,0 @@
-(library
- (name bonsai_web_ui_freeform_multiselect)
- (public_name bonsai_web_components.web_ui_freeform_multiselect)
- (libraries core bonsai_web js_of_ocaml virtual_dom.ui_effect)
- (preprocess
-  (pps ppx_jane bonsai.ppx_bonsai)))
