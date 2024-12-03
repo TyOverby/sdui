@@ -18,6 +18,7 @@ depends: [
   "async_js"
   "js_of_ocaml"
   "yojson"
+  "ppx_yojson_conv"
   "odoc" {with-doc}
 ]
 build: [
