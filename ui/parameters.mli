@@ -2,7 +2,19 @@ open! Core
 open! Bonsai_web
 module Form := Bonsai_web_ui_form.With_manual_view
 
-type t
+type t =
+  { seed : Int63.t
+  ; pos_prompt : string
+  ; neg_prompt : string
+  ; width : Int63.t
+  ; height : Int63.t
+  ; steps : Int63.t
+  ; cfg : Int63.t
+  ; denoise : Int63.t
+  ; ratios : string
+  ; num_images : int
+  }
+[@@deriving equal]
 
 type view :=
   direction:[ `Horizontal | `Vertical ]

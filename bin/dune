@@ -10,16 +10,12 @@
   yojson
   bonsai_web_components.web_ui_form
   bonsai_web.kado
+  evolve
   virtual_dom.svg)
  (js_of_ocaml
   (flags :standard --no-sourcemap)
   (link_flags :standard --no-sourcemap))
  (modes js)
  (preprocess
-  (pps
-   ppx_jane
-   js_of_ocaml-ppx
-   ppx_css
-   ppx_typed_fields
-   ppx_yojson_conv
+  (pps ppx_jane js_of_ocaml-ppx ppx_css ppx_typed_fields ppx_yojson_conv
    bonsai.ppx_bonsai)))

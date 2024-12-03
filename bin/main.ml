@@ -8,17 +8,19 @@ module Tab = struct
   type t =
     | Gen
     | Comp
+    | Evolve
   [@@deriving sexp, enumerate, equal]
 
-  let default = Gen
+  let default = Evolve
 end
 
 let ui (local_ graph) =
   let tab, set_tab = Bonsai.state Tab.default graph in
   let which =
     match%sub tab with
-    | Gen -> Sd_chain.component graph
-    | Comp -> Comp.component graph
+    | Gen -> Sd_chain.component graph[@nontail]
+    | Comp -> Comp.component graph[@nontail]
+    | Evolve -> Evolve.component graph [@nontail]
   in
   let%arr which = which
   and tab = tab
