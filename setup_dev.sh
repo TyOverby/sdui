@@ -19,8 +19,11 @@ eval $(opam env --switch=5.2.0+flambda2)
 ./opam install --yes \
  ocamlformat.0.26.2+jst \
  merlin.5.2.1-502+jst \
- ocaml-lsp-server.1.19.0+jst
+ ocaml-lsp-server.1.19.0+jst \
+ dune
 
 ./opam install --yes ./
+
+eval $(opam env --switch=5.2.0+flambda2)
 
 dune build bin/main.bc.js
