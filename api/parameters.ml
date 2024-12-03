@@ -259,10 +259,10 @@ let component
   let%sub denoising_strength =
     Form.Elements.Range.float
       ~allow_updates_when_focused:`Always
-      ~min:0.0
-      ~max:1.0
-      ~step:0.01
-      ~default:0.7
+      ~min:(Bonsai.return 0.0)
+      ~max:(Bonsai.return 1.0)
+      ~step:(Bonsai.return 0.01)
+      ~default:(Bonsai.return 0.7)
       ~extra_attrs:
         (Bonsai.return [ Vdom.Attr.style (Css_gen.create ~field:"flex-grow" ~value:"1") ])
       ()

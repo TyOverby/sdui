@@ -243,10 +243,10 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     Form.Elements.Range.int
       ~extra_attrs:
         (Bonsai.return [ Vdom.Attr.style (Css_gen.create ~field:"" ~value:"") ])
-      ~default:20
-      ~min:1
-      ~max:100
-      ~step:1
+      ~default:(Bonsai.return 20)
+      ~min:(Bonsai.return 1)
+      ~max:(Bonsai.return 100)
+      ~step:(Bonsai.return 1)
       ~allow_updates_when_focused:`Never
       ()
       graph

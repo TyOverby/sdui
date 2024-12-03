@@ -172,10 +172,10 @@ let file_upload graph =
   let gap_form =
     Form.Elements.Range.float
       ~allow_updates_when_focused:`Always
-      ~min:(-0.5)
-      ~max:0.5
-      ~step:0.001
-      ~default:0.0
+      ~min:(Bonsai.return (-0.5))
+      ~max:(Bonsai.return 0.5)
+      ~step:(Bonsai.return 0.001)
+      ~default:(Bonsai.return 0.0)
       ~extra_attrs:(Bonsai.return [ {%css| max-width: 500px; width: 50vw; |} ])
       ()
       graph

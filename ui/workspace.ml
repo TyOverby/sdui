@@ -28,10 +28,10 @@ let make
   =
   let zoom_form =
     Form.Elements.Range.float
-      ~step:0.001
-      ~min:0.5
-      ~default:1.0
-      ~max:5.0
+      ~step:(Bonsai.return 0.001)
+      ~min:(Bonsai.return 0.5)
+      ~default:(Bonsai.return 1.0)
+      ~max:(Bonsai.return 5.0)
       ~allow_updates_when_focused:`Always
       ()
       graph
