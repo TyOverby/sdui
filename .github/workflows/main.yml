@@ -19,4 +19,4 @@ jobs:
         run: sudo apt install moreutils
 
       - name: Install opam & packages
-        run: bash -x ./setup_dev.sh
+        run: bash ./setup_dev.sh
