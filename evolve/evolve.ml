@@ -241,7 +241,7 @@ end
 
 let none_screen ~inject graph =
   let%arr theme = View.Theme.current graph
-  and inject = inject in
+  and inject in
   let view =
     Vdom.Node.div
       [ Vdom.Node.text "none_screen"
@@ -256,8 +256,8 @@ let trigger_after_active ~for_duration ~effect graph =
   let (_ : unit Bonsai.t) =
     Bonsai.with_model_resetter' graph ~f:(fun ~reset graph ->
       let inputs =
-        let%arr for_duration = for_duration
-        and effect = effect
+        let%arr for_duration
+        and effect
         and sleep = Bonsai.Clock.sleep graph in
         effect, sleep for_duration
       in
@@ -285,7 +285,7 @@ let trigger_after_active ~for_duration ~effect graph =
       in
       Bonsai.Edge.lifecycle
         ~on_activate:
-          (let%arr inject = inject in
+          (let%arr inject in
            inject `Activate)
         ~on_deactivate:reset
         graph;
@@ -298,14 +298,17 @@ let add_seen_after_active ~add_seen ~id graph =
   trigger_after_active
     ~for_duration:(Bonsai.return (Time_ns.Span.of_sec 0.5))
     ~effect:
-      (let%arr add_seen = add_seen
-       and id = id in
+      (let%arr add_seen and id in
        add_seen id)
     graph
 ;;
 
 let txt2img_screen
-  ~(lease_pool : (Sd.Hosts.Host.t, unit, Sd.Hosts.Host.comparator_witness) Lease_pool.t)
+  ~(lease_pool :
+      ( Sd.Hosts.Host.t
+        , Sd.Hosts.Current_model.t
+        , Sd.Hosts.Host.comparator_witness )
+        Lease_pool.t)
   ~inject
   ~id
   ~add_seen
@@ -313,11 +316,11 @@ let txt2img_screen
   =
   add_seen_after_active ~add_seen ~id graph;
   let parameters = Sd_chain.Parameters.component graph in
-  let%arr parameters = parameters
+  let%arr parameters
   and theme = View.Theme.current graph
-  and id = id
+  and id
   and dispatcher = Lease_pool.dispatcher lease_pool
-  and inject = inject in
+  and inject in
   let generate_button, generate_action =
     match Form.value parameters with
     | Error e -> Vdom.Node.sexp_for_debugging ([%sexp_of: Error.t] e), Effect.Ignore
@@ -332,7 +335,7 @@ let txt2img_screen
           dispatcher (fun get_host ->
             match get_host with
             | Error e -> Effect.return (Error e)
-            | Ok (host, ()) ->
+            | Ok (host, _current_model) ->
               let%bind.Effect () = on_started in
               (match%map.Effect
                  Sd.Txt2img.dispatch
@@ -379,7 +382,11 @@ let txt2img_screen
 ;;
 
 let img2img_screen
-  ~(lease_pool : (Sd.Hosts.Host.t, unit, Sd.Hosts.Host.comparator_witness) Lease_pool.t)
+  ~(lease_pool :
+      ( Sd.Hosts.Host.t
+        , Sd.Hosts.Current_model.t
+        , Sd.Hosts.Host.comparator_witness )
+        Lease_pool.t)
   ~inject
   ~id
   ~img
@@ -388,12 +395,12 @@ let img2img_screen
   graph
   =
   add_seen_after_active ~add_seen ~id graph;
-  let%arr parameters = parameters
+  let%arr parameters
   and theme = View.Theme.current graph
-  and id = id
+  and id
   and dispatcher = Lease_pool.dispatcher lease_pool
-  and inject = inject
-  and img = img in
+  and inject
+  and img in
   let generate_button ~button_text ~stack_text ~modify_parameters =
     let parameters = modify_parameters parameters in
     let generate =
@@ -406,7 +413,7 @@ let img2img_screen
         dispatcher (fun get_host ->
           match get_host with
           | Error e -> Effect.return (Error e)
-          | Ok (host, ()) ->
+          | Ok (host, _current_model) ->
             let%bind.Effect () = on_started in
             (match%map.Effect
                Sd.Img2img.dispatch
@@ -508,12 +515,12 @@ let state_tree =
     {%css| margin-right: 1em; list-style-type:none; padding-left:20px; user-select:none; |}
   and li_styles = {%css| margin:0; padding:0; |} in
   fun ~state ~current_id ~inject ~seen ~set_current_id graph ->
-    let%arr state = state
-    and current_id = current_id
-    and inject = inject
+    let%arr state
+    and current_id
+    and inject
     and theme = View.Theme.current graph
-    and seen = seen
-    and set_current_id = set_current_id in
+    and seen
+    and set_current_id in
     let tree_structure = Image_tree.Model.tree_structure state in
     let set_on_click id = Vdom.Attr.on_click (fun _ -> set_current_id id) in
     let label_attr =
@@ -610,7 +617,7 @@ let state_tree =
 
 let children_of_current ~current_id ~state ~set_current_id graph =
   let children_state =
-    let%arr current_id = current_id
+    let%arr current_id
     and { Image_tree.Model.children; images; _ } = state in
     match current_id with
     | None -> Image_tree.Unique_id.Map.empty
@@ -633,9 +640,7 @@ let children_of_current ~current_id ~state ~set_current_id graph =
       children_state
       graph
       ~f:(fun id stage _graph ->
-        let%arr id = id
-        and set_current_id = set_current_id
-        and stage = stage in
+        let%arr id and set_current_id and stage in
         let image =
           match stage.state with
           | Initial -> None
@@ -658,7 +663,7 @@ let children_of_current ~current_id ~state ~set_current_id graph =
                [ image ]))
   in
   let children_imgs = Bonsai.Map.filter_map children_imgs graph ~f:Fn.id in
-  let%arr children_imgs = children_imgs in
+  let%arr children_imgs in
   if Map.is_empty children_imgs
   then None
   else
@@ -677,11 +682,11 @@ let component (local_ graph) =
     Bonsai.state_opt ~default_model:Image_tree.Model.first_id graph
   in
   let add_seen =
-    let%arr inject = inject in
+    let%arr inject in
     fun id -> inject (Set_seen id)
   in
   let set_current_id =
-    let%arr set_current_id = set_current_id
+    let%arr set_current_id
     and _add_seen = add_seen in
     fun id ->
       Effect.Many
@@ -696,15 +701,15 @@ let component (local_ graph) =
         ]
   in
   let current_id =
-    let%arr current_id = current_id
+    let%arr current_id
     and { images; _ } = state in
-    let%bind.Option current_id = current_id in
+    let%bind.Option current_id in
     if Map.mem images current_id then Some current_id else None
   in
   let current =
-    let%arr current_id = current_id
+    let%arr current_id
     and { images; _ } = state in
-    let%bind.Option current_id = current_id in
+    let%bind.Option current_id in
     let%bind.Option { Image_tree.Stage.desc; state } = Map.find images current_id in
     Some (current_id, desc, state)
   in
@@ -727,10 +732,7 @@ let component (local_ graph) =
             (Vdom.Node.none, Vdom_keyboard.Keyboard_event_handler.of_command_list_exn []))
   in
   let global_keyboard_handlers =
-    let%arr current_id = current_id
-    and state = state
-    and set_current_id = set_current_id
-    and inject = inject in
+    let%arr current_id and state and set_current_id and inject in
     let up_and_down_handler ~f _ =
       let open Image_tree.Model in
       match current_id with
@@ -793,11 +795,11 @@ let component (local_ graph) =
         }
       ]
   in
-  let%arr state_tree = state_tree
+  let%arr state_tree
   and main_viewport, subview_handlers = main_viewport
-  and hosts_view = hosts_view
-  and queue_view = queue_view
-  and global_keyboard_handlers = global_keyboard_handlers
+  and hosts_view
+  and queue_view
+  and global_keyboard_handlers
   and children_of_current =
     children_of_current ~current_id ~state ~set_current_id graph
   in

@@ -6,23 +6,27 @@ module Host = struct
   include String
 end
 
+module Current_model = struct
+  include String
+end
+
 module Form = Bonsai_web_ui_form.With_manual_view
 
 type t =
   { view : Vdom.Node.t
-  ; available_hosts : Host.Set.t
+  ; available_hosts : Current_model.t Host.Map.t
   ; set_worker_in_use : Host.t -> bool -> unit Effect.t
   }
 
 let random_healthy_host =
   Effect.of_sync_fun (fun { available_hosts; _ } ->
-    List.random_element (Set.to_list available_hosts))
+    List.random_element (Map.keys available_hosts))
 ;;
 
 let health_check host =
-  let%map.Effect response = Samplers_request.dispatch host in
+  let%map.Effect response = Current_model_request.dispatch_get host in
   match response with
-  | Ok (_ : string list) -> `Good
+  | Ok model -> `Good model
   | Error _ -> `Bad
 ;;
 
@@ -37,7 +41,7 @@ let component graph =
   let hosts_form = Custom_form_elements.textarea ~label:"hosts" graph in
   Bonsai.Edge.lifecycle
     ~on_activate:
-      (let%map hosts_form = hosts_form in
+      (let%map hosts_form in
        Form.set hosts_form "localhost")
     graph;
   let%sub hosts =
@@ -60,12 +64,11 @@ let component graph =
   let host_status, inject_host_status =
     Bonsai.state_machine1
       ~default_model:String.Map.empty
-      ~apply_action:(fun ctx input model ->
-        function
+      ~apply_action:(fun ctx input model -> function
         | `Report_health (host, `Pending) ->
           Map.change model host ~f:(function
             | None | Some (`Bad | `Pending) -> Some `Pending
-            | Some (`Good | `Good_pending) -> Some `Good_pending)
+            | Some (`Good model | `Good_pending model) -> Some (`Good_pending model))
         | `Report_health (host, health) -> Map.set model ~key:host ~data:health
         | `Check_host host ->
           Bonsai.Apply_action_context.schedule_event
@@ -103,7 +106,7 @@ let component graph =
       graph
   in
   let%sub callback =
-    let%arr inject_host_status = inject_host_status in
+    let%arr inject_host_status in
     inject_host_status `Check_all
   in
   Bonsai.Clock.every
@@ -116,13 +119,13 @@ let component graph =
     hosts
     ~equal:[%equal: string list]
     ~callback:
-      (let%map callback = callback in
+      (let%map callback in
        fun _ -> callback)
     graph;
   let available =
     let good_hosts =
       Bonsai.Map.filter_map host_status graph ~f:(function
-        | `Good | `Good_pending -> Some ()
+        | `Good model | `Good_pending model -> Some model
         | `Bad | `Pending -> None)
     in
     good_hosts
@@ -135,8 +138,8 @@ let component graph =
   in
   let view =
     let%arr textbox = hosts_form
-    and host_status = host_status
-    and worker_state = worker_state
+    and host_status
+    and worker_state
     and theme = View.Theme.current graph in
     let highlight s =
       String.split_lines s
@@ -156,7 +159,7 @@ let component graph =
           | None | Some (_, (`Bad | `Pending)) ->
             let color = (View.intent_colors theme Warning).background in
             color, false
-          | Some (host, (`Good | `Good_pending)) ->
+          | Some (host, (`Good _ | `Good_pending _)) ->
             let color = (View.intent_colors theme Success).background in
             let busy = Map.find worker_state host |> Option.value ~default:true in
             color, busy
@@ -171,9 +174,7 @@ let component graph =
     in
     (Form.view textbox) ~colorize:highlight ()
   in
-  let%arr view = view
-  and available = available
-  and inject_worker_state = inject_worker_state in
+  let%arr view and available and inject_worker_state in
   let set_worker_in_use k v = inject_worker_state (k, v) in
-  { view; set_worker_in_use; available_hosts = Map.key_set available }
+  { view; set_worker_in_use; available_hosts = available }
 ;;

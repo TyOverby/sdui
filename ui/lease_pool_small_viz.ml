@@ -26,28 +26,32 @@ module Style =
 
 |}]
 
-let component ~pool =
+let component ~data_to_string ~pool =
   let%arr leased_out = Lease_pool.leased_out pool
   and available = Lease_pool.available pool
   and queued_jobs = Lease_pool.queued_jobs pool in
   let map =
     let combine ~key:_ a b =
       match a, b with
-      | `Leased, `Available -> `Leased
-      | `Available, `Leased -> `Leased
-      | `Leased, `Leased -> `Leased
-      | `Available, `Available -> `Available
+      | `Leased data, `Available _ -> `Leased data
+      | `Available _, `Leased data -> `Leased data
+      | `Leased data, `Leased _ -> `Leased data
+      | `Available _, `Available data -> `Available data
     in
     Map.merge_skewed
-      (Set.to_map leased_out ~f:(fun _ -> `Leased))
-      (Set.to_map available ~f:(fun _ -> `Available))
+      (Map.map leased_out ~f:(fun data -> `Leased data))
+      (Map.map available ~f:(fun data -> `Available data))
       ~combine
   in
   let workers =
     Map.data map
     |> List.map ~f:(function
-      | `Available -> Vdom.Node.div ~attrs:[ Style.worker ] []
-      | `Leased -> Vdom.Node.div ~attrs:[ Style.worker; Style.leased ] [])
+      | `Available data ->
+        Vdom.Node.div ~attrs:[ Style.worker; Vdom.Attr.title (data_to_string data) ] []
+      | `Leased data ->
+        Vdom.Node.div
+          ~attrs:[ Style.worker; Style.leased; Vdom.Attr.title (data_to_string data) ]
+          [])
   in
   let queued_jobs =
     List.map queued_jobs ~f:(fun _ -> Vdom.Node.div ~attrs:[ Style.job ] [])

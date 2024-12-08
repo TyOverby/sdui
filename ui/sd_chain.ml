@@ -15,7 +15,6 @@ let hosts_and_queue (local_ graph) =
   let%sub { view = hosts_view; available_hosts; set_worker_in_use } =
     Sd.Hosts.component graph
   in
-  let hosts = Bonsai.Map.of_set available_hosts graph in
   let lease_pool =
     let on_take =
       let%arr set_worker_in_use in
@@ -24,7 +23,7 @@ let hosts_and_queue (local_ graph) =
       let%arr set_worker_in_use in
       fun k -> set_worker_in_use k false
     in
-    Lease_pool.create (module Sd.Hosts.Host) hosts graph
+    Lease_pool.create (module Sd.Hosts.Host) available_hosts graph
     |> Lease_pool.advise ~on_take ~on_return
   in
   let clear_queue =
@@ -35,7 +34,7 @@ let hosts_and_queue (local_ graph) =
     | Inactive -> Effect.Ignore
     | Active leased ->
       let%map.Effect skip_result =
-        Set.to_list leased
+        Map.keys leased
         |> List.map ~f:(fun host -> Skip.dispatch_effect ~host)
         |> Effect.all
       in
@@ -43,7 +42,11 @@ let hosts_and_queue (local_ graph) =
        | Ok () -> ()
        | Error e -> print_s [%message (e : Error.t)])
   in
-  let queue_view = Lease_pool_small_viz.component ~pool:lease_pool in
+  let queue_view =
+    Lease_pool_small_viz.component
+      ~data_to_string:Sd.Hosts.Current_model.to_string
+      ~pool:lease_pool
+  in
   lease_pool, hosts_view, queue_view, clear_queue
 ;;
 

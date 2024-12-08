@@ -30,32 +30,15 @@ module Current_model = struct
 
   let dispatch_set = Effect.of_deferred_fun dispatch_set
 
-  let dispatch_get host_and_port =
-    Deferred.Or_error.try_with_join (fun () ->
-      let%bind.Deferred.Or_error response =
-        Async_js.Http.get (sprintf "%s/sdapi/v1/options" host_and_port)
-      in
-      Deferred.Or_error.try_with (fun () ->
-        response
-        |> Yojson.Safe.from_string
-        |> T.t_of_yojson
-        |> fun { T.sd_model_checkpoint } ->
-        String.split_on_chars ~on:[ ' '; '.' ] sd_model_checkpoint
-        |> List.hd_exn
-        |> Deferred.return))
-  ;;
-
-  let dispatch_get = Effect.of_deferred_fun dispatch_get
-
   let current ~(hosts : Hosts.t Bonsai.t) graph =
     let r, refresh =
       Bonsai.Edge.Poll.manual_refresh
         (Bonsai.Edge.Poll.Starting.initial (Error (Error.of_string "loading...")))
         ~effect:
-          (let%map hosts = hosts in
+          (let%map hosts in
            match%bind.Effect Hosts.random_healthy_host hosts with
            | None -> Effect.return (Error (Error.of_string "no hosts..."))
-           | Some host -> dispatch_get (host :> string))
+           | Some host -> Current_model_request.dispatch_get (host :> string))
         graph
     in
     Bonsai.Clock.every
@@ -101,7 +84,7 @@ module Model_list = struct
       Bonsai.Edge.Poll.manual_refresh
         (Bonsai.Edge.Poll.Starting.initial (Error (Error.of_string "loading...")))
         ~effect:
-          (let%map hosts = hosts in
+          (let%map hosts in
            match%bind.Effect Hosts.random_healthy_host hosts with
            | None -> Effect.return (Ok [])
            | Some host -> dispatch_get (host :> string))
@@ -127,13 +110,11 @@ let form ~hosts ~(available_hosts : Hosts.Host.Set.t Bonsai.t) graph =
   let in_progress, set_in_progress = Bonsai.state false graph in
   Bonsai.Edge.on_change
     ~equal:[%equal: Hosts.Host.Set.t * string option * string option]
-    (let%map available_hosts = available_hosts
-     and state = state
-     and current = current in
+    (let%map available_hosts and state and current in
      available_hosts, state, current)
     graph
     ~callback:
-      (let%map set_in_progress = set_in_progress in
+      (let%map set_in_progress in
        fun (available_hosts, state, _current) ->
          match state with
          | None -> Effect.Ignore
@@ -153,11 +134,11 @@ let form ~hosts ~(available_hosts : Hosts.Host.Set.t Bonsai.t) graph =
               Effect.print_s [%message "setting the model failed " ~_:(e : Error.t)]
             | Ok _l -> Effect.return ()));
   let%arr theme = View.Theme.current graph
-  and all = all
-  and state = state
-  and set_state = set_state
-  and in_progress = in_progress
-  and current = current in
+  and all
+  and state
+  and set_state
+  and in_progress
+  and current in
   let current = Option.first_some current state in
   let options =
     List.map all ~f:(fun model_name ->

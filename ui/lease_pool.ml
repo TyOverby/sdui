@@ -14,15 +14,15 @@ end
 
 module Model = struct
   type ('key, 'data, 'cmp) t =
-    { leased_out : ('key, 'cmp) Set.t
+    { leased_out : ('key, 'data, 'cmp) Map.t
     ; waiting : ('key, 'data) Pred_and_cb.t Fdeque.t
     }
 
-  let default cmp = { leased_out = Set.empty cmp; waiting = Fdeque.empty }
+  let default cmp = { leased_out = Map.empty cmp; waiting = Fdeque.empty }
 
   let sexp_of_t { leased_out; waiting } =
-    let sexp_of_a = (Set.comparator leased_out).sexp_of_t in
-    let leased_out = Set.to_list leased_out in
+    let sexp_of_a = (Map.comparator leased_out).sexp_of_t in
+    let leased_out = Map.keys leased_out in
     [%sexp { leased_out : a list; waiting = (Fdeque.length waiting : int) }]
   ;;
 end
@@ -44,10 +44,10 @@ let take_impl ~schedule_event ~cb ~all ~pred ~info ~(model : _ Model.t) =
     schedule_event (Callback.respond_to cb (Error no_items_in_pool_error));
     model)
   else (
-    match List.find pickable ~f:(fun (k, _) -> not (Set.mem model.leased_out k)) with
+    match List.find pickable ~f:(fun (k, _) -> not (Map.mem model.leased_out k)) with
     | Some (k, v) ->
       schedule_event (Callback.respond_to cb (Ok (k, v)));
-      { model with leased_out = Set.add model.leased_out k }
+      { model with leased_out = Map.set model.leased_out ~key:k ~data:v }
     | None ->
       { model with waiting = Fdeque.enqueue_back model.waiting { pred; cb; info } })
 ;;
@@ -63,7 +63,7 @@ let apply_action ctx input model action =
   let schedule_event = Bonsai.Apply_action_context.schedule_event ctx in
   match (action : _ Action.t), (input : _ Bonsai.Computation_status.t) with
   | Return key, Inactive ->
-    { (model : _ Model.t) with leased_out = Set.remove model.leased_out key }
+    { (model : _ Model.t) with leased_out = Map.remove model.leased_out key }
   | Take { cb; pred = _; info = _ }, Inactive ->
     schedule_event (Callback.respond_to cb (Error no_items_in_pool_error));
     model
@@ -72,7 +72,7 @@ let apply_action ctx input model action =
   | Pump, Inactive -> model
   | Pump, Active all -> pump_impl ~model ~all ~schedule_event
   | Return key, Active all ->
-    let model = { model with leased_out = Set.remove model.leased_out key } in
+    let model = { model with leased_out = Map.remove model.leased_out key } in
     pump_impl ~model ~all ~schedule_event
   | Clear_all, _ ->
     model.waiting
@@ -90,16 +90,15 @@ type ('key, 'data, 'cmp) t =
   ; return : ('key -> unit Effect.t) Bonsai.t
   ; clear_all : unit Effect.t Bonsai.t
   ; debug : Sexp.t Lazy.t Bonsai.t
-  ; leased_out : ('key, 'cmp) Set.t Bonsai.t
-  ; available : ('key, 'cmp) Set.t Bonsai.t
+  ; leased_out : ('key, 'data, 'cmp) Map.t Bonsai.t
+  ; available : ('key, 'data, 'cmp) Map.t Bonsai.t
   ; queued_jobs : Sexp.t option list Bonsai.t
   }
 [@@deriving fields]
 
 let advise ({ take; return; _ } as t) ~on_take ~on_return =
   let take =
-    let%arr take = take
-    and on_take = on_take in
+    let%arr take and on_take in
     fun ~info ~pred ->
       match%bind.Effect take ~info ~pred with
       | Ok (k, v) ->
@@ -108,8 +107,7 @@ let advise ({ take; return; _ } as t) ~on_take ~on_return =
       | Error e -> Effect.return (Error e)
   in
   let return =
-    let%arr return = return
-    and on_return = on_return in
+    let%arr return and on_return in
     fun key ->
       let%bind.Effect () = on_return key in
       return key
@@ -124,7 +122,7 @@ let create cmp ?(data_equal = phys_equal) map graph =
     Bonsai.state_machine1 ~default_model:(Model.default cmp) ~apply_action map graph
   in
   let pump =
-    let%map inject = inject in
+    let%map inject in
     inject Pump
   in
   Bonsai.Edge.on_change
@@ -134,27 +132,27 @@ let create cmp ?(data_equal = phys_equal) map graph =
     ~callback:(pump >>| Fn.const);
   Bonsai.Edge.lifecycle ~on_activate:pump graph;
   let take =
-    let%arr inject = inject in
+    let%arr inject in
     fun ~info ~pred ->
       Effect.Private.make ~request:() ~evaluator:(fun cb ->
         Effect.Expert.handle_non_dom_event_exn (inject (Take { pred; cb; info })))
   in
   let return =
-    let%arr inject = inject in
+    let%arr inject in
     fun a -> inject (Return a)
   in
   let clear_all =
-    let%arr inject = inject in
+    let%arr inject in
     inject Clear_all
   in
   let debug =
-    let%arr model = model in
+    let%arr model in
     lazy (Model.sexp_of_t model)
   in
   let available =
-    let%arr map = map
+    let%arr map
     and { leased_out; _ } = model in
-    Set.diff (Map.key_set map) leased_out
+    Map.fold leased_out ~init:map ~f:(fun ~key ~data:_ acc -> Map.remove acc key)
   in
   let queued_jobs =
     let%arr { waiting; _ } = model in
@@ -167,8 +165,7 @@ let create cmp ?(data_equal = phys_equal) map graph =
 let default_pred _ _ = true
 
 let dispatcher { take; return; _ } =
-  let%arr take = take
-  and return = return in
+  let%arr take and return in
   fun ?info ?(pred = default_pred) f ->
     match%bind.Effect take ~pred ~info with
     | Error _ as e -> f e
