@@ -28,7 +28,9 @@ let to_vdom ?(attrs = []) ?width ?height ?(drop_size = false) t =
       Vdom.Attr.create
         "width"
         (Virtual_dom.Dom_float.to_string
-           (Int63.to_float width /. (Js_of_ocaml.Js.float_of_number Js_of_ocaml.Dom_html.window##.devicePixelRatio)))
+           (Int63.to_float width
+            /. Js_of_ocaml.Js.float_of_number
+                 Js_of_ocaml.Dom_html.window##.devicePixelRatio))
   in
   let height =
     match drop_size, Option.first_some height t.height with
@@ -37,7 +39,9 @@ let to_vdom ?(attrs = []) ?width ?height ?(drop_size = false) t =
       Vdom.Attr.create
         "height"
         (Virtual_dom.Dom_float.to_string
-           (Int63.to_float height /. (Js_of_ocaml.Js.float_of_number Js_of_ocaml.Dom_html.window##.devicePixelRatio)))
+           (Int63.to_float height
+            /. Js_of_ocaml.Js.float_of_number
+                 Js_of_ocaml.Dom_html.window##.devicePixelRatio))
   in
   let src =
     match t.kind with

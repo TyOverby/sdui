@@ -18,10 +18,10 @@ let hosts_and_queue (local_ graph) =
   let hosts = Bonsai.Map.of_set available_hosts graph in
   let lease_pool =
     let on_take =
-      let%arr set_worker_in_use = set_worker_in_use in
+      let%arr set_worker_in_use in
       fun k _ -> set_worker_in_use k true
     and on_return =
-      let%arr set_worker_in_use = set_worker_in_use in
+      let%arr set_worker_in_use in
       fun k -> set_worker_in_use k false
     in
     Lease_pool.create (module Sd.Hosts.Host) hosts graph
@@ -50,8 +50,8 @@ let hosts_and_queue (local_ graph) =
 let component (local_ graph) =
   let lease_pool, hosts_view, queue_view, clear_queue = hosts_and_queue graph in
   let lease_pool_view =
-    let%arr clear_queue = clear_queue
-    and queue_view = queue_view
+    let%arr clear_queue
+    and queue_view
     and theme = View.Theme.current graph in
     View.hbox [ queue_view; View.button theme "clear" ~on_click:clear_queue ]
   in
