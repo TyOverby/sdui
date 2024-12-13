@@ -15,12 +15,13 @@ type t =
   ; denoise : Int63.t
   ; ratios : string
   ; num_images : int
+  ; specific_model : Sd.Hosts.Current_model.t option
   }
 [@@deriving typed_fields, equal]
 
 let num_images { num_images; _ } = num_images
 
-let component graph =
+let component ?(models = Bonsai.return Sd.Hosts.Current_model.Set.empty) graph =
   let is_localhost =
     String.equal
       "localhost"
@@ -31,6 +32,7 @@ let component graph =
     P.prompt_form
       ~default:"score_9, score_8_up, score_7_up,\n"
       ~container_attrs:[ {%css| flex-grow: 2 |} ]
+      ~textarea_attrs:[ Vdom.Attr.create "data-kind" "prompt" ]
       ~label:"prompt"
       graph
   and neg_prompt =
@@ -59,11 +61,17 @@ let component graph =
   and ratios =
     Sd.Custom_form_elements.textarea ~label:"ratios" graph
     >>| Form.map_view ~f:(fun view -> view ?colorize:None ())
+  and specific_model =
+    Form.Elements.Dropdown.list_opt
+      (module Sd.Hosts.Current_model)
+      ~equal:Sd.Hosts.Current_model.equal
+      (models >>| Set.to_list)
+      graph
   in
   let seed =
     P.seed_form
       ~container_attrs:
-        (let%arr num_images = num_images in
+        (let%arr num_images in
          fun ~state ~set_state ->
            [ Vdom.Attr.on_double_click (fun _ ->
                set_state
@@ -100,6 +108,7 @@ let component graph =
         | Denoise -> denoise
         | Ratios -> ratios
         | Num_images -> num_images
+        | Specific_model -> specific_model
       ;;
 
       let finalize_view { f } _graph =
@@ -110,6 +119,7 @@ let component graph =
         and denoise = f Denoise
         and _seed = f Seed
         and ratios = f Ratios
+        and model = f Specific_model
         and pos_prompt = f Pos_prompt
         and _num_images = f Num_images
         and neg_prompt = f Neg_prompt in
@@ -158,7 +168,8 @@ let component graph =
                 [ hbox
                     [ (* View.button theme "reset" ~on_click:reset ; *)
                       vbox
-                        [ Form.view width
+                        [ Form.view model
+                        ; Form.view width
                         ; Form.view height
                         ; hbox
                             ~gap:(`Em 1)
@@ -191,6 +202,7 @@ let for_img2img t =
       ; denoise
       ; ratios = _
       ; num_images = _
+      ; specific_model = _
       }
     =
     t
@@ -223,6 +235,7 @@ let for_txt2img t =
       ; denoise
       ; ratios
       ; num_images = _
+      ; specific_model = _
       }
     =
     t

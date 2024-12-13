@@ -37,13 +37,26 @@ let find_permutation map permutations =
   |> Option.join
 ;;
 
+let hosts_localstorage =
+  Bonsai_web.Persistent_var.create
+    (module String)
+    `Session_storage
+    ~unique_id:"hosts-session-storage"
+    ~default:"localhost"
+;;
+
 let component graph =
   let hosts_form = Custom_form_elements.textarea ~label:"hosts" graph in
-  Bonsai.Edge.lifecycle
-    ~on_activate:
-      (let%map hosts_form in
-       Form.set hosts_form "localhost")
-    graph;
+  let _ : unit Bonsai.t =
+    Bonsai_extra.mirror
+      ~equal:String.equal
+      ~store_set:(Bonsai.return (Bonsai_web.Persistent_var.effect hosts_localstorage))
+      ~store_value:(Bonsai_web.Persistent_var.value hosts_localstorage)
+      ~interactive_set:(hosts_form >>| Form.set)
+      ~interactive_value:(hosts_form >>| Form.value_or_default ~default:"")
+      ()
+      graph
+  in
   let%sub hosts =
     let%arr hosts = hosts_form in
     hosts

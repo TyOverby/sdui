@@ -32,6 +32,7 @@ val dispatcher
       -> 'result Effect.t)
        Bonsai.t
 
+val all : ('k, 'v, 'cmp) t -> ('k, 'v, 'cmp) Map.t Bonsai.t
 val available : ('k, 'v, 'cmp) t -> ('k, 'v, 'cmp) Map.t Bonsai.t
 val leased_out : ('k, 'v, 'cmp) t -> ('k, 'v, 'cmp) Map.t Bonsai.t
 val queued_jobs : _ t -> Sexp.t option list Bonsai.t

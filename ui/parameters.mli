@@ -13,6 +13,7 @@ type t =
   ; denoise : Int63.t
   ; ratios : string
   ; num_images : int
+  ; specific_model : Sd.Hosts.Current_model.t option
   }
 [@@deriving equal]
 
@@ -22,7 +23,11 @@ type view :=
   -> reset:unit Ui_effect.t
   -> Vdom.Node.t
 
-val component : local_ Bonsai.graph -> (t, view) Form.t Bonsai.t
+val component
+  :  ?models:Sd.Hosts.Current_model.Set.t Bonsai.t
+  -> local_ Bonsai.graph
+  -> (t, view) Form.t Bonsai.t
+
 val for_txt2img : t -> Sd.Txt2img.Query.t
 val for_img2img : t -> Sd.Img2img.Query.t
 val num_images : t -> int

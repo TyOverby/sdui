@@ -170,10 +170,12 @@ let dispatch (host_and_port, query) =
     Yojson.Safe.from_string response_content
     |> Response.t_of_yojson
     |> (fun response -> { response with Response.images })
-    |> (fun { Response.images = base64_images; image_paths; info } ->
+    |> (fun { Response.images = base64_images; image_paths = _; info } ->
          let info = { Info.seed = Int63.of_int64_trunc info.seed; enable_hr = false } in
          let image_paths =
-           List.map image_paths ~f:(fun path -> sprintf "%s/file=%s" host_and_port path)
+           []
+           (* [image_paths] only works when all the work is being done on one machine
+           List.map image_paths ~f:(fun path -> sprintf "%s/file=%s" host_and_port path) *)
          in
          let images, kind =
            if List.length image_paths >= List.length base64_images

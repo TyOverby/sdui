@@ -92,6 +92,7 @@ type ('key, 'data, 'cmp) t =
   ; debug : Sexp.t Lazy.t Bonsai.t
   ; leased_out : ('key, 'data, 'cmp) Map.t Bonsai.t
   ; available : ('key, 'data, 'cmp) Map.t Bonsai.t
+  ; all : ('key, 'data, 'cmp) Map.t Bonsai.t
   ; queued_jobs : Sexp.t option list Bonsai.t
   }
 [@@deriving fields]
@@ -159,7 +160,7 @@ let create cmp ?(data_equal = phys_equal) map graph =
     Fdeque.to_list waiting |> List.map ~f:(fun { info; _ } -> info)
   in
   let%sub { leased_out; _ } = model in
-  { take; return; debug; clear_all; leased_out; available; queued_jobs }
+  { take; return; debug; all = map; clear_all; leased_out; available; queued_jobs }
 ;;
 
 let default_pred _ _ = true
