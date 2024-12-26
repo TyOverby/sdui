@@ -252,7 +252,11 @@ let component
     min_1_form ~default:(Int63.of_int 25) ~max:150 ~label:"steps" graph
   in
   let cfg_scale_form = min_1_form ~default:(Int63.of_int 7) ~max:30 ~label:"cfg" graph in
-  let%sub sampler_form, sampler_form_view = Samplers.form ~hosts graph in
+  let%sub sampler_form, sampler_form_view =
+    Samplers.form
+      ~hosts:(hosts >>| fun { Hosts.available_hosts; _ } -> available_hosts)
+      graph
+  in
   let upscaler_form = Upscaler.form ~hosts graph in
   let%sub styles_form = Styles.form ~hosts graph in
   let hr_form = Custom_form_elements.bool_form ~title:"upscale" ~default:false graph in
@@ -324,22 +328,22 @@ let component
   let form_view =
     let%arr { view = width; _ } = width_form
     and { view = height; _ } = height_form
-    and width_form = width_form
-    and height_form = height_form
+    and width_form
+    and height_form
     and { view = positive_prompt_view; _ } = positive_prompt_form
     and { view = negative_prompt_view; _ } = negative_prompt_form
     and { view = cfg_scale_view; _ } = cfg_scale_form
     and { view = sampling_steps_view; _ } = sampling_steps_form
     and { view = seed_form_view; _ } = seed_form
     and { view = upscaler_form_view; _ } = upscaler_form
-    and theme = theme
+    and theme
     and sampler = sampler_form_view
-    and styles_form = styles_form
+    and styles_form
     and { view = hr_form_view; _ } = hr_form
-    and collapsed = collapsed
+    and collapsed
     and { view = data_url_view; _ } = data_url_form
-    and toggle_collapsed = toggle_collapsed
-    and denoising_strength = denoising_strength
+    and toggle_collapsed
+    and denoising_strength
     and { view = models_form_view; _ } = models_form in
     fun ~on_submit ~hosts_panel ->
       let hijack_ctrl_enter =
@@ -417,8 +421,7 @@ let component
         ]
   in
   let query =
-    let%arr form = form
-    and form_view = form_view in
+    let%arr form and form_view in
     { Form.value = form.value; set = form.set; view = form_view }
   in
   query, models_form

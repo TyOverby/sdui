@@ -15,19 +15,38 @@ type t =
   ; denoise : Int63.t
   ; ratios : string
   ; num_images : int
+  ; sampler : Sd.Samplers.t
   ; specific_model : Sd.Hosts.Current_model.t option
   }
 [@@deriving typed_fields, equal]
 
 let num_images { num_images; _ } = num_images
 
-let component ?(models = Bonsai.return Sd.Hosts.Current_model.Set.empty) graph =
+let component
+  ?(samplers = Bonsai.return [ Sd.Samplers.default ])
+  ?(models = Bonsai.return Sd.Hosts.Current_model.Set.empty)
+  graph
+  =
   let is_localhost =
     String.equal
       "localhost"
       (Js_of_ocaml.Js.to_string Js_of_ocaml.Dom_html.window##.location##.hostname)
   in
   let default_size = if is_localhost then 128 else 256 in
+  let sampler =
+    Form.Elements.Dropdown.list_opt
+      (module Sd.Samplers)
+      samplers
+      ~to_string:Sd.Samplers.to_string
+      ~equal:Sd.Samplers.equal
+      graph
+  in
+  let sampler =
+    sampler
+    >>| Form.project
+          ~parse_exn:(Option.value ~default:Sd.Samplers.default)
+          ~unparse:Option.some
+  in
   let pos_prompt =
     P.prompt_form
       ~default:"score_9, score_8_up, score_7_up,\n"
@@ -109,6 +128,7 @@ let component ?(models = Bonsai.return Sd.Hosts.Current_model.Set.empty) graph =
         | Ratios -> ratios
         | Num_images -> num_images
         | Specific_model -> specific_model
+        | Sampler -> sampler
       ;;
 
       let finalize_view { f } _graph =
@@ -119,6 +139,7 @@ let component ?(models = Bonsai.return Sd.Hosts.Current_model.Set.empty) graph =
         and denoise = f Denoise
         and _seed = f Seed
         and ratios = f Ratios
+        and sampler = f Sampler
         and model = f Specific_model
         and pos_prompt = f Pos_prompt
         and _num_images = f Num_images
@@ -169,6 +190,7 @@ let component ?(models = Bonsai.return Sd.Hosts.Current_model.Set.empty) graph =
                     [ (* View.button theme "reset" ~on_click:reset ; *)
                       vbox
                         [ Form.view model
+                        ; Form.view sampler
                         ; Form.view width
                         ; Form.view height
                         ; hbox
@@ -198,6 +220,7 @@ let for_img2img t =
       ; width
       ; height
       ; steps
+      ; sampler
       ; cfg
       ; denoise
       ; ratios = _
@@ -218,7 +241,7 @@ let for_img2img t =
   ; cfg_scale = cfg
   ; seed
   ; denoising_strength
-  ; sampler = Sd.Samplers.default
+  ; sampler
   ; subseed_strength = 0.0
   ; styles = Sd.Styles.none
   }
@@ -234,6 +257,7 @@ let for_txt2img t =
       ; cfg
       ; denoise
       ; ratios
+      ; sampler
       ; num_images = _
       ; specific_model = _
       }
@@ -265,7 +289,7 @@ let for_txt2img t =
   ; cfg_scale = cfg
   ; seed
   ; denoising_strength
-  ; sampler = Sd.Samplers.default
+  ; sampler
   ; subseed_strength = 0.0
   ; enable_hr = false
   ; ctrlnet = None

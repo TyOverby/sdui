@@ -319,7 +319,12 @@ let txt2img_screen
     let%arr hosts = Lease_pool.all lease_pool in
     hosts |> Map.data |> Sd.Hosts.Current_model.Set.of_list
   in
-  let parameters = Sd_chain.Parameters.component ~models graph in
+  let samplers =
+    Sd.Samplers.all ~hosts:(Lease_pool.all lease_pool) graph
+    >>| Or_error.ok
+    >>| Option.value ~default:[]
+  in
+  let parameters = Sd_chain.Parameters.component ~samplers ~models graph in
   let%arr parameters
   and theme = View.Theme.current graph
   and id

@@ -13,6 +13,7 @@ type t =
   ; denoise : Int63.t
   ; ratios : string
   ; num_images : int
+  ; sampler : Sd.Samplers.t
   ; specific_model : Sd.Hosts.Current_model.t option
   }
 [@@deriving equal]
@@ -24,7 +25,8 @@ type view :=
   -> Vdom.Node.t
 
 val component
-  :  ?models:Sd.Hosts.Current_model.Set.t Bonsai.t
+  :  ?samplers:Sd.Samplers.t list Bonsai.t
+  -> ?models:Sd.Hosts.Current_model.Set.t Bonsai.t
   -> local_ Bonsai.graph
   -> (t, view) Form.t Bonsai.t
 

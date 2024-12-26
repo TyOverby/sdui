@@ -4,16 +4,21 @@ open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_automatic_view
 
 let default = "Euler a"
+let to_string = Fn.id
 
 include Samplers_request
 
-let all ~(hosts : Hosts.t Bonsai.t) graph =
+let random_healthy_host hosts =
+  Effect.of_thunk (fun () -> List.random_element (Map.keys hosts))
+;;
+
+let all (type a) ~(hosts : a Hosts.Host.Map.t Bonsai.t) graph =
   let r, refresh =
     Bonsai.Edge.Poll.manual_refresh
       (Bonsai.Edge.Poll.Starting.initial (Error (Error.of_string "loading...")))
       ~effect:
-        (let%map hosts = hosts in
-         match%bind.Effect Hosts.random_healthy_host hosts with
+        (let%map hosts in
+         match%bind.Effect random_healthy_host hosts with
          | None -> Effect.return (Ok [])
          | Some host -> dispatch (host :> string))
       graph
@@ -21,7 +26,7 @@ let all ~(hosts : Hosts.t Bonsai.t) graph =
   Bonsai.Clock.every
     ~when_to_start_next_effect:`Every_multiple_of_period_blocking
     ~trigger_on_activate:true
-    (Time_ns.Span.of_min 1.0)
+    (Time_ns.Span.of_sec 1.0)
     refresh
     graph;
   r
@@ -38,9 +43,9 @@ let form ~hosts graph =
   let all = all ~hosts graph in
   let state, set_state = Bonsai.state default graph in
   let%arr theme = View.Theme.current graph
-  and all = all
-  and state = state
-  and set_state = set_state
+  and all
+  and state
+  and set_state
   and unique_key = Bonsai.path_id graph in
   let all =
     match all with
