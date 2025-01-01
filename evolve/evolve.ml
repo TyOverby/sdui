@@ -5,6 +5,7 @@ module Snips = Shared.Snips
 module Form = Bonsai_web_ui_form.With_manual_view
 module Feather = Feather_icon
 module Lease_pool = Sd_chain.Lease_pool
+module P = Sd.Parameters.Individual
 
 module Seen = struct
   type t = Image_tree.Unique_id.Set.t
@@ -245,6 +246,181 @@ let children_of_current ~current_id ~state ~set_current_id graph =
          children_imgs)
 ;;
 
+let generic_card
+  ~default_cfg_enabled
+  ~default_denoise_enabled
+  ~default_steps_enabled
+  ~default_cfg
+  ~default_denoise
+  ~default_steps
+  (local_ graph)
+  =
+  let enabled_checkbox ~default (local_ graph) =
+    let%sub { value; view; _ } = Form.Elements.Checkbox.bool ~default () graph in
+    let value = value >>| Or_error.ok >>| Option.value ~default in
+    let disable_attr =
+      match%arr value with
+      | true -> Vdom.Attr.empty
+      | false -> Vdom.Attr.disabled
+    in
+    ~view, ~disable_attr, ~value
+  in
+  let ~view:cfg_enabled_view, ~disable_attr:cfg_disabled_attr, ~value:cfg_enabled =
+    enabled_checkbox ~default:default_cfg_enabled graph
+  in
+  let ( ~view:denoise_enabled_view
+      , ~disable_attr:denoise_disabled_attr
+      , ~value:denoise_enabled )
+    =
+    enabled_checkbox ~default:default_denoise_enabled graph
+  in
+  let ~view:steps_enabled_view, ~disable_attr:steps_disabled_attr, ~value:steps_enabled =
+    enabled_checkbox ~default:default_steps_enabled graph
+  in
+  let cfg =
+    P.min_1_form
+      ~input_attrs:(cfg_disabled_attr >>| List.return)
+      ~default:default_cfg
+      ~max:30
+      ~label:"cfg"
+      graph
+  in
+  let denoise =
+    P.min_1_form
+      ~input_attrs:(denoise_disabled_attr >>| List.return)
+      ~default:default_denoise
+      ~max:100
+      ~label:"deno"
+      graph
+  in
+  let steps =
+    P.min_1_form
+      ~input_attrs:(steps_disabled_attr >>| List.return)
+      ~default:default_steps
+      ~max:150
+      ~label:"steps"
+      graph
+  in
+  let modifier =
+    let%arr { value = new_cfg; _ } = cfg
+    and { value = new_denoise; _ } = denoise
+    and { value = new_steps; _ } = steps
+    and cfg_enabled
+    and denoise_enabled
+    and steps_enabled in
+    let or_default ~default = function
+      | Ok v -> v
+      | Error _ -> default
+    in
+    fun (params : Sd_chain.Parameters.t) ->
+      { params with
+        cfg =
+          (if cfg_enabled then new_cfg |> or_default ~default:default_cfg else params.cfg)
+      ; denoise =
+          (if denoise_enabled
+           then new_denoise |> or_default ~default:default_denoise
+           else params.denoise)
+      ; steps =
+          (if steps_enabled
+           then new_steps |> or_default ~default:default_steps
+           else params.steps)
+      }
+  in
+  let view =
+    let%arr { view = cfg_view; _ } = cfg
+    and { view = denoise_view; _ } = denoise
+    and { view = steps_view; _ } = steps
+    and cfg_enabled_view
+    and denoise_enabled_view
+    and steps_enabled_view in
+    [ View.hbox ~cross_axis_alignment:Baseline [ cfg_enabled_view; cfg_view ]
+    ; View.hbox ~cross_axis_alignment:Baseline [ denoise_enabled_view; denoise_view ]
+    ; View.hbox ~cross_axis_alignment:Baseline [ steps_enabled_view; steps_view ]
+    ]
+  in
+  ~modifier, ~view
+;;
+
+let refine_card (local_ graph) =
+  let ~modifier, ~view =
+    generic_card
+      ~default_cfg_enabled:true
+      ~default_denoise_enabled:true
+      ~default_steps_enabled:true
+      ~default_cfg:(Int63.of_int 5)
+      ~default_denoise:(Int63.of_int 50)
+      ~default_steps:(Int63.of_int 30)
+      graph
+  in
+  let view =
+    let%arr view
+    and theme = View.Theme.current graph in
+    fun ~button -> View.card' theme (view @ [ button ])
+  in
+  let%arr modifier and view in
+  ~modifier, ~view
+;;
+
+let reimagine_card (local_ graph) =
+  let ~modifier, ~view =
+    generic_card
+      ~default_cfg_enabled:true
+      ~default_denoise_enabled:true
+      ~default_steps_enabled:true
+      ~default_cfg:(Int63.of_int 10)
+      ~default_denoise:(Int63.of_int 70)
+      ~default_steps:(Int63.of_int 25)
+      graph
+  in
+  let view =
+    let%arr view
+    and theme = View.Theme.current graph in
+    fun ~button -> View.card' theme (view @ [ button ])
+  in
+  let%arr modifier and view in
+  ~modifier, ~view
+;;
+
+let upscale_card (local_ graph) =
+  let ~modifier, ~view =
+    generic_card
+      ~default_cfg_enabled:false
+      ~default_denoise_enabled:true
+      ~default_steps_enabled:true
+      ~default_cfg:(Int63.of_int 7)
+      ~default_denoise:(Int63.of_int 30)
+      ~default_steps:(Int63.of_int 50)
+      graph
+  in
+  let view =
+    let%arr view
+    and theme = View.Theme.current graph in
+    fun ~button -> View.card' theme (view @ [ button ])
+  in
+  let%arr modifier and view in
+  ~modifier, ~view
+;;
+
+let other_model_card (local_ graph) =
+  let ~modifier, ~view =
+    generic_card
+      ~default_cfg_enabled:false
+      ~default_denoise_enabled:true
+      ~default_steps_enabled:true
+      ~default_cfg:(Int63.of_int 7)
+      ~default_denoise:(Int63.of_int 40)
+      ~default_steps:(Int63.of_int 40)
+      graph
+  in
+  let view =
+    let%arr view
+    and theme = View.Theme.current graph in
+    fun ~button -> View.card' theme (view @ [ button ])
+  in
+  let%arr modifier and view in
+  ~modifier, ~view
+;;
+
 let component (local_ graph) =
   let lease_pool, hosts_view, queue_view, _kill_all = Sd_chain.hosts_and_queue graph in
   let state, inject = Image_tree.state graph in
@@ -286,6 +462,10 @@ let component (local_ graph) =
   in
   let children_of_current = children_of_current in
   let state_tree = state_tree ~state ~current_id ~inject ~seen ~set_current_id graph in
+  let refine_card = refine_card graph in
+  let reimagine_card = reimagine_card graph in
+  let upscale_card = upscale_card graph in
+  let other_model_card = other_model_card graph in
   let main_viewport =
     Bonsai.scope_model
       (module Image_tree.Optional_unique_id)
@@ -311,6 +491,10 @@ let component (local_ graph) =
             ~parameters
             ~add_seen
             ~add_seen_after_active
+            ~refine_card
+            ~reimagine_card
+            ~upscale_card
+            ~other_model_card
             graph
         | _ ->
           Bonsai.return

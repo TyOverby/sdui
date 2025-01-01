@@ -18,6 +18,10 @@ let component
   ~parameters
   ~add_seen
   ~add_seen_after_active
+  ~refine_card
+  ~reimagine_card
+  ~upscale_card
+  ~other_model_card
   (local_ graph)
   =
   add_seen_after_active ~add_seen ~id graph;
@@ -27,7 +31,11 @@ let component
   and id
   and dispatcher = Lease_pool.dispatcher lease_pool
   and inject
-  and img in
+  and img
+  and ~modifier:modify_refine, ~view:refine_view = refine_card
+  and ~modifier:modify_reimagine, ~view:reimagine_view = reimagine_card
+  and ~modifier:modify_upscale, ~view:upscale_view = upscale_card
+  and ~modifier:modify_other_model, ~view:other_model_view = other_model_card in
   let generate_button ~button_text ~stack_text ~modify_parameters =
     let generate =
       let%bind.Effect parameters = modify_parameters parameters in
@@ -77,6 +85,7 @@ let component
       ~button_text:"[u]pscale"
       ~stack_text:"upscaled"
       ~modify_parameters:(fun (params : Sd_chain.Parameters.t) ->
+        let params : Sd_chain.Parameters.t = modify_upscale params in
         Effect.return
           { params with
             width = Int63.(params.width * of_int 2)
@@ -90,30 +99,21 @@ let component
       ~button_text:"ref[y]ne"
       ~stack_text:"refined"
       ~modify_parameters:(fun (params : Sd_chain.Parameters.t) ->
-        Effect.return
-          { params with
-            denoise = Int63.of_int 50
-          ; steps = Int63.(params.steps * of_int 3 / of_int 2)
-          ; cfg = Int63.of_int 5
-          })
+        Effect.return (modify_refine params))
   in
   let reimagine_button, reimagine =
     generate_button
       ~button_text:"re[i]magine"
       ~stack_text:"reimagined"
       ~modify_parameters:(fun (params : Sd_chain.Parameters.t) ->
-        Effect.return
-          { params with
-            denoise = Int63.of_int 70
-          ; steps = Int63.of_int 25
-          ; cfg = Int63.of_int 10
-          })
+        Effect.return (modify_reimagine params))
   in
   let switch_model_button, switch_model =
     generate_button
       ~button_text:"[o]ther model"
       ~stack_text:"model"
       ~modify_parameters:(fun (params : Sd_chain.Parameters.t) ->
+        let params : Sd_chain.Parameters.t = modify_other_model params in
         let%bind.Effect new_model =
           Effect.of_thunk (fun () ->
             match params.specific_model with
@@ -129,8 +129,15 @@ let component
   in
   let view =
     View.hbox
+      ~gap:(`Em_float 0.5)
       [ Sd.Image.to_vdom img
-      ; View.vbox [ upscale_button; refine_button; reimagine_button; switch_model_button ]
+      ; View.hbox
+          ~gap:(`Em_float 0.5)
+          [ upscale_view ~button:upscale_button
+          ; refine_view ~button:refine_button
+          ; reimagine_view ~button:reimagine_button
+          ; other_model_view ~button:switch_model_button
+          ]
       ]
   in
   let key_commands =

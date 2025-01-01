@@ -22,7 +22,8 @@ module Individual : sig
     -> (Int63.t, Vdom.Node.t) Form.t Bonsai.t
 
   val min_1_form
-    :  default:Int63.t
+    :  ?input_attrs:Vdom.Attr.t list Bonsai.t
+    -> default:Int63.t
     -> max:int
     -> label:string
     -> local_ Bonsai.graph

@@ -13,7 +13,7 @@ val textarea
        Bonsai.t
 
 val int_form
-  :  ?input_attrs:Vdom.Attr.t list
+  :  ?input_attrs:Vdom.Attr.t list Bonsai.t
   -> ?container_attrs:
        (state:Int63.t -> set_state:(Int63.t -> unit Effect.t) -> Vdom.Attr.t list)
          Bonsai.t

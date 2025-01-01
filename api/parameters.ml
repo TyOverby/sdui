@@ -169,14 +169,15 @@ module Individual = struct
       ~length:(`Em 4)
       ~min:(Int63.of_int 128)
       ~max:(Int63.of_int 2048)
-      ~input_attrs:[ Vdom.Attr.create "data-kind" label ]
+      ~input_attrs:(Bonsai.return [ Vdom.Attr.create "data-kind" label ])
       graph
   ;;
 
-  let min_1_form ~default ~max ~label graph =
+  let min_1_form ?(input_attrs = Bonsai.return []) ~default ~max ~label graph =
     let min = Int63.of_int 1 in
     let max = Int63.of_int max in
     Custom_form_elements.int_form
+      ~input_attrs
       ~title:label
       ~step:1
       ~default
@@ -200,7 +201,8 @@ module Individual = struct
       ~min:Int63.zero
       ~max:(Int63.of_int 1_000_000)
       ?container_attrs
-      ~input_attrs:[ Vdom.Attr.style (Css_gen.font_family [ "monospace" ]) ]
+      ~input_attrs:
+        (Bonsai.return [ Vdom.Attr.style (Css_gen.font_family [ "monospace" ]) ])
       graph
   ;;
 

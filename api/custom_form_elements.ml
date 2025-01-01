@@ -27,7 +27,7 @@ module Label_modifications =
 |}]
 
 let int_form
-  ?(input_attrs = [])
+  ?(input_attrs = Bonsai.return [])
   ?(container_attrs = Bonsai.return (fun ~state:_ ~set_state:_ -> []))
   ~title
   ~default
@@ -40,10 +40,7 @@ let int_form
   =
   let%sub theme = View.Theme.current graph in
   let state, set_state = Bonsai.state (Int63.to_string default) graph in
-  let%arr theme = theme
-  and state = state
-  and container_attrs = container_attrs
-  and set_state = set_state in
+  let%arr theme and state and input_attrs and container_attrs and set_state in
   let value_or_corrected = validate_or_correct state in
   let is_error = Result.is_ok value_or_corrected in
   let fix_on_blur =
@@ -133,9 +130,7 @@ let textarea
   =
   let theme = View.Theme.current graph in
   let state, set_state = Bonsai.state default graph in
-  let%arr theme = theme
-  and state = state
-  and set_state = set_state in
+  let%arr theme and state and set_state in
   let on_blur =
     match validate with
     | None -> Effect.Ignore
@@ -163,9 +158,7 @@ let textarea
 let bool_form ?(input_attrs = []) ?(container_attrs = []) ~title ~default graph =
   let theme = View.Theme.current graph in
   let state, set_state = Bonsai.state default graph in
-  let%arr theme = theme
-  and state = state
-  and set_state = set_state in
+  let%arr theme and state and set_state in
   let view =
     Kado.Unstable.Input.checkbox
       ~constants:(View.constants theme)
