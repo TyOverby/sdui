@@ -129,6 +129,7 @@ let component
   in
   let view =
     View.hbox
+      ~attrs:[ {%css|margin: 0.5em|} ]
       ~gap:(`Em_float 0.5)
       [ Sd.Image.to_vdom img
       ; View.hbox
