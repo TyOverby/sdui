@@ -487,8 +487,8 @@ let img2img_screen
         Effect.return
           { params with
             denoise = Int63.of_int 50
-          ; steps = Int63.of_int 30
-          ; cfg = Int63.of_int 7
+          ; steps = Int63.(params.steps * of_int 3 / of_int 2)
+          ; cfg = Int63.of_int 5
           })
   in
   let reimagine_button, reimagine =
