@@ -83,8 +83,7 @@ let add_seen_after_active ~add_seen ~id graph =
 ;;
 
 let state_tree =
-  let ul_styles =
-    {%css| margin-right: 1em; list-style-type:none; padding-left:20px; user-select:none; |}
+  let ul_styles = {%css| list-style-type:none; padding-left:20px; user-select:none; |}
   and li_styles = {%css| margin:0; padding:0; |} in
   fun ~state ~current_id ~inject ~seen ~set_current_id graph ->
     let%arr state

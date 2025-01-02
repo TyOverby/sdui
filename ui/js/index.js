@@ -213,7 +213,9 @@ function painter_init(input, paint_input, mask_input) {
         onColorChange: (function () { }),
         setDirty: (function () { }),
         mode: "paint",
-        onUpdateImage: (function () { })
+        onUpdateImage: (function () { }),
+        compositePaint: (function () { }),
+        compositeMask: (function () { }),
     };
 
     on_images_init(images, function () {

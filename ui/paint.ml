@@ -54,8 +54,8 @@ module Output = struct
     method clear : unit Js.meth
     method updateImage : Js.js_string Js.t -> unit Js.meth
     method composite : Js.js_string Js.t Js.meth
-    method compositePaint : Js.js_string Js.t Js.meth
-    method compositeMask : Js.js_string Js.t Js.meth
+    method compositePaint : Js.js_string Js.t Js.optdef Js.meth
+    method compositeMask : Js.js_string Js.t Js.optdef Js.meth
     method penSize : int Js.prop
     method color : Js.js_string Js.t Js.prop
     method onColorChange : (Js.js_string Js.t -> unit) Js.callback Js.prop
@@ -107,9 +107,7 @@ module Widget :
 
   let destroy (input : Input.t) state _element =
     Effect.Expert.handle_non_dom_event_exn
-      (input.set_wip_store
-         ( Js_of_ocaml.Js.Optdef.return state##compositePaint
-         , Js_of_ocaml.Js.Optdef.return state##compositeMask ));
+      (input.set_wip_store (state##compositePaint, state##compositeMask));
     ()
   ;;
 end
@@ -407,7 +405,10 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
         print_s [%message "" (Canvas2d.Image.width image : int)];
         let image = Sd.Image.of_string ~kind:Base64 (Canvas2d.Image.to_data_url image) in
         let%bind.Effect mask =
-          match Js.to_string state##compositeMask with
+          match
+            Js.Optdef.to_option state##compositeMask
+            |> Option.value_map ~f:Js.to_string ~default:""
+          with
           | "" -> Effect.return None
           | mask_string ->
             let%bind.Effect mask = Sd.Load_image_effect.load_image mask_string in
