@@ -5,6 +5,7 @@ module Snips = Shared.Snips
 module Form = Bonsai_web_ui_form.With_manual_view
 module Feather = Feather_icon
 module Lease_pool = Sd_chain.Lease_pool
+module Images = Sd_chain.Paint.Images
 
 let component
   ~(lease_pool :
@@ -15,6 +16,8 @@ let component
   ~inject
   ~id
   ~img
+  ~parent_img
+  ~is_image_editor
   ~parameters
   ~add_seen
   ~add_seen_after_active
@@ -25,13 +28,30 @@ let component
   (local_ graph)
   =
   add_seen_after_active ~add_seen ~id graph;
+  let get_images, img_view =
+    if is_image_editor
+    then (
+      let editor = Sd_chain.Paint.component ~prev:parent_img graph in
+      let view =
+        let%arr { widget; _ } = editor.view in
+        widget
+      in
+      editor.get_images, view)
+    else (
+      let get_images =
+        let%arr img in
+        Effect.return { Images.image = img; mask = None }
+      in
+      get_images, img >>| Sd.Image.to_vdom)
+  in
   let%arr parameters
   and theme = View.Theme.current graph
   and models = Lease_pool.all lease_pool >>| Map.data
   and id
   and dispatcher = Lease_pool.dispatcher lease_pool
   and inject
-  and img
+  and get_images
+  and img_view
   and ~modifier:modify_refine, ~view:refine_view = refine_card
   and ~modifier:modify_reimagine, ~view:reimagine_view = reimagine_card
   and ~modifier:modify_upscale, ~view:upscale_view = upscale_card
@@ -39,6 +59,7 @@ let component
   let generate_button ~button_text ~stack_text ~modify_parameters =
     let generate =
       let%bind.Effect parameters = modify_parameters parameters in
+      let%bind.Effect { image = img; mask = _ } = get_images in
       let dispatch ~id ~on_started =
         let parameters =
           { parameters with
@@ -68,7 +89,7 @@ let component
              | Error e -> Error e))
       in
       let on_complete image =
-        Image_tree.Stage.State.Finished { image; parent_image = Some img; parameters }
+        Image_tree.Stage.State.Finished { image; parent_image = Some image; parameters }
       in
       inject
         (Image_tree.Action.Add
@@ -131,7 +152,7 @@ let component
     View.hbox
       ~attrs:[ {%css|margin: 0.5em|} ]
       ~gap:(`Em_float 0.5)
-      [ Sd.Image.to_vdom img
+      [ img_view
       ; View.hbox
           ~gap:(`Em_float 0.5)
           [ upscale_view ~button:upscale_button

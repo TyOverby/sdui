@@ -66,7 +66,7 @@ let component
                | Error e -> Error e))
         in
         let on_complete image =
-          Image_tree.Stage.State.Finished { image; parent_image = None; parameters }
+          Image_tree.Stage.State.Finished { image; parent_image = Some image; parameters }
         in
         inject
           (Image_tree.Action.Add

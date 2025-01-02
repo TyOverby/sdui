@@ -38,6 +38,23 @@ function on_image_init(image, f) {
     else { image.onload = f; }
 }
 
+//Provides:on_images_init
+//Requires:on_image_init
+function on_images_init(images, f) {
+    if (images.length === 0) {
+        f();
+    } else {
+        let hd = images.shift();
+        if (hd) {
+            on_image_init(hd, function () {
+                on_images_init(images, f)
+            })
+        } else {
+            on_images_init(images, f)
+        }
+    }
+}
+
 //Provides:createCanvas
 function createCanvas(name, image, parent) {
     const canvas = document.createElement("canvas");
@@ -163,16 +180,31 @@ function scramble(img_data, draw_data, cx, cy, r, prev_cx, prev_cy, prev_r, w, h
     }
 }
 
+//Provides:prep_img
+//Requires:sanatize_url
+function prep_img(img_string) {
+    var image = document.createElement("img");
+    image.crossOrigin = "Anonymous";
+    var data_url = sanatize_url(img_string);
+    image.setAttribute("src", data_url);
+    return image;
+}
+
 //Provides:painter_init
-//Requires:drawPill, sanatize_url, on_image_init, rgbToHex, createCanvas, isCanvasAllWhite, scramble
-function painter_init(input) {
-    var data_url = sanatize_url(input);
+//Requires:drawPill, sanatize_url, on_image_init, rgbToHex, createCanvas, isCanvasAllWhite, scramble, prep_img, on_images_init
+function painter_init(input, paint_input, mask_input) {
     var stack = document.createElement("div");
     stack.className = "stack";
 
-    var image = document.createElement("img");
-    image.crossOrigin = "Anonymous";
-    image.setAttribute("src", data_url);
+    var images = [];
+
+    var image = prep_img(input);
+    images.push(image);
+
+    var paint_input_image = paint_input ? prep_img(paint_input) : null;
+    images.push(paint_input_image);
+    var mask_input_image = mask_input ? prep_img(mask_input) : null;
+    images.push(mask_input_image);
 
     var state = {
         clear: function () { console.log("cleared"); },
@@ -184,7 +216,7 @@ function painter_init(input) {
         onUpdateImage: (function () { })
     };
 
-    on_image_init(image, function () {
+    on_images_init(images, function () {
         let img_canvas = createCanvas("background", image, stack);
         let draw_canvas = createCanvas("draw", image, stack);
         let mask_canvas = createCanvas("mask", image, stack);
@@ -207,6 +239,14 @@ function painter_init(input) {
 
         img_ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
 
+        if (paint_input_image) {
+            draw_ctx.drawImage(paint_input_image, 0, 0, image.naturalWidth, image.naturalHeight);
+        }
+
+        if (mask_input_image) {
+            mask_ctx.drawImage(mask_input_image, 0, 0, image.naturalWidth, image.naturalHeight);
+        }
+
         state.clear = function () {
             draw_ctx.clearRect(0, 0, outline_canvas.width, outline_canvas.height);
             mask_ctx.clearRect(0, 0, outline_canvas.width, outline_canvas.height);
@@ -218,6 +258,10 @@ function painter_init(input) {
             composite_ctx.drawImage(img_canvas, 0, 0);
             composite_ctx.drawImage(draw_canvas, 0, 0);
             return composite_canvas.toDataURL("image/png", 1);
+        }
+
+        state.compositePaint = function () {
+            return draw_canvas.toDataURL("image/png", 1);
         }
 
         state.compositeMask = function () {

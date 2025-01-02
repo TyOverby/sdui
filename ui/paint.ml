@@ -43,6 +43,9 @@ module Input = struct
     { url : string
     ; on_color_change : Js.js_string Js.t -> unit Effect.t
     ; set_dirty : unit Effect.t
+    ; set_wip_store :
+        Js.js_string Js.t Js.Optdef.t * Js.js_string Js.t Js.Optdef.t -> unit Effect.t
+    ; wip_store : Js.js_string Js.t Js.Optdef.t * Js.js_string Js.t Js.Optdef.t
     }
 end
 
@@ -51,6 +54,7 @@ module Output = struct
     method clear : unit Js.meth
     method updateImage : Js.js_string Js.t -> unit Js.meth
     method composite : Js.js_string Js.t Js.meth
+    method compositePaint : Js.js_string Js.t Js.meth
     method compositeMask : Js.js_string Js.t Js.meth
     method penSize : int Js.prop
     method color : Js.js_string Js.t Js.prop
@@ -61,20 +65,31 @@ module Output = struct
 end
 
 module Widget :
-  Bonsai_web_ui_low_level_vdom.Widget.S with type input = Input.t and type state = Output.t Js.t = struct
+  Bonsai_web_ui_low_level_vdom.Widget.S
+  with type input = Input.t
+   and type state = Output.t Js.t = struct
   type element = Dom_html.divElement
   type input = Input.t
   type state = Output.t Js.t
 
-  external painter_init : Js.js_string Js.t -> state * element Js.t = "painter_init"
+  external painter_init
+    :  Js.js_string Js.t
+    -> Js.js_string Js.t Js.Optdef.t
+    -> Js.js_string Js.t Js.Optdef.t
+    -> state * element Js.t
+    = "painter_init"
 
-  let wrap_cb on_color_change =
-    Js.wrap_callback (fun arg ->
-      Effect.Expert.handle_non_dom_event_exn (on_color_change arg))
+  let wrap_cb f =
+    Js.wrap_callback (fun arg -> Effect.Expert.handle_non_dom_event_exn (f arg))
   ;;
 
   let init ~get_input:_ input =
-    let state, element = painter_init (Js.string input.Input.url) in
+    let state, element =
+      painter_init
+        (Js.string input.Input.url)
+        (Tuple2.get1 input.wip_store)
+        (Tuple2.get2 input.wip_store)
+    in
     state##.onColorChange := wrap_cb input.on_color_change;
     state##.setDirty := wrap_cb (fun () -> input.set_dirty);
     state, element
@@ -90,7 +105,13 @@ module Widget :
     element
   ;;
 
-  let destroy _input _state _element = ()
+  let destroy (input : Input.t) state _element =
+    Effect.Expert.handle_non_dom_event_exn
+      (input.set_wip_store
+         ( Js_of_ocaml.Js.Optdef.return state##compositePaint
+         , Js_of_ocaml.Js.Optdef.return state##compositeMask ));
+    ()
+  ;;
 end
 
 module Id = Bonsai_extra.Id_gen (Int63) ()
@@ -125,12 +146,12 @@ module Layer_panel = struct
     let paint_visible, toggle_paint_visible = Bonsai.toggle ~default_model:true graph in
     let mask_visible, toggle_mask_visible = Bonsai.toggle ~default_model:true graph in
     let view =
-      let%arr current_layer = current_layer
-      and set_current_layer = set_current_layer
-      and paint_visible = paint_visible
-      and toggle_paint_visible = toggle_paint_visible
-      and mask_visible = mask_visible
-      and toggle_mask_visible = toggle_mask_visible
+      let%arr current_layer
+      and set_current_layer
+      and paint_visible
+      and toggle_paint_visible
+      and mask_visible
+      and toggle_mask_visible
       and theme = View.Theme.current graph in
       let paint_layer =
         View.hbox
@@ -203,6 +224,7 @@ end
 
 type t =
   { images : Images.t Inc.t
+  ; get_images : Images.t Effect.t Bonsai.t
   ; view : View_.t Bonsai.t
   }
 
@@ -211,8 +233,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
   let value, inject =
     Bonsai.state_machine0
       ~default_model:Inc.Or_error_or_stale.Not_computed
-      ~apply_action:(fun _ model ->
-        function
+      ~apply_action:(fun _ model -> function
         | `Set_value t -> Inc.Or_error_or_stale.Fresh t
         | `Invalidate ->
           (match model with
@@ -224,19 +245,24 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     image
     ~equal:Sd.Image.equal
     ~callback:
-      (let%arr inject = inject in
+      (let%arr inject in
        fun _ -> inject `Invalidate)
     graph;
+  let wip_store, set_wip_store =
+    Bonsai.state (Js_of_ocaml.Js.Optdef.empty, Js_of_ocaml.Js.Optdef.empty) graph
+  in
   let widget =
     let input =
       let%arr url = image >>| Sd.Image.data_url
       and set_dirty = inject >>| fun inject -> inject `Invalidate
+      and set_wip_store
+      and wip_store
       and on_color_change =
         color_picker
         >>| Form.set
         >>| fun setter js_string -> setter (`Hex (Js.to_string js_string))
       in
-      { Input.url; on_color_change; set_dirty }
+      { Input.url; on_color_change; set_dirty; set_wip_store; wip_store }
     in
     Bonsai_web_ui_low_level_vdom.Widget.component (module Widget) input graph
   in
@@ -340,84 +366,88 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     Bonsai.state_machine0 ~default_model:0 ~apply_action:(fun _ i () -> i + 1) graph
   in
   let is_dirty =
-    let%arr value = value in
+    let%arr value in
     match value with
     | Fresh _ -> false
     | Stale _ | Error _ | Not_computed -> true
   in
   let widget_view =
-    let%arr unique_id = unique_id
+    let%arr unique_id
     and { view; _ } = widget
     and path = Bonsai.path_id graph
-    and mask_visible = mask_visible in
+    and mask_visible in
     Vdom.Node.div
       ~key:(Int.to_string unique_id ^ path)
       ~attrs:[ (if mask_visible then Vdom.Attr.empty else Style.disabled_mask_layer) ]
       [ view ]
   in
-  let forward_button =
-    let%arr theme = View.Theme.current graph
-    and inject = inject
-    and is_dirty = is_dirty
-    and padding_left = padding_left >>| Form.value_or_default ~default:(Int63.of_int 0)
+  let get_images_effect =
+    let%arr padding_left =
+      padding_left >>| Form.value_or_default ~default:(Int63.of_int 0)
     and padding_right = padding_left >>| Form.value_or_default ~default:(Int63.of_int 0)
     and padding_top = padding_left >>| Form.value_or_default ~default:(Int63.of_int 0)
     and padding_bottom = padding_left >>| Form.value_or_default ~default:(Int63.of_int 0)
+    and prev = image
     and { Bonsai_web_ui_low_level_vdom.Widget.read; _ } = widget in
-    let forward =
-      let%bind.Effect effects =
-        read (fun _input state ->
-          let%bind.Effect image =
-            Sd.Load_image_effect.load_image (Js.to_string state##composite)
-          in
-          let%bind.Effect image =
-            Sd.Load_image_effect.load_image_generic
-              (Canvas2d.Image.add_padding
-                 ~left:(Int63.to_int_trunc padding_left)
-                 ~right:(Int63.to_int_trunc padding_right)
-                 ~top:(Int63.to_int_trunc padding_top)
-                 ~bottom:(Int63.to_int_trunc padding_bottom)
-                 image
-                 ~fill_color:"white")
-          in
-          print_s [%message "" (Canvas2d.Image.width image : int)];
-          let image =
-            Sd.Image.of_string ~kind:Base64 (Canvas2d.Image.to_data_url image)
-          in
-          let%bind.Effect mask =
-            match Js.to_string state##compositeMask with
-            | "" -> Effect.return None
-            | mask_string ->
-              let%bind.Effect mask = Sd.Load_image_effect.load_image mask_string in
-              let%bind.Effect mask =
-                Sd.Load_image_effect.load_image_generic
-                  (Canvas2d.Image.add_padding
-                     ~left:(Int63.to_int_trunc padding_left)
-                     ~right:(Int63.to_int_trunc padding_right)
-                     ~top:(Int63.to_int_trunc padding_top)
-                     ~bottom:(Int63.to_int_trunc padding_bottom)
-                     mask
-                     ~fill_color:"white")
-              in
-              Effect.return
-                (Some (Sd.Image.of_string ~kind:Base64 (Canvas2d.Image.to_data_url mask)))
-          in
-          inject (`Set_value { Images.image; mask }))
-      in
-      Effect.all_unit effects
+    let%bind.Effect effects =
+      read (fun _input state ->
+        let%bind.Effect image =
+          Sd.Load_image_effect.load_image (Js.to_string state##composite)
+        in
+        let%bind.Effect image =
+          Sd.Load_image_effect.load_image_generic
+            (Canvas2d.Image.add_padding
+               ~left:(Int63.to_int_trunc padding_left)
+               ~right:(Int63.to_int_trunc padding_right)
+               ~top:(Int63.to_int_trunc padding_top)
+               ~bottom:(Int63.to_int_trunc padding_bottom)
+               image
+               ~fill_color:"white")
+        in
+        print_s [%message "" (Canvas2d.Image.width image : int)];
+        let image = Sd.Image.of_string ~kind:Base64 (Canvas2d.Image.to_data_url image) in
+        let%bind.Effect mask =
+          match Js.to_string state##compositeMask with
+          | "" -> Effect.return None
+          | mask_string ->
+            let%bind.Effect mask = Sd.Load_image_effect.load_image mask_string in
+            let%bind.Effect mask =
+              Sd.Load_image_effect.load_image_generic
+                (Canvas2d.Image.add_padding
+                   ~left:(Int63.to_int_trunc padding_left)
+                   ~right:(Int63.to_int_trunc padding_right)
+                   ~top:(Int63.to_int_trunc padding_top)
+                   ~bottom:(Int63.to_int_trunc padding_bottom)
+                   mask
+                   ~fill_color:"white")
+            in
+            Effect.return
+              (Some (Sd.Image.of_string ~kind:Base64 (Canvas2d.Image.to_data_url mask)))
+        in
+        Effect.return { Images.image; mask })
     in
+    match effects with
+    | [] -> Effect.return { Images.image = prev; mask = None }
+    | t :: _ -> t
+  in
+  let forward_effect =
+    let%arr get_images_effect and inject in
+    let%bind.Effect images = get_images_effect in
+    inject (`Set_value images)
+  in
+  let forward_button =
+    let%arr is_dirty
+    and forward = forward_effect
+    and theme = View.Theme.current graph in
     if is_dirty then View.button theme "forward" ~on_click:forward else Vdom.Node.none
   in
   let clear_button =
     let%arr theme = View.Theme.current graph
-    and next_id = next_id in
+    and next_id in
     View.button theme "clear" ~on_click:(next_id ())
   in
   let padding =
-    let%arr padding_left = padding_left
-    and padding_right = padding_right
-    and padding_top = padding_top
-    and padding_bottom = padding_bottom in
+    let%arr padding_left and padding_right and padding_top and padding_bottom in
     View.vbox
       [ View.hbox [ Form.view padding_left; Form.view padding_right ]
       ; View.hbox [ Form.view padding_top; Form.view padding_bottom ]
@@ -427,10 +457,10 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     let%arr color_picker = color_picker >>| Form.view
     and pen_size_slider = slider >>| Form.view
     and layer_panel = layer_view
-    and forward_button = forward_button
-    and clear_button = clear_button
+    and forward_button
+    and clear_button
     and widget = widget_view
-    and padding = padding in
+    and padding in
     { View_.color_picker
     ; pen_size_slider
     ; layer_panel
@@ -440,7 +470,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     ; padding
     }
   in
-  { images = value; view }
+  { images = value; get_images = get_images_effect; view }
 ;;
 
 external empty_white_image : int -> int -> Js.js_string Js.t = "empty_white_image"

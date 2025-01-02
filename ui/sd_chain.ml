@@ -4,6 +4,7 @@ open Bonsai.Let_syntax
 module Parameters = Parameters
 module Form = Bonsai_web_ui_form.With_manual_view
 module Lease_pool = Lease_pool
+module Paint = Paint
 
 module _ = [%css stylesheet {|
 body {

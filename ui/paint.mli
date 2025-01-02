@@ -22,6 +22,7 @@ end
 
 type t =
   { images : Images.t Inc.t
+  ; get_images : Images.t Effect.t Bonsai.t
   ; view : View.t Bonsai.t
   }
 

@@ -19,17 +19,16 @@ let sketch_impl ~prev ~prev_params graph =
   let%sub image, view =
     match%sub prev with
     | Inc.Or_error_or_stale.Fresh prev_for_paint | Stale prev_for_paint ->
-      let { Paint.images = t; view } = Paint.component ~prev:prev_for_paint graph in
-      let%arr t = t
-      and view = view in
+      let { Paint.images = t; view; _ } = Paint.component ~prev:prev_for_paint graph in
+      let%arr t and view in
       t, Some view
     | Error e ->
-      let%arr e = e in
+      let%arr e in
       Inc.Or_error_or_stale.Error e, None
     | Not_computed -> Bonsai.return (Inc.Or_error_or_stale.Not_computed, None)
   in
   let%arr t = image
-  and view = view
+  and view
   and params = prev_params in
   let image, mask =
     Inc.Or_error_or_stale.(unzip (map t ~f:(fun { image; mask } -> image, mask)))
@@ -100,9 +99,9 @@ let do_txt2img ~prev ~prev_params ~index ~pool ~reset ~recurse graph =
   let path = Bonsai.path graph in
   let image, view, params = component ~index ~pool ~prev ~reset ~prev_params graph in
   let next = recurse index image params graph in
-  let%arr view = view
+  let%arr view
   and image, route, view2 = next
-  and path = path in
+  and path in
   ( image
   , Route.branch ~key:path ~data:() ~children:[ route ]
   , Map.set view2 ~key:path ~data:view )
@@ -142,6 +141,6 @@ let component ~pool ~index ~prev ~prev_params graph =
           | Inc.Or_error_or_stale.Fresh _ | Stale _ ->
             do_txt2img ~prev ~prev_params ~index ~pool ~reset ~recurse graph
           | _ ->
-            let%arr prev = prev in
+            let%arr prev in
             prev, Route.empty, Bonsai.Path.Map.empty)))
 ;;
