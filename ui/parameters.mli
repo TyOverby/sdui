@@ -16,7 +16,7 @@ type t =
   ; sampler : Sd.Samplers.t
   ; specific_model : Sd.Hosts.Current_model.t option
   }
-[@@deriving equal]
+[@@deriving equal, sexp_of]
 
 type view :=
   direction:[ `Horizontal | `Vertical ]

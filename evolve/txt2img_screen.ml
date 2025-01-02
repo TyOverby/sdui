@@ -71,7 +71,7 @@ let component
         inject
           (Image_tree.Action.Add
              { parent_id = id
-             ; stage = { desc = "txt2img"; state = Enqueued }
+             ; stage = { desc = Txt2img; state = Enqueued }
              ; dispatch
              ; on_complete
              })

@@ -6,6 +6,56 @@ module Form = Bonsai_web_ui_form.With_manual_view
 module Feather = Feather_icon
 module Lease_pool = Sd_chain.Lease_pool
 module Images = Sd_chain.Paint.Images
+module P = Sd.Parameters.Individual
+
+let editor_view ~parameters (view : Sd_chain.Paint.View.t Bonsai.t) (local_ graph) =
+  let pos_prompt =
+    P.prompt_form
+      ~default:"score_9, score_8_up, score_7_up,\n"
+      ~container_attrs:[ {%css| flex-grow: 2 |} ]
+      ~textarea_attrs:[ Vdom.Attr.create "data-kind" "prompt" ]
+      ~label:"prompt"
+      graph
+  in
+  let override_prompt =
+    let%arr { Form.value; _ } = pos_prompt in
+    fun (params : Sd_chain.Parameters.t) ->
+      match value with
+      | Ok pos_prompt -> { params with pos_prompt }
+      | Error _ -> params
+  in
+  let _ : unit Bonsai.t =
+    Bonsai_extra.exactly_once
+      (let%arr { Form.set = set_prompt; _ } = pos_prompt
+       and prompt =
+         parameters >>| fun { Sd_chain.Parameters.pos_prompt; _ } -> pos_prompt
+       in
+       set_prompt prompt)
+      graph
+  in
+  let view =
+    let%arr { widget
+            ; color_picker
+            ; pen_size_slider
+            ; layer_panel
+            ; clear_button
+            ; forward_button = _
+            ; padding = _
+            }
+      =
+      view
+    and pos_prompt in
+    View.vbox
+      [ pos_prompt.view
+      ; View.hbox
+          [ layer_panel
+          ; widget
+          ; View.vbox [ color_picker; pen_size_slider; clear_button ]
+          ]
+      ]
+  in
+  override_prompt, view
+;;
 
 let component
   ~(lease_pool :
@@ -28,21 +78,18 @@ let component
   (local_ graph)
   =
   add_seen_after_active ~add_seen ~id graph;
-  let get_images, img_view =
+  let get_images, override_prompt, img_view =
     if is_image_editor
     then (
       let editor = Sd_chain.Paint.component ~prev:parent_img graph in
-      let view =
-        let%arr { widget; _ } = editor.view in
-        widget
-      in
-      editor.get_images, view)
+      let override_prompt, view = editor_view editor.view ~parameters graph in
+      editor.get_images, override_prompt, view)
     else (
       let get_images =
         let%arr img in
         Effect.return { Images.image = img; mask = None }
       in
-      get_images, img >>| Sd.Image.to_vdom)
+      get_images, Bonsai.return Fn.id, img >>| Sd.Image.to_vdom)
   in
   let%arr parameters
   and theme = View.Theme.current graph
@@ -55,11 +102,13 @@ let component
   and ~modifier:modify_refine, ~view:refine_view = refine_card
   and ~modifier:modify_reimagine, ~view:reimagine_view = reimagine_card
   and ~modifier:modify_upscale, ~view:upscale_view = upscale_card
-  and ~modifier:modify_other_model, ~view:other_model_view = other_model_card in
-  let generate_button ~button_text ~stack_text ~modify_parameters =
+  and ~modifier:modify_other_model, ~view:other_model_view = other_model_card
+  and override_prompt in
+  let generate_button ~button_text ~kind ~modify_parameters =
     let generate =
       let%bind.Effect parameters = modify_parameters parameters in
-      let%bind.Effect { image = img; mask = _ } = get_images in
+      let parameters = override_prompt parameters in
+      let%bind.Effect { image = img; mask } = get_images in
       let dispatch ~id ~on_started =
         let parameters =
           { parameters with
@@ -82,6 +131,7 @@ let component
                  ~host_and_port:(host :> string)
                  { (Sd_chain.Parameters.for_img2img parameters) with
                    init_images = [ img ]
+                 ; mask
                  }
              with
              | Ok ((img, _) :: _) -> Ok img
@@ -89,12 +139,12 @@ let component
              | Error e -> Error e))
       in
       let on_complete image =
-        Image_tree.Stage.State.Finished { image; parent_image = Some image; parameters }
+        Image_tree.Stage.State.Finished { image; parent_image = Some img; parameters }
       in
       inject
         (Image_tree.Action.Add
            { parent_id = id
-           ; stage = { desc = stack_text; state = Enqueued }
+           ; stage = { desc = kind; state = Enqueued }
            ; dispatch
            ; on_complete
            })
@@ -104,7 +154,7 @@ let component
   let upscale_button, upscale =
     generate_button
       ~button_text:"[u]pscale"
-      ~stack_text:"upscaled"
+      ~kind:(Img2img "upscaled")
       ~modify_parameters:(fun (params : Sd_chain.Parameters.t) ->
         let params : Sd_chain.Parameters.t = modify_upscale params in
         Effect.return
@@ -118,21 +168,21 @@ let component
   let refine_button, refine =
     generate_button
       ~button_text:"ref[y]ne"
-      ~stack_text:"refined"
+      ~kind:(Img2img "refined")
       ~modify_parameters:(fun (params : Sd_chain.Parameters.t) ->
         Effect.return (modify_refine params))
   in
   let reimagine_button, reimagine =
     generate_button
       ~button_text:"re[i]magine"
-      ~stack_text:"reimagined"
+      ~kind:(Img2img "reimagined")
       ~modify_parameters:(fun (params : Sd_chain.Parameters.t) ->
         Effect.return (modify_reimagine params))
   in
   let switch_model_button, switch_model =
     generate_button
       ~button_text:"[o]ther model"
-      ~stack_text:"model"
+      ~kind:(Img2img "model")
       ~modify_parameters:(fun (params : Sd_chain.Parameters.t) ->
         let params : Sd_chain.Parameters.t = modify_other_model params in
         let%bind.Effect new_model =
@@ -148,17 +198,39 @@ let component
         Effect.return
           { params with denoise = Int63.of_int 40; specific_model = new_model })
   in
+  let edit_button, edit =
+    let effect =
+      let dispatch ~id:_ ~on_started:_ =
+        let%bind.Effect { image = img; mask = _ } = get_images in
+        Effect.return (Ok img)
+      in
+      let on_complete image =
+        Image_tree.Stage.State.Finished { image; parent_image = Some image; parameters }
+      in
+      inject
+        (Image_tree.Action.Add
+           { parent_id = id
+           ; stage = { desc = Edit; state = Enqueued }
+           ; dispatch
+           ; on_complete
+           })
+    in
+    let view = View.button theme "[p]aint" ~on_click:effect in
+    view, effect
+  in
   let view =
     View.hbox
       ~attrs:[ {%css|margin: 0.5em|} ]
       ~gap:(`Em_float 0.5)
       [ img_view
+      ; Vdom.Node.div ~attrs:[ {%css|flex-grow:1;|} ] []
       ; View.hbox
           ~gap:(`Em_float 0.5)
           [ upscale_view ~button:upscale_button
           ; refine_view ~button:refine_button
           ; reimagine_view ~button:reimagine_button
           ; other_model_view ~button:switch_model_button
+          ; edit_button
           ]
       ]
   in
@@ -195,6 +267,14 @@ let component
             Vdom_keyboard.Keyboard_event_handler.Handler.only_handle_if
               Vdom_keyboard.Keyboard_event_handler.Condition.(not_ has_text_input_target)
               (fun _ -> switch_model)
+        }
+      ; { keys = [ Vdom_keyboard.Keystroke.create' KeyP ]
+        ; description = "edit"
+        ; group = None
+        ; handler =
+            Vdom_keyboard.Keyboard_event_handler.Handler.only_handle_if
+              Vdom_keyboard.Keyboard_event_handler.Condition.(not_ has_text_input_target)
+              (fun _ -> edit)
         }
       ]
   in

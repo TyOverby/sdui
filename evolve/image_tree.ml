@@ -28,18 +28,27 @@ module Stage = struct
           ; parameters : Sd_chain.Parameters.t
           }
       | Error of Error.t
-    [@@deriving equal]
+    [@@deriving equal, sexp_of]
   end
 
   module Kind = struct
     type t =
-      | Txt2Img
-      | Txt2Img_result
-      | Upscale
+      | Prompt
+      | Txt2img
+      | Img2img of string
+      | Edit
+    [@@deriving equal, sexp_of]
+
+    let to_string = function
+      | Prompt -> "prompt"
+      | Txt2img -> "txt2img"
+      | Edit -> "edit"
+      | Img2img s -> s
+    ;;
   end
 
   type t =
-    { desc : string
+    { desc : Kind.t
     ; state : State.t
     }
   [@@deriving equal]
@@ -57,7 +66,7 @@ module Model = struct
   let first_id = Unique_id.create ()
 
   let empty =
-    { images = Unique_id.Map.singleton first_id { Stage.desc = "Prompt"; state = Initial }
+    { images = Unique_id.Map.singleton first_id { Stage.desc = Prompt; state = Initial }
     ; children = Unique_id.Map.empty
     ; parents = Unique_id.Map.empty
     ; roots = Unique_id.Set.singleton first_id
@@ -125,7 +134,7 @@ module Model = struct
   let add_root t =
     let id = Unique_id.create () in
     let images =
-      Map.add_exn t.images ~key:id ~data:{ Stage.desc = "Prompt"; state = Initial }
+      Map.add_exn t.images ~key:id ~data:{ Stage.desc = Prompt; state = Initial }
     in
     { t with roots = Set.add t.roots id; images }
   ;;

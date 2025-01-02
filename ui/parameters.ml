@@ -18,7 +18,7 @@ type t =
   ; sampler : Sd.Samplers.t
   ; specific_model : Sd.Hosts.Current_model.t option
   }
-[@@deriving typed_fields, equal]
+[@@deriving typed_fields, equal, sexp_of]
 
 let num_images { num_images; _ } = num_images
 

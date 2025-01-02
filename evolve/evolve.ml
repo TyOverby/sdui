@@ -168,7 +168,7 @@ let state_tree =
                 ~extra_attrs:[ {%css| margin-right: 0.5em; |} ]
                 ~size:(`Em 1)
                 icon
-            ; Vdom.Node.text desc
+            ; Vdom.Node.text (Image_tree.Stage.Kind.to_string desc)
             ; Feather.svg
                 ~extra_attrs:({%css| margin-left: 0.5em; |} :: remove_button_attrs ~id)
                 ~size:(`Em 1)
@@ -486,6 +486,23 @@ let component (local_ graph) =
           Bonsai.return
             ( Vdom.Node.text "somehow no parent image"
             , Vdom_keyboard.Keyboard_event_handler.of_command_list_exn [] )
+        | Some (id, Edit, Finished { image; parent_image = Some parent_image; parameters })
+          ->
+          Img2img_screen.component
+            ~lease_pool
+            ~id
+            ~inject
+            ~img:image
+            ~parent_img:parent_image
+            ~parameters
+            ~add_seen
+            ~add_seen_after_active
+            ~refine_card
+            ~reimagine_card
+            ~upscale_card
+            ~other_model_card
+            ~is_image_editor:true
+            graph
         | Some
             (id, _desc, Finished { image; parent_image = Some parent_image; parameters })
           ->
@@ -502,7 +519,7 @@ let component (local_ graph) =
             ~reimagine_card
             ~upscale_card
             ~other_model_card
-            ~is_image_editor:true
+            ~is_image_editor:false
             graph
         | _ ->
           Bonsai.return
