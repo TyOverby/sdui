@@ -54,7 +54,8 @@ module Output = struct
     method clear : unit Js.meth
     method updateImage : Js.js_string Js.t -> unit Js.meth
     method composite : Js.js_string Js.t Js.meth
-    method compositePaint : Js.js_string Js.t Js.optdef Js.meth
+    method getPaintLayer : Js.js_string Js.t Js.optdef Js.meth
+    method getMaskLayer : Js.js_string Js.t Js.optdef Js.meth
     method compositeMask : Js.js_string Js.t Js.optdef Js.meth
     method penSize : int Js.prop
     method color : Js.js_string Js.t Js.prop
@@ -107,7 +108,7 @@ module Widget :
 
   let destroy (input : Input.t) state _element =
     Effect.Expert.handle_non_dom_event_exn
-      (input.set_wip_store (state##compositePaint, state##compositeMask));
+      (input.set_wip_store (state##getPaintLayer, state##getMaskLayer));
     ()
   ;;
 end

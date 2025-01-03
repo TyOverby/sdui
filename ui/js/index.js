@@ -214,7 +214,8 @@ function painter_init(input, paint_input, mask_input) {
         setDirty: (function () { }),
         mode: "paint",
         onUpdateImage: (function () { }),
-        compositePaint: (function () { }),
+        getPaintLayer: (function () { }),
+        getMaskLayer: (function () { }),
         compositeMask: (function () { }),
     };
 
@@ -262,8 +263,12 @@ function painter_init(input, paint_input, mask_input) {
             return composite_canvas.toDataURL("image/png", 1);
         }
 
-        state.compositePaint = function () {
+        state.getPaintLayer = function () {
             return draw_canvas.toDataURL("image/png", 1);
+        }
+
+        state.getMaskLayer = function () {
+            return mask_canvas.toDataURL("image/png", 1);
         }
 
         state.compositeMask = function () {
