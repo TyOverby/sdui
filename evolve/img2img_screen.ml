@@ -40,6 +40,8 @@ let editor_view ~parameters (view : Sd_chain.Paint.View.t Bonsai.t) (local_ grap
             ; layer_panel
             ; clear_button
             ; forward_button = _
+            ; alt_panel
+            ; flip_button
             ; padding = _
             }
       =
@@ -50,7 +52,8 @@ let editor_view ~parameters (view : Sd_chain.Paint.View.t Bonsai.t) (local_ grap
       ; View.hbox
           [ layer_panel
           ; widget
-          ; View.vbox [ color_picker; pen_size_slider; clear_button ]
+          ; View.vbox
+              [ color_picker; pen_size_slider; alt_panel; flip_button; clear_button ]
           ]
       ]
   in

@@ -13,6 +13,8 @@ module View : sig
     { color_picker : Vdom.Node.t
     ; pen_size_slider : Vdom.Node.t
     ; layer_panel : Vdom.Node.t
+    ; alt_panel : Vdom.Node.t
+    ; flip_button : Vdom.Node.t
     ; forward_button : Vdom.Node.t
     ; clear_button : Vdom.Node.t
     ; padding : Vdom.Node.t

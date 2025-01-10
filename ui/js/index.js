@@ -213,10 +213,12 @@ function painter_init(input, paint_input, mask_input) {
         onColorChange: (function () { }),
         setDirty: (function () { }),
         mode: "paint",
+        alt: "shuffle",
         onUpdateImage: (function () { }),
         getPaintLayer: (function () { }),
         getMaskLayer: (function () { }),
         compositeMask: (function () { }),
+        flipCanvas: (function () { }),
     };
 
     on_images_init(images, function () {
@@ -263,6 +265,16 @@ function painter_init(input, paint_input, mask_input) {
             return composite_canvas.toDataURL("image/png", 1);
         }
 
+        state.flipCanvas = function () {
+            state.composite();
+            draw_ctx.save();
+            draw_ctx.translate(image.naturalWidth, 0);
+            draw_ctx.scale(-1, 1);
+            draw_ctx.drawImage(composite_canvas, 0, 0);
+
+            draw_ctx.restore();
+        }
+
         state.getPaintLayer = function () {
             return draw_canvas.toDataURL("image/png", 1);
         }
@@ -303,9 +315,12 @@ function painter_init(input, paint_input, mask_input) {
             var erasing = false;
             var shuffling = false;
             if (event.ctrlKey) {
-                target_ctx.globalCompositeOperation = "destination-out";
-                erasing = true;
-                //shuffling = true;
+                if (state.alt === "erase") {
+                    target_ctx.globalCompositeOperation = "destination-out";
+                    erasing = true;
+                } else if (state.alt === "shuffle") {
+                    shuffling = true;
+                }
             } else {
                 target_ctx.globalCompositeOperation = "source-over";
             }

@@ -54,6 +54,7 @@ module Output = struct
     method clear : unit Js.meth
     method updateImage : Js.js_string Js.t -> unit Js.meth
     method composite : Js.js_string Js.t Js.meth
+    method flipCanvas : unit Js.meth
     method getPaintLayer : Js.js_string Js.t Js.optdef Js.meth
     method getMaskLayer : Js.js_string Js.t Js.optdef Js.meth
     method compositeMask : Js.js_string Js.t Js.optdef Js.meth
@@ -62,6 +63,7 @@ module Output = struct
     method onColorChange : (Js.js_string Js.t -> unit) Js.callback Js.prop
     method setDirty : (unit -> unit) Js.callback Js.prop
     method mode : Js.js_string Js.t Js.prop
+    method alt : Js.js_string Js.t Js.prop
   end
 end
 
@@ -114,6 +116,72 @@ module Widget :
 end
 
 module Id = Bonsai_extra.Id_gen (Int63) ()
+
+module Alt_panel = struct
+  type t =
+    | Erase
+    | Shuffle
+  [@@deriving sexp_of, equal, enumerate, compare]
+
+  module Style =
+    [%css
+    stylesheet
+      {|
+    .selected {
+      background: var(--selected-bg);
+      color: var(--selected-fg);
+    }
+
+    .layers {
+      text-transform: uppercase;
+      user-select:none;
+      margin: 0.25em 0.5em;
+    }
+
+    .layer {
+      padding: 0 0.5em;
+    }
+  |}]
+
+  let component graph =
+    let alt, set_alt = Bonsai.state Erase graph in
+    let view =
+      let%arr alt
+      and set_alt
+      and theme = View.Theme.current graph in
+      let erase_box =
+        View.hbox
+          ~cross_axis_alignment:Center
+          ~gap:(`Em_float 0.5)
+          ~attrs:
+            [ (if equal alt Erase then Style.selected else Vdom.Attr.empty)
+            ; Vdom.Attr.on_click (fun _ -> set_alt Erase)
+            ; Style.layer
+            ]
+          [ Feather_icon.svg ~size:(`Px 16) Trash; Vdom.Node.text "Erase" ]
+      in
+      let scramble_box =
+        View.hbox
+          ~cross_axis_alignment:Center
+          ~gap:(`Em_float 0.5)
+          ~attrs:
+            [ (if equal alt Shuffle then Style.selected else Vdom.Attr.empty)
+            ; Vdom.Attr.on_click (fun _ -> set_alt Shuffle)
+            ; Style.layer
+            ]
+          [ Feather_icon.svg Minimize ~size:(`Px 16); Vdom.Node.text "Shuffle" ]
+      in
+      let colors =
+        let { View.Fg_bg.foreground; background } = View.intent_colors theme Info in
+        Style.Variables.set_all
+          ~selected_bg:(Css_gen.Color.to_string_css background)
+          ~selected_fg:(Css_gen.Color.to_string_css foreground)
+      in
+      View.hbox ~attrs:[ colors; Style.layers ] [ erase_box; scramble_box ]
+    in
+    alt, view
+  ;;
+end
 
 module Layer_panel = struct
   type t =
@@ -214,6 +282,8 @@ module View_ = struct
     { color_picker : Vdom.Node.t
     ; pen_size_slider : Vdom.Node.t
     ; layer_panel : Vdom.Node.t
+    ; alt_panel : Vdom.Node.t
+    ; flip_button : Vdom.Node.t
     ; forward_button : Vdom.Node.t
     ; clear_button : Vdom.Node.t
     ; padding : Vdom.Node.t
@@ -294,6 +364,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
       graph
   in
   let current_layer, layer_view, mask_visible = Layer_panel.component graph in
+  let alt, alt_panel = Alt_panel.component graph in
   let padding_left =
     Sd.Custom_form_elements.int_form
       ~title:"left"
@@ -364,8 +435,16 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     ~widget
     graph
     ~f:(fun state -> function
-    | Layer_panel.Paint -> state##.mode := Js.string "paint"
+    | Paint -> state##.mode := Js.string "paint"
     | Mask -> state##.mode := Js.string "mask");
+  run_on_change_and_on_init
+    alt
+    ~equal:[%equal: Alt_panel.t]
+    ~widget
+    graph
+    ~f:(fun state -> function
+    | Erase -> state##.alt := Js.string "erase"
+    | Shuffle -> state##.alt := Js.string "shuffle");
   run_on_change_and_on_init
     (color_picker >>| Form.value)
     ~equal:[%equal: [ `Hex of string ] Or_error.t]
@@ -461,6 +540,11 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     and next_id in
     View.button theme "clear" ~on_click:(next_id ())
   in
+  let flip_button =
+    let%arr theme = View.Theme.current graph
+    and { modify; _ } = widget in
+    View.button theme "flip" ~on_click:(modify (fun _ state -> state##flipCanvas))
+  in
   let padding =
     let%arr padding_left and padding_right and padding_top and padding_bottom in
     View.vbox
@@ -472,13 +556,17 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     let%arr color_picker = color_picker >>| Form.view
     and pen_size_slider = slider >>| Form.view
     and layer_panel = layer_view
+    and alt_panel
     and forward_button
     and clear_button
+    and flip_button
     and widget = widget_view
     and padding in
     { View_.color_picker
     ; pen_size_slider
+    ; alt_panel
     ; layer_panel
+    ; flip_button
     ; forward_button
     ; clear_button
     ; widget
