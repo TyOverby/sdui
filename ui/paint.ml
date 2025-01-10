@@ -227,6 +227,22 @@ type t =
   ; view : View_.t Bonsai.t
   }
 
+let run_on_change_and_on_init value ~equal ~widget ~f (local_ graph) =
+  Bonsai.Edge.on_change
+    value
+    ~equal
+    ~callback:
+      (let%arr { Bonsai_web_ui_low_level_vdom.Widget.modify; _ } = widget in
+       fun value -> modify (fun _ state -> f state value))
+    graph;
+  Bonsai.Edge.lifecycle
+    graph
+    ~on_activate:
+      (let%arr value
+       and { Bonsai_web_ui_low_level_vdom.Widget.modify; _ } = widget in
+       modify (fun _ state -> f state value))
+;;
+
 let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
   let color_picker = Form.Elements.Color_picker.hex () graph in
   let value, inject =
@@ -334,32 +350,29 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
       ~max:(Int63.of_int 1024)
       graph
   in
-  Bonsai.Edge.on_change
-    (slider >>| Form.value >>| Or_error.ok)
-    ~equal:[%equal: int option]
-    ~callback:
-      (let%arr { modify; _ } = widget in
-       function
-       | None -> Effect.Ignore
-       | Some width -> modify (fun _ state -> state##.penSize := width))
-    graph;
-  Bonsai.Edge.on_change
+  run_on_change_and_on_init
+    (slider >>| Form.value)
+    ~equal:[%equal: int Or_error.t]
+    ~widget
+    graph
+    ~f:(fun state -> function
+    | Error _ -> ()
+    | Ok value -> state##.penSize := value);
+  run_on_change_and_on_init
     current_layer
     ~equal:[%equal: Layer_panel.t]
-    ~callback:
-      (let%arr { modify; _ } = widget in
-       function
-       | Layer_panel.Paint -> modify (fun _ state -> state##.mode := Js.string "paint")
-       | Mask -> modify (fun _ state -> state##.mode := Js.string "mask"))
-    graph;
-  Bonsai.Edge.on_change
-    (color_picker >>| Form.value >>| Or_error.ok)
-    ~equal:[%equal: [ `Hex of string ] option]
-    ~callback:
-      (let%arr { modify; _ } = widget in
-       function
-       | None -> Effect.Ignore
-       | Some (`Hex color) -> modify (fun _ state -> state##.color := Js.string color))
+    ~widget
+    graph
+    ~f:(fun state -> function
+    | Layer_panel.Paint -> state##.mode := Js.string "paint"
+    | Mask -> state##.mode := Js.string "mask");
+  run_on_change_and_on_init
+    (color_picker >>| Form.value)
+    ~equal:[%equal: [ `Hex of string ] Or_error.t]
+    ~widget
+    ~f:(fun state -> function
+      | Error _ -> ()
+      | Ok (`Hex color) -> state##.color := Js.string color)
     graph;
   let unique_id, next_id =
     Bonsai.state_machine0 ~default_model:0 ~apply_action:(fun _ i () -> i + 1) graph
