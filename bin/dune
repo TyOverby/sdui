@@ -13,8 +13,8 @@
   evolve
   virtual_dom.svg)
  (js_of_ocaml
-  (flags :standard --no-sourcemap)
-  (link_flags :standard --no-sourcemap))
+  (flags :standard)
+  (link_flags :standard))
  (modes js)
  (preprocess
   (pps ppx_jane js_of_ocaml-ppx ppx_css ppx_typed_fields ppx_yojson_conv
