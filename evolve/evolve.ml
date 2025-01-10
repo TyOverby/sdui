@@ -149,7 +149,10 @@ let state_tree =
             ])
       ]
     in
-    let rec loop { Image_tree.Model.Tree_structure.id; stage = { desc; state }; children }
+    let rec loop
+      ~only_child
+      ~deindented
+      { Image_tree.Model.Tree_structure.id; stage = { desc; state }; children }
       =
       let icon =
         match state with
@@ -159,11 +162,33 @@ let state_tree =
         | Finished _ -> Feather.Image
         | Error _ -> Feather.Alert_triangle
       in
+      let children =
+        match children with
+        | [] -> Vdom.Node.none
+        | [ child ] when only_child -> loop ~only_child:true ~deindented:true child
+        | [ _ ] ->
+          Vdom.Node.ul
+            ~attrs:[ ul_styles ]
+            (List.map children ~f:(fun c ->
+               Vdom.Node.li [ loop ~only_child:true ~deindented:false c ]))
+        | children ->
+          Vdom.Node.ul
+            ~attrs:[ ul_styles ]
+            (List.map children ~f:(fun c ->
+               Vdom.Node.li [ loop ~only_child:false ~deindented:false c ]))
+      in
       Vdom.Node.li
         ~attrs:[ li_styles; Vdom.Attr.id (Image_tree.Unique_id.to_dom_id id) ]
         [ Vdom.Node.span
             ~attrs:[ set_on_click id; maybe_highlight ~state ~id; label_attr ]
-            [ Feather.svg
+            [ (if deindented
+               then
+                 Feather.svg
+                   ~extra_attrs:[ {%css| margin-right: 0.5em; |} ]
+                   ~size:(`Em 1)
+                   Corner_down_right
+               else Vdom.Node.none)
+            ; Feather.svg
                 ~extra_attrs:[ {%css| margin-right: 0.5em; |} ]
                 ~size:(`Em 1)
                 icon
@@ -173,11 +198,14 @@ let state_tree =
                 ~size:(`Em 1)
                 X
             ]
-        ; Vdom.Node.ul ~attrs:[ ul_styles ] (List.map children ~f:loop)
+        ; children
         ]
     in
     Vdom.Node.div
-      [ Vdom.Node.ul ~attrs:[ ul_styles ] (List.map tree_structure ~f:loop)
+      [ Vdom.Node.ul
+          ~attrs:[ ul_styles ]
+          (List.map tree_structure ~f:(fun child ->
+             Vdom.Node.li [ loop ~only_child:false ~deindented:false child ]))
       ; View.button
           theme
           "New Prompt"
