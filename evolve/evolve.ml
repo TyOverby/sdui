@@ -27,7 +27,7 @@ let none_screen ~inject graph =
       ; View.button theme "new series" ~on_click:(inject Image_tree.Action.Add_root)
       ]
   in
-  view, Vdom_keyboard.Keyboard_event_handler.of_command_list_exn []
+  view, Vdom_keyboard.Keyboard_event_handler.of_command_list_exn [], None
 ;;
 
 let trigger_after_active ~for_duration ~effect graph =
@@ -85,13 +85,14 @@ let add_seen_after_active ~add_seen ~id graph =
 let state_tree =
   let ul_styles = {%css| list-style-type:none; padding-left:20px; user-select:none; |}
   and li_styles = {%css| margin:0; padding:0; |} in
-  fun ~state ~current_id ~inject ~seen ~set_current_id graph ->
+  fun ~state ~current_id ~inject ~seen ~set_current_id ~override_on_click graph ->
     let%arr state
     and current_id
     and inject
     and theme = View.Theme.current graph
     and seen
-    and set_current_id in
+    and set_current_id
+    and override_on_click in
     let tree_structure = Image_tree.Model.tree_structure state in
     let set_on_click id = Vdom.Attr.on_click (fun _ -> set_current_id id) in
     let label_attr =
@@ -177,10 +178,16 @@ let state_tree =
             (List.map children ~f:(fun c ->
                Vdom.Node.li [ loop ~only_child:false ~deindented:false c ]))
       in
+      let on_click, highlight =
+        match override_on_click, state with
+        | Some f, Finished { image; _ } ->
+          Vdom.Attr.on_click (fun _ -> f image), {%css| background: yellow; color: black|}
+        | _ -> set_on_click id, {%css||}
+      in
       Vdom.Node.li
         ~attrs:[ li_styles; Vdom.Attr.id (Image_tree.Unique_id.to_dom_id id) ]
         [ Vdom.Node.span
-            ~attrs:[ set_on_click id; maybe_highlight ~state ~id; label_attr ]
+            ~attrs:[ on_click; maybe_highlight ~state ~id; highlight; label_attr ]
             [ (if deindented
                then
                  Feather.svg
@@ -488,7 +495,6 @@ let component (local_ graph) =
     Some (current_id, desc, state)
   in
   let children_of_current = children_of_current in
-  let state_tree = state_tree ~state ~current_id ~inject ~seen ~set_current_id graph in
   let refine_card = refine_card graph in
   let reimagine_card = reimagine_card graph in
   let upscale_card = upscale_card graph in
@@ -502,17 +508,22 @@ let component (local_ graph) =
         match%sub current with
         | None -> none_screen ~inject graph
         | Some (id, _desc, Initial) ->
-          Txt2img_screen.component
-            ~lease_pool
-            ~add_seen
-            ~id
-            ~inject
-            ~add_seen_after_active
-            graph
+          let%sub view, kbd =
+            Txt2img_screen.component
+              ~lease_pool
+              ~add_seen
+              ~id
+              ~inject
+              ~add_seen_after_active
+              graph
+          in
+          let%arr view and kbd in
+          view, kbd, None
         | Some (_, _, Finished { parent_image = None; _ }) ->
           Bonsai.return
             ( Vdom.Node.text "somehow no parent image"
-            , Vdom_keyboard.Keyboard_event_handler.of_command_list_exn [] )
+            , Vdom_keyboard.Keyboard_event_handler.of_command_list_exn []
+            , None )
         | Some (id, Edit, Finished { image; parent_image = Some parent_image; parameters })
           ->
           Img2img_screen.component
@@ -550,7 +561,19 @@ let component (local_ graph) =
             graph
         | _ ->
           Bonsai.return
-            (Vdom.Node.none, Vdom_keyboard.Keyboard_event_handler.of_command_list_exn []))
+            ( Vdom.Node.none
+            , Vdom_keyboard.Keyboard_event_handler.of_command_list_exn []
+            , None ))
+  in
+  let state_tree =
+    state_tree
+      ~state
+      ~current_id
+      ~inject
+      ~seen
+      ~set_current_id
+      ~override_on_click:(main_viewport >>| Tuple3.get3)
+      graph
   in
   let global_keyboard_handlers =
     let%arr current_id and state and set_current_id and inject in
@@ -617,7 +640,7 @@ let component (local_ graph) =
       ]
   in
   let%arr state_tree
-  and main_viewport, subview_handlers = main_viewport
+  and main_viewport, subview_handlers, _set_paint_image = main_viewport
   and hosts_view
   and queue_view
   and global_keyboard_handlers

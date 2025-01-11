@@ -53,6 +53,7 @@ module Output = struct
   class type t = object
     method clear : unit Js.meth
     method updateImage : Js.js_string Js.t -> unit Js.meth
+    method setPaintImage : Js.js_string Js.t -> unit Js.meth
     method composite : Js.js_string Js.t Js.meth
     method flipCanvas : unit Js.meth
     method getPaintLayer : Js.js_string Js.t Js.optdef Js.meth
@@ -286,6 +287,7 @@ module View_ = struct
     ; flip_button : Vdom.Node.t
     ; forward_button : Vdom.Node.t
     ; clear_button : Vdom.Node.t
+    ; clone_button : Vdom.Node.t
     ; padding : Vdom.Node.t
     ; widget : Vdom.Node.t
     }
@@ -295,6 +297,7 @@ type t =
   { images : Images.t Inc.t
   ; get_images : Images.t Effect.t Bonsai.t
   ; view : View_.t Bonsai.t
+  ; set_paint_image : (Sd.Image.t -> unit Effect.t) option Bonsai.t
   }
 
 let run_on_change_and_on_init value ~equal ~widget ~f (local_ graph) =
@@ -558,6 +561,31 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
       ; View.hbox [ Form.view padding_top; Form.view padding_bottom ]
       ]
   in
+  let set_paint_image, clone_button =
+    let enabled, set_enabled = Bonsai.state false graph in
+    let set_paint_image =
+      let%arr { modify; _ } = widget
+      and enabled
+      and set_enabled in
+      match enabled with
+      | false -> None
+      | true ->
+        Some
+          (fun image ->
+            let%bind.Effect () = set_enabled false in
+            modify (fun _ state ->
+              state##setPaintImage (Js.string (Sd.Image.data_url image))))
+    in
+    let clone_button =
+      let%arr enabled
+      and set_enabled
+      and theme = View.Theme.current graph in
+      match enabled with
+      | false -> View.button theme "clone" ~on_click:(set_enabled true)
+      | true -> View.button theme "stop clone" ~on_click:(set_enabled false)
+    in
+    set_paint_image, clone_button
+  in
   let view =
     let%arr color_picker = color_picker >>| Form.view
     and pen_size_slider = slider >>| Form.view
@@ -566,6 +594,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     and forward_button
     and clear_button
     and flip_button
+    and clone_button
     and widget = widget_view
     and padding in
     { View_.color_picker
@@ -574,12 +603,13 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     ; layer_panel
     ; flip_button
     ; forward_button
+    ; clone_button
     ; clear_button
     ; widget
     ; padding
     }
   in
-  { images = value; get_images = get_images_effect; view }
+  { images = value; get_images = get_images_effect; view; set_paint_image }
 ;;
 
 external empty_white_image : int -> int -> Js.js_string Js.t = "empty_white_image"

@@ -42,6 +42,7 @@ let editor_view ~parameters (view : Sd_chain.Paint.View.t Bonsai.t) (local_ grap
             ; forward_button = _
             ; alt_panel
             ; flip_button
+            ; clone_button
             ; padding = _
             }
       =
@@ -53,7 +54,13 @@ let editor_view ~parameters (view : Sd_chain.Paint.View.t Bonsai.t) (local_ grap
           [ layer_panel
           ; widget
           ; View.vbox
-              [ color_picker; pen_size_slider; alt_panel; flip_button; clear_button ]
+              [ color_picker
+              ; pen_size_slider
+              ; alt_panel
+              ; flip_button
+              ; clone_button
+              ; clear_button
+              ]
           ]
       ]
   in
@@ -81,18 +88,18 @@ let component
   (local_ graph)
   =
   add_seen_after_active ~add_seen ~id graph;
-  let get_images, override_prompt, img_view =
+  let get_images, override_prompt, img_view, set_paint_image =
     if is_image_editor
     then (
       let editor = Sd_chain.Paint.component ~prev:parent_img graph in
       let override_prompt, view = editor_view editor.view ~parameters graph in
-      editor.get_images, override_prompt, view)
+      editor.get_images, override_prompt, view, editor.set_paint_image)
     else (
       let get_images =
         let%arr img in
         Effect.return { Images.image = img; mask = None }
       in
-      get_images, Bonsai.return Fn.id, img >>| Sd.Image.to_vdom)
+      get_images, Bonsai.return Fn.id, img >>| Sd.Image.to_vdom, Bonsai.return None)
   in
   let%arr parameters
   and theme = View.Theme.current graph
@@ -106,7 +113,8 @@ let component
   and ~modifier:modify_reimagine, ~view:reimagine_view = reimagine_card
   and ~modifier:modify_upscale, ~view:upscale_view = upscale_card
   and ~modifier:modify_other_model, ~view:other_model_view = other_model_card
-  and override_prompt in
+  and override_prompt
+  and set_paint_image in
   let generate_button ~button_text ~kind ~modify_parameters =
     let generate =
       let%bind.Effect parameters = modify_parameters parameters in
@@ -281,5 +289,5 @@ let component
         }
       ]
   in
-  view, key_commands
+  view, key_commands, set_paint_image
 ;;

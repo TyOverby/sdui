@@ -75,6 +75,7 @@ let component
           ; clear_button
           ; widget
           ; padding
+          ; _
           } ->
         Workspace.make
           ~index

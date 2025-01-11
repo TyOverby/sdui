@@ -17,6 +17,7 @@ module View : sig
     ; flip_button : Vdom.Node.t
     ; forward_button : Vdom.Node.t
     ; clear_button : Vdom.Node.t
+    ; clone_button : Vdom.Node.t
     ; padding : Vdom.Node.t
     ; widget : Vdom.Node.t
     }
@@ -26,6 +27,7 @@ type t =
   { images : Images.t Inc.t
   ; get_images : Images.t Effect.t Bonsai.t
   ; view : View.t Bonsai.t
+  ; set_paint_image : (Sd.Image.t -> unit Effect.t) option Bonsai.t
   }
 
 val component : prev:Sd.Image.t Bonsai.t -> local_ Bonsai.graph -> t

@@ -219,6 +219,8 @@ function painter_init(input, paint_input, mask_input) {
         getMaskLayer: (function () { }),
         compositeMask: (function () { }),
         flipCanvas: (function () { }),
+        updateImage: (function () { }),
+        setPaintImage: (function () { }),
     };
 
     on_images_init(images, function () {
@@ -296,15 +298,23 @@ function painter_init(input, paint_input, mask_input) {
             }
         }
 
-        state.updateImage = function (data_url) {
+        function draw_image(data_url, ctx) {
             data_url = sanatize_url(data_url);
             image = document.createElement("img");
             image.crossOrigin = "Anonymous";
             image.setAttribute("src", data_url);
             state.setDirty();
             on_image_init(image, function () {
-                img_ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
+                ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
             })
+        }
+
+        state.updateImage = function (data_url) {
+            draw_image(data_url, img_ctx);
+        }
+
+        state.setPaintImage = function (data_url) {
+            draw_image(data_url, draw_ctx);
         }
 
         function mousedown(event) {
