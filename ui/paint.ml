@@ -266,7 +266,7 @@ module Layer_panel = struct
       in
       View.vbox ~attrs:[ colors; Style.layers ] [ paint_layer; mask_layer ]
     in
-    current_layer, view, mask_visible
+    current_layer, view, mask_visible, set_current_layer
   ;;
 end
 
@@ -336,17 +336,24 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
   let wip_store, set_wip_store =
     Bonsai.state (Js_of_ocaml.Js.Optdef.empty, Js_of_ocaml.Js.Optdef.empty) graph
   in
+  let current_layer, layer_view, mask_visible, set_current_layer =
+    Layer_panel.component graph
+  in
+  let on_color_change =
+    let%arr color_picker and set_current_layer in
+    fun js_string ->
+      Effect.Many
+        [ set_current_layer Layer_panel.Paint
+        ; Form.set color_picker (`Hex (Js.to_string js_string))
+        ]
+  in
   let widget =
     let input =
       let%arr url = image >>| Sd.Image.data_url
       and set_dirty = inject >>| fun inject -> inject `Invalidate
       and set_wip_store
       and wip_store
-      and on_color_change =
-        color_picker
-        >>| Form.set
-        >>| fun setter js_string -> setter (`Hex (Js.to_string js_string))
-      in
+      and on_color_change in
       { Input.url; on_color_change; set_dirty; set_wip_store; wip_store }
     in
     Bonsai_web_ui_low_level_vdom.Widget.component (module Widget) input graph
@@ -363,7 +370,6 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
       ()
       graph
   in
-  let current_layer, layer_view, mask_visible = Layer_panel.component graph in
   let alt, alt_panel = Alt_panel.component graph in
   let padding_left =
     Sd.Custom_form_elements.int_form
