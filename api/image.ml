@@ -16,8 +16,19 @@ type t =
 [@@deriving sexp, equal]
 
 let with_size t ~width ~height = { t with width = Some width; height = Some height }
-let data_url t = t.content
-let of_string ?width ?height ~kind content = { width; height; content; kind }
+
+let of_string ?width ?height ~kind content =
+  let content =
+    match kind with
+    | Base64 ->
+      if String.is_prefix ~prefix:"data:" content
+      then content
+      else "data:image/png;base64, " ^ content
+    | _ -> content
+  in
+  { width; height; content; kind }
+;;
+
 let to_string t = t.content
 
 let to_vdom ?(attrs = []) ?width ?height ?(drop_size = false) t =
@@ -43,13 +54,7 @@ let to_vdom ?(attrs = []) ?width ?height ?(drop_size = false) t =
             /. Js_of_ocaml.Js.float_of_number
                  Js_of_ocaml.Dom_html.window##.devicePixelRatio))
   in
-  let src =
-    match t.kind with
-    | Base64 when String.is_prefix t.content ~prefix:"data:image/" -> t.content
-    | Base64 -> sprintf "data:image/png;base64, %s" t.content
-    | Url -> t.content
-  in
-  Vdom.Node.img ~attrs:([ Vdom.Attr.src src; width; height ] @ attrs) ()
+  Vdom.Node.img ~attrs:([ Vdom.Attr.src t.content; width; height ] @ attrs) ()
 ;;
 
 let t_of_yojson = function

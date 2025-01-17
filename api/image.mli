@@ -8,7 +8,6 @@ type kind =
 
 type t [@@deriving yojson, sexp, equal]
 
-val data_url : t -> string
 val of_string : ?width:Int63.t -> ?height:Int63.t -> kind:kind -> string -> t
 val to_string : t -> string
 val with_size : t -> width:Int63.t -> height:Int63.t -> t

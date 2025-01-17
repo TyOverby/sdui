@@ -85,6 +85,7 @@ let component
   ~reimagine_card
   ~upscale_card
   ~other_model_card
+  ~resize_card
   (local_ graph)
   =
   add_seen_after_active ~add_seen ~id graph;
@@ -113,6 +114,7 @@ let component
   and ~modifier:modify_reimagine, ~view:reimagine_view = reimagine_card
   and ~modifier:modify_upscale, ~view:upscale_view = upscale_card
   and ~modifier:modify_other_model, ~view:other_model_view = other_model_card
+  and resize_card, _resize_effect = resize_card
   and override_prompt
   and set_paint_image in
   let generate_button ~button_text ~kind ~modify_parameters =
@@ -229,9 +231,30 @@ let component
     let view = View.button theme "[p]aint" ~on_click:effect in
     view, effect
   in
+  let resize_card =
+    let set_result ~vertical_padding ~horizontal_padding img =
+      let parameters =
+        { parameters with
+          width = Int63.(parameters.width + of_int horizontal_padding)
+        ; height = Int63.(parameters.height + of_int vertical_padding)
+        }
+      in
+      let on_complete image =
+        Image_tree.Stage.State.Finished { image; parent_image = Some img; parameters }
+      in
+      inject
+        (Image_tree.Action.Add
+           { parent_id = id
+           ; stage = { desc = Resize; state = Enqueued }
+           ; dispatch = (fun ~id:_ ~on_started:_ -> Effect.return (Ok img))
+           ; on_complete
+           })
+    in
+    resize_card ~get_images ~set_result
+  in
   let view =
     View.hbox
-      ~attrs:[ {%css|margin: 0.5em|} ]
+      ~attrs:[ {%css|margin: 0.5em; align-items: flex-start;|} ]
       ~gap:(`Em_float 0.5)
       [ img_view
       ; Vdom.Node.div ~attrs:[ {%css|flex-grow:1;|} ] []
@@ -241,6 +264,7 @@ let component
           ; refine_view ~button:refine_button
           ; reimagine_view ~button:reimagine_button
           ; other_model_view ~button:switch_model_button
+          ; resize_card
           ; edit_button
           ]
       ]

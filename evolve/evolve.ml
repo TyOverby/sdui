@@ -360,6 +360,7 @@ let component (local_ graph) =
   let reimagine_card = reimagine_card graph in
   let upscale_card = upscale_card graph in
   let other_model_card = other_model_card graph in
+  let resize_card = Resize_screen.component graph in
   let main_viewport =
     Bonsai.scope_model
       (module Image_tree.Optional_unique_id)
@@ -400,6 +401,7 @@ let component (local_ graph) =
             ~reimagine_card
             ~upscale_card
             ~other_model_card
+            ~resize_card
             ~is_image_editor:true
             graph
         | Some
@@ -418,6 +420,7 @@ let component (local_ graph) =
             ~reimagine_card
             ~upscale_card
             ~other_model_card
+            ~resize_card
             ~is_image_editor:false
             graph
         | _ ->
@@ -427,7 +430,7 @@ let component (local_ graph) =
             , None ))
   in
   let state_tree =
-    State_tree.component
+    Image_tree.render
       ~state
       ~current_id
       ~inject

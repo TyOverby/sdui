@@ -352,7 +352,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
   in
   let widget =
     let input =
-      let%arr url = image >>| Sd.Image.data_url
+      let%arr url = image >>| Sd.Image.to_string
       and set_dirty = inject >>| fun inject -> inject `Invalidate
       and set_wip_store
       and wip_store
@@ -574,7 +574,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
           (fun image ->
             let%bind.Effect () = set_enabled false in
             modify (fun _ state ->
-              state##setPaintImage (Js.string (Sd.Image.data_url image))))
+              state##setPaintImage (Js.string (Sd.Image.to_string image))))
     in
     let clone_button =
       let%arr enabled
