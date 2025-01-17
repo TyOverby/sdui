@@ -17,20 +17,30 @@ let editor_view ~parameters (view : Sd_chain.Paint.View.t Bonsai.t) (local_ grap
       ~label:"prompt"
       graph
   in
+  let neg_prompt =
+    P.prompt_form
+      ~default:"score_1, score_2, score_3,\n"
+      ~container_attrs:[ {%css| flex-grow: 2 |} ]
+      ~textarea_attrs:[ Vdom.Attr.create "data-kind" "neg-prompt" ]
+      ~label:"neg-prompt"
+      graph
+  in
   let override_prompt =
-    let%arr { Form.value; _ } = pos_prompt in
+    let%arr { Form.value = pos_prompt; _ } = pos_prompt
+    and { Form.value = neg_prompt; _ } = neg_prompt in
     fun (params : Sd_chain.Parameters.t) ->
-      match value with
-      | Ok pos_prompt -> { params with pos_prompt }
-      | Error _ -> params
+      match pos_prompt, neg_prompt with
+      | Ok pos_prompt, Error _ -> { params with pos_prompt }
+      | Error _, Ok neg_prompt -> { params with neg_prompt }
+      | Ok pos_prompt, Ok neg_prompt -> { params with pos_prompt; neg_prompt }
+      | Error _, Error _ -> params
   in
   let _ : unit Bonsai.t =
     Bonsai_extra.exactly_once
-      (let%arr { Form.set = set_prompt; _ } = pos_prompt
-       and prompt =
-         parameters >>| fun { Sd_chain.Parameters.pos_prompt; _ } -> pos_prompt
-       in
-       set_prompt prompt)
+      (let%arr { Form.set = set_pos_prompt; _ } = pos_prompt
+       and { Form.set = set_neg_prompt; _ } = neg_prompt
+       and { Sd_chain.Parameters.pos_prompt; neg_prompt; _ } = parameters in
+       Effect.Many [ set_pos_prompt pos_prompt; set_neg_prompt neg_prompt ])
       graph
   in
   let view =
@@ -47,21 +57,20 @@ let editor_view ~parameters (view : Sd_chain.Paint.View.t Bonsai.t) (local_ grap
             }
       =
       view
-    and pos_prompt in
-    View.vbox
-      [ pos_prompt.view
-      ; View.hbox
-          [ layer_panel
-          ; widget
-          ; View.vbox
-              [ color_picker
-              ; pen_size_slider
-              ; alt_panel
-              ; flip_button
-              ; clone_button
-              ; clear_button
-              ]
+    and pos_prompt
+    and neg_prompt in
+    View.hbox
+      [ layer_panel
+      ; widget
+      ; View.vbox
+          [ color_picker
+          ; pen_size_slider
+          ; alt_panel
+          ; flip_button
+          ; clone_button
+          ; clear_button
           ]
+      ; View.vbox [ Form.view pos_prompt; Form.view neg_prompt ]
       ]
   in
   override_prompt, view
