@@ -241,13 +241,8 @@ let component
     view, effect
   in
   let resize_card =
-    let set_result ~vertical_padding ~horizontal_padding img =
-      let parameters =
-        { parameters with
-          width = Int63.(parameters.width + of_int horizontal_padding)
-        ; height = Int63.(parameters.height + of_int vertical_padding)
-        }
-      in
+    let set_result ~new_width ~new_height img =
+      let parameters = { parameters with width = new_width; height = new_height } in
       let on_complete image =
         Image_tree.Stage.State.Finished { image; parent_image = Some img; parameters }
       in
