@@ -77,7 +77,7 @@ module Query = struct
 
     let of_query (query : query) : t =
       { init_images = List.map query.init_images ~f:Image.to_string
-      ; prompt = query.prompt
+      ; prompt = Pre_process_prompt.strip_prompt query.prompt
       ; negative_prompt = query.negative_prompt
       ; width = Int63.to_int_exn query.width
       ; height = Int63.to_int_exn query.height

@@ -67,7 +67,7 @@ module Query = struct
           ~regional_prompter:query.regional_prompter
           ()
       in
-      { prompt = query.prompt
+      { prompt = Pre_process_prompt.strip_prompt query.prompt
       ; negative_prompt = query.negative_prompt
       ; width = Int63.to_int_exn query.width
       ; height = Int63.to_int_exn query.height

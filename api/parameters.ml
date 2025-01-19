@@ -3,6 +3,7 @@ open! Bonsai_web
 open! Async_kernel
 open Bonsai.Let_syntax
 module Form = Bonsai_web_ui_form.With_manual_view
+open Pre_process_prompt
 
 type t =
   ( Txt2img.Query.t
@@ -141,8 +142,6 @@ let between_inclusive s ~min:min_v ~max:max_v =
   | Some i -> Ok i
 ;;
 
-let _validate_prompt s = s
-
 let validate_prompt prompt =
   let translate_line line =
     line
@@ -216,12 +215,6 @@ module Individual = struct
         ~label
         graph
     in
-    let any_at_lines s =
-      List.exists (String.split_lines s) ~f:(fun line ->
-        match String.get line 0 with
-        | '@' -> true
-        | _ | (exception _) -> false)
-    in
     let colorize s =
       let any_at_lines = any_at_lines s in
       let lines = String.split_lines s in
@@ -237,21 +230,8 @@ module Individual = struct
         ; Vdom.Node.text "\n"
         ])
     in
-    let value =
-      let s = Form.value_or_default form ~default:"" in
-      let any_at_lines = any_at_lines s in
-      String.split_lines s
-      |> List.filter_map ~f:(fun line ->
-        match String.get line 0 with
-        | '#' -> None
-        | '!' -> Some (String.drop_prefix line 1)
-        | '@' -> Some (String.drop_prefix line 1)
-        | _ | (exception _) -> if any_at_lines then None else Some line)
-      |> List.map ~f:String.strip
-      |> String.concat_lines
-    in
     let view = Form.view form ?colorize:(Some colorize) () in
-    { form with view; value = Ok value }
+    { form with view }
   ;;
 end
 
