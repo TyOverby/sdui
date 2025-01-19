@@ -141,9 +141,9 @@ let between_inclusive s ~min:min_v ~max:max_v =
   | Some i -> Ok i
 ;;
 
-let validate_prompt s = s
+let _validate_prompt s = s
 
-let _validate_prompt prompt =
+let validate_prompt prompt =
   let translate_line line =
     line
     |> String.split ~on:','
@@ -207,14 +207,51 @@ module Individual = struct
   ;;
 
   let prompt_form ?default ?textarea_attrs ?container_attrs ~label graph =
-    Custom_form_elements.textarea
-      ~validate:validate_prompt
-      ?default
-      ?container_attrs
-      ?textarea_attrs
-      ~label
-      graph
-    >>| Form.map_view ~f:(fun view -> view ?colorize:None ())
+    let%arr form =
+      Custom_form_elements.textarea
+        ~validate:validate_prompt
+        ?default
+        ?container_attrs
+        ?textarea_attrs
+        ~label
+        graph
+    in
+    let any_at_lines s =
+      List.exists (String.split_lines s) ~f:(fun line ->
+        match String.get line 0 with
+        | '@' -> true
+        | _ | (exception _) -> false)
+    in
+    let colorize s =
+      let any_at_lines = any_at_lines s in
+      let lines = String.split_lines s in
+      List.concat_map lines ~f:(fun line ->
+        let color =
+          match String.get line 0 with
+          | '#' -> "grey"
+          | '!' -> "#55b155"
+          | '@' -> "#d7d75d"
+          | _ | (exception _) -> if any_at_lines then "grey" else "white"
+        in
+        [ Vdom.Node.span ~attrs:[ {%css| color:%{color}|} ] [ Vdom.Node.text line ]
+        ; Vdom.Node.text "\n"
+        ])
+    in
+    let value =
+      let s = Form.value_or_default form ~default:"" in
+      let any_at_lines = any_at_lines s in
+      String.split_lines s
+      |> List.filter_map ~f:(fun line ->
+        match String.get line 0 with
+        | '#' -> None
+        | '!' -> Some (String.drop_prefix line 1)
+        | '@' -> Some (String.drop_prefix line 1)
+        | _ | (exception _) -> if any_at_lines then None else Some line)
+      |> List.map ~f:String.strip
+      |> String.concat_lines
+    in
+    let view = Form.view form ?colorize:(Some colorize) () in
+    { form with view; value = Ok value }
   ;;
 end
 

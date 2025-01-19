@@ -288,7 +288,6 @@ module View_ = struct
     ; forward_button : Vdom.Node.t
     ; clear_button : Vdom.Node.t
     ; clone_button : Vdom.Node.t
-    ; padding : Vdom.Node.t
     ; widget : Vdom.Node.t
     }
 end
@@ -374,62 +373,6 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
       graph
   in
   let alt, alt_panel = Alt_panel.component graph in
-  let padding_left =
-    Sd.Custom_form_elements.int_form
-      ~title:"left"
-      ~step:1
-      ~default:(Int63.of_int 0)
-      ~validate_or_correct:(fun s ->
-        match Int63.of_string_opt s with
-        | None -> Error (Int63.of_int 0)
-        | Some i -> Ok i)
-      ~length:(`Em 5)
-      ~min:(Int63.of_int 0)
-      ~max:(Int63.of_int 1024)
-      graph
-  in
-  let padding_right =
-    Sd.Custom_form_elements.int_form
-      ~title:"right"
-      ~step:1
-      ~default:(Int63.of_int 0)
-      ~validate_or_correct:(fun s ->
-        match Int63.of_string_opt s with
-        | None -> Error (Int63.of_int 0)
-        | Some i -> Ok i)
-      ~length:(`Em 5)
-      ~min:(Int63.of_int 0)
-      ~max:(Int63.of_int 1024)
-      graph
-  in
-  let padding_top =
-    Sd.Custom_form_elements.int_form
-      ~title:"top"
-      ~step:1
-      ~default:(Int63.of_int 0)
-      ~validate_or_correct:(fun s ->
-        match Int63.of_string_opt s with
-        | None -> Error (Int63.of_int 0)
-        | Some i -> Ok i)
-      ~length:(`Em 5)
-      ~min:(Int63.of_int 0)
-      ~max:(Int63.of_int 1024)
-      graph
-  in
-  let padding_bottom =
-    Sd.Custom_form_elements.int_form
-      ~title:"bottom"
-      ~step:1
-      ~default:(Int63.of_int 0)
-      ~validate_or_correct:(fun s ->
-        match Int63.of_string_opt s with
-        | None -> Error (Int63.of_int 0)
-        | Some i -> Ok i)
-      ~length:(`Em 5)
-      ~min:(Int63.of_int 0)
-      ~max:(Int63.of_int 1024)
-      graph
-  in
   run_on_change_and_on_init
     (slider >>| Form.value)
     ~equal:[%equal: int Or_error.t]
@@ -482,30 +425,11 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
       [ view ]
   in
   let get_images_effect =
-    let%arr padding_left =
-      padding_left >>| Form.value_or_default ~default:(Int63.of_int 0)
-    and padding_right = padding_left >>| Form.value_or_default ~default:(Int63.of_int 0)
-    and padding_top = padding_left >>| Form.value_or_default ~default:(Int63.of_int 0)
-    and padding_bottom = padding_left >>| Form.value_or_default ~default:(Int63.of_int 0)
-    and prev = image
+    let%arr prev = image
     and { Bonsai_web_ui_low_level_vdom.Widget.read; _ } = widget in
     let%bind.Effect effects =
       read (fun _input state ->
-        let%bind.Effect image =
-          Sd.Load_image_effect.load_image (Js.to_string state##composite)
-        in
-        let%bind.Effect image =
-          Sd.Load_image_effect.load_image_generic
-            (Canvas2d.Image.add_padding
-               ~left:(Int63.to_int_trunc padding_left)
-               ~right:(Int63.to_int_trunc padding_right)
-               ~top:(Int63.to_int_trunc padding_top)
-               ~bottom:(Int63.to_int_trunc padding_bottom)
-               image
-               ~fill_color:"white")
-        in
-        print_s [%message "" (Canvas2d.Image.width image : int)];
-        let image = Sd.Image.of_string ~kind:Base64 (Canvas2d.Image.to_data_url image) in
+        let image = Sd.Image.of_string ~kind:Base64 (Js.to_string state##composite) in
         let%bind.Effect mask =
           match
             Js.Optdef.to_option state##compositeMask
@@ -513,19 +437,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
           with
           | "" -> Effect.return None
           | mask_string ->
-            let%bind.Effect mask = Sd.Load_image_effect.load_image mask_string in
-            let%bind.Effect mask =
-              Sd.Load_image_effect.load_image_generic
-                (Canvas2d.Image.add_padding
-                   ~left:(Int63.to_int_trunc padding_left)
-                   ~right:(Int63.to_int_trunc padding_right)
-                   ~top:(Int63.to_int_trunc padding_top)
-                   ~bottom:(Int63.to_int_trunc padding_bottom)
-                   mask
-                   ~fill_color:"white")
-            in
-            Effect.return
-              (Some (Sd.Image.of_string ~kind:Base64 (Canvas2d.Image.to_data_url mask)))
+            Effect.return (Some (Sd.Image.of_string ~kind:Base64 mask_string))
         in
         Effect.return { Images.image; mask })
     in
@@ -553,13 +465,6 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     let%arr theme = View.Theme.current graph
     and { modify; _ } = widget in
     View.button theme "flip" ~on_click:(modify (fun _ state -> state##flipCanvas))
-  in
-  let padding =
-    let%arr padding_left and padding_right and padding_top and padding_bottom in
-    View.vbox
-      [ View.hbox [ Form.view padding_left; Form.view padding_right ]
-      ; View.hbox [ Form.view padding_top; Form.view padding_bottom ]
-      ]
   in
   let set_paint_image, clone_button =
     let enabled, set_enabled = Bonsai.state false graph in
@@ -595,8 +500,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     and clear_button
     and flip_button
     and clone_button
-    and widget = widget_view
-    and padding in
+    and widget = widget_view in
     { View_.color_picker
     ; pen_size_slider
     ; alt_panel
@@ -606,7 +510,6 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     ; clone_button
     ; clear_button
     ; widget
-    ; padding
     }
   in
   { images = value; get_images = get_images_effect; view; set_paint_image }

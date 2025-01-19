@@ -210,10 +210,12 @@ function painter_init(input, paint_input, mask_input) {
         clear: function () { console.log("cleared"); },
         penSize: 20,
         color: "rgb(255,0,0)",
-        onColorChange: (function () { }),
-        setDirty: (function () { }),
         mode: "paint",
         alt: "shuffle",
+        img_base64_cache: null,
+        mask_base64_cache: null,
+        onColorChange: (function () { }),
+        setDirty: (function () { }),
         onUpdateImage: (function () { }),
         getPaintLayer: (function () { }),
         getMaskLayer: (function () { }),
@@ -260,11 +262,15 @@ function painter_init(input, paint_input, mask_input) {
         }
 
         state.composite = function () {
+            if (state.img_base64_cache) { return state.img_base64_cache }
+
             composite_ctx.clearRect(0, 0, image.naturalWidth, image.naturalHeight);
             outline_ctx.globalCompositeOperation = 'source-over';
             composite_ctx.drawImage(img_canvas, 0, 0);
             composite_ctx.drawImage(draw_canvas, 0, 0);
-            return composite_canvas.toDataURL("image/png", 1);
+            let to_return = composite_canvas.toDataURL("image/png", 1);
+            state.img_base64_cache = to_return;
+            return to_return
         }
 
         state.flipCanvas = function () {
@@ -286,6 +292,8 @@ function painter_init(input, paint_input, mask_input) {
         }
 
         state.compositeMask = function () {
+            if (state.mask_base64_cache) { return state.mask_base64_cache }
+
             composite_mask_ctx.globalCompositeOperation = "source-over";
             composite_mask_ctx.fillStyle = "white";
             composite_mask_ctx.fillRect(0, 0, image.naturalWidth, image.naturalHeight);
@@ -294,7 +302,9 @@ function painter_init(input, paint_input, mask_input) {
             if (isCanvasAllWhite(composite_mask_canvas, composite_mask_ctx)) {
                 return ""
             } else {
-                return composite_mask_canvas.toDataURL("image/png", 1);
+                let to_return = composite_mask_canvas.toDataURL("image/png", 1);
+                state.mask_base64_cache = to_return;
+                return to_return;
             }
         }
 
@@ -378,6 +388,8 @@ function painter_init(input, paint_input, mask_input) {
                 last_y = y;
                 last_radius = radius;
                 state.setDirty();
+                state.img_base64_cache = null;
+                state.mask_base64_cache = null;
             }
 
             event.target.addEventListener("pointermove", move);

@@ -11,7 +11,7 @@ module P = Sd.Parameters.Individual
 let editor_view ~parameters (view : Sd_chain.Paint.View.t Bonsai.t) (local_ graph) =
   let pos_prompt =
     P.prompt_form
-      ~default:"score_9, score_8_up, score_7_up,\n"
+      ~default:"! score_9, score_8_up, score_7_up,\n"
       ~container_attrs:[ {%css| flex-grow: 2 |} ]
       ~textarea_attrs:[ Vdom.Attr.create "data-kind" "prompt" ]
       ~label:"prompt"
@@ -19,7 +19,7 @@ let editor_view ~parameters (view : Sd_chain.Paint.View.t Bonsai.t) (local_ grap
   in
   let neg_prompt =
     P.prompt_form
-      ~default:"score_1, score_2, score_3,\n"
+      ~default:"! score_1, score_2, score_3,\n"
       ~container_attrs:[ {%css| flex-grow: 2 |} ]
       ~textarea_attrs:[ Vdom.Attr.create "data-kind" "neg-prompt" ]
       ~label:"neg-prompt"
@@ -53,7 +53,6 @@ let editor_view ~parameters (view : Sd_chain.Paint.View.t Bonsai.t) (local_ grap
             ; alt_panel
             ; flip_button
             ; clone_button
-            ; padding = _
             }
       =
       view

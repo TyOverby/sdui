@@ -109,7 +109,7 @@ let component (local_ graph) =
            , ~old_height
            , ~image )))
   in
-  let _nearest_multiple_of_8 i = if i % 8 = 0 then i else i + (8 - (i % 8)) in
+  let nearest_multiple_of_8 i = if i % 8 = 0 then i else i + (8 - (i % 8)) in
   let view ~get_images ~set_result =
     View.vbox
       [ Form.view padding_top
@@ -138,7 +138,7 @@ let component (local_ graph) =
                  let scale = Float.sqrt (old_area /. new_area) in
                  let new_width = Int.of_float (Float.of_int new_width *. scale) in
                  let new_height = Int.of_float (Float.of_int new_height *. scale) in
-                 _nearest_multiple_of_8 new_width, _nearest_multiple_of_8 new_height)
+                 nearest_multiple_of_8 new_width, nearest_multiple_of_8 new_height)
                else new_width, new_height
              in
              set_result

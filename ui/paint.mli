@@ -18,7 +18,6 @@ module View : sig
     ; forward_button : Vdom.Node.t
     ; clear_button : Vdom.Node.t
     ; clone_button : Vdom.Node.t
-    ; padding : Vdom.Node.t
     ; widget : Vdom.Node.t
     }
 end
