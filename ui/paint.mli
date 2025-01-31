@@ -5,6 +5,7 @@ module Images : sig
   type t =
     { image : Sd.Image.t
     ; mask : Sd.Image.t option
+    ; blur_mask : Sd.Image.t option
     }
 end
 
@@ -12,12 +13,14 @@ module View : sig
   type t =
     { color_picker : Vdom.Node.t
     ; pen_size_slider : Vdom.Node.t
+    ; blur_radius_slider : Vdom.Node.t
     ; layer_panel : Vdom.Node.t
     ; alt_panel : Vdom.Node.t
     ; flip_button : Vdom.Node.t
     ; forward_button : Vdom.Node.t
     ; clear_button : Vdom.Node.t
     ; clone_button : Vdom.Node.t
+    ; blur_button : Vdom.Node.t
     ; widget : Vdom.Node.t
     }
 end

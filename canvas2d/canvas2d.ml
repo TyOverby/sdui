@@ -54,6 +54,8 @@ module Ctx2d0 = struct
 
     method putImageData_all :
       Dom_html.imageData Js.t -> int -> int -> int -> int -> int -> int -> unit Js.meth
+
+    method filter : Js.js_string Js.t Js.prop
   end
 
   type t = Canvas0.t * extendedCanvasContext Js.t
@@ -77,9 +79,13 @@ module Canvas1 = struct
     canvas##setAttribute the_string_''width'' (Js.string (Int.to_string width));
     canvas##setAttribute the_string_''height'' (Js.string (Int.to_string height));
     canvas##.style##.width
-    := Dom_float.to_js_string (Int.to_float width /.  (Js_of_ocaml.Js.float_of_number Dom_html.window##.devicePixelRatio));
+    := Dom_float.to_js_string
+         (Int.to_float width
+          /. Js_of_ocaml.Js.float_of_number Dom_html.window##.devicePixelRatio);
     canvas##.style##.height
-    := Dom_float.to_js_string (Int.to_float height /. (Js_of_ocaml.Js.float_of_number Dom_html.window##.devicePixelRatio));
+    := Dom_float.to_js_string
+         (Int.to_float height
+          /. Js_of_ocaml.Js.float_of_number Dom_html.window##.devicePixelRatio);
     (Obj.magic : Dom_html.canvasElement Js.t -> extendedCanvasElement Js.t) canvas
   ;;
 
@@ -151,15 +157,16 @@ module Ctx2d1 = struct
     in
     let w = Option.value w ~default:sw in
     let h = Option.value h ~default:sh in
-    ctx##drawImage_full (Image0.to_image_element image) 
- (Js_of_ocaml.Js.number_of_float sx)
- (Js_of_ocaml.Js.number_of_float sy)
- (Js_of_ocaml.Js.number_of_float sw)
- (Js_of_ocaml.Js.number_of_float sh)
- (Js_of_ocaml.Js.number_of_float x)
- (Js_of_ocaml.Js.number_of_float y)
- (Js_of_ocaml.Js.number_of_float w)
- (Js_of_ocaml.Js.number_of_float h)
+    ctx##drawImage_full
+      (Image0.to_image_element image)
+      (Js_of_ocaml.Js.number_of_float sx)
+      (Js_of_ocaml.Js.number_of_float sy)
+      (Js_of_ocaml.Js.number_of_float sw)
+      (Js_of_ocaml.Js.number_of_float sh)
+      (Js_of_ocaml.Js.number_of_float x)
+      (Js_of_ocaml.Js.number_of_float y)
+      (Js_of_ocaml.Js.number_of_float w)
+      (Js_of_ocaml.Js.number_of_float h)
   ;;
 
   let get_image_data ?(x = 0) ?(y = 0) ?w ?h ((canvas, ctx) : t) =
@@ -195,15 +202,20 @@ module Ctx2d1 = struct
   ;;
 
   let set_fill_style (_, ctx) s = ctx##.fillStyle := Js.string s
-  let fill_rect (_, ctx) ~x ~y ~w ~h = ctx##fillRect 
-    (Js_of_ocaml.Js.number_of_float x)
-    (Js_of_ocaml.Js.number_of_float y)
-    (Js_of_ocaml.Js.number_of_float w)
-    (Js_of_ocaml.Js.number_of_float h)
+
+  let fill_rect (_, ctx) ~x ~y ~w ~h =
+    ctx##fillRect
+      (Js_of_ocaml.Js.number_of_float x)
+      (Js_of_ocaml.Js.number_of_float y)
+      (Js_of_ocaml.Js.number_of_float w)
+      (Js_of_ocaml.Js.number_of_float h)
+  ;;
 
   let set_global_composite_operation (_, ctx) s =
     ctx##.globalCompositeOperation := Js.string s
   ;;
+
+  let set_filter (_, ctx) s = ctx##.filter := Js.string s
 end
 
 module Pixel_array1 = struct

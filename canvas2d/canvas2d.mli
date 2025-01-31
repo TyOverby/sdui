@@ -52,6 +52,7 @@ and Ctx2d : sig
   val set_fill_style : t -> string -> unit
   val fill_rect : t -> x:float -> y:float -> w:float -> h:float -> unit
   val set_global_composite_operation : t -> string -> unit
+  val set_filter : t -> string -> unit
 
   (** draws another canvas onto this context
       - [sx], [sy] specify the "source" x and y position; defaults to 0

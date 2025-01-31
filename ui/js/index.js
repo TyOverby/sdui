@@ -192,7 +192,7 @@ function prep_img(img_string) {
 
 //Provides:painter_init
 //Requires:drawPill, sanatize_url, on_image_init, rgbToHex, createCanvas, isCanvasAllWhite, scramble, prep_img, on_images_init
-function painter_init(input, paint_input, mask_input) {
+function painter_init(input, paint_input, mask_input, blur_mask_input) {
     var stack = document.createElement("div");
     stack.className = "stack";
 
@@ -205,6 +205,8 @@ function painter_init(input, paint_input, mask_input) {
     images.push(paint_input_image);
     var mask_input_image = mask_input ? prep_img(mask_input) : null;
     images.push(mask_input_image);
+    var blur_mask_input_image = blur_mask_input ? prep_img(blur_mask_input) : null;
+    images.push(blur_mask_input_image);
 
     var state = {
         clear: function () { console.log("cleared"); },
@@ -219,6 +221,7 @@ function painter_init(input, paint_input, mask_input) {
         onUpdateImage: (function () { }),
         getPaintLayer: (function () { }),
         getMaskLayer: (function () { }),
+        getBlurMaskLayer: (function () { }),
         compositeMask: (function () { }),
         flipCanvas: (function () { }),
         updateImage: (function () { }),
@@ -229,15 +232,18 @@ function painter_init(input, paint_input, mask_input) {
         let img_canvas = createCanvas("background", image, stack);
         let draw_canvas = createCanvas("draw", image, stack);
         let mask_canvas = createCanvas("mask", image, stack);
+        let blur_mask_canvas = createCanvas("blur_mask", image, stack);
         let outline_canvas = createCanvas("outline", image, stack);
         let composite_canvas = createCanvas("composite", image);
         let composite_mask_canvas = createCanvas("composite-mask", image);
 
         outline_canvas.className = "outline_layer"
         mask_canvas.className = "mask_layer"
+        blur_mask_canvas.className = "blur_mask_layer"
 
         let img_ctx = img_canvas.getContext("2d", { willReadFrequently: true });
         let mask_ctx = mask_canvas.getContext("2d");
+        let blur_mask_ctx = blur_mask_canvas.getContext("2d");
         let draw_ctx = draw_canvas.getContext("2d", { willReadFrequently: true });
         let outline_ctx = outline_canvas.getContext("2d");
         let composite_ctx = composite_canvas.getContext("2d");
@@ -249,16 +255,24 @@ function painter_init(input, paint_input, mask_input) {
         img_ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
 
         if (paint_input_image) {
+            state.img_base64_cache = null;
             draw_ctx.drawImage(paint_input_image, 0, 0, image.naturalWidth, image.naturalHeight);
         }
 
         if (mask_input_image) {
+            state.mask_base64_cache = null;
             mask_ctx.drawImage(mask_input_image, 0, 0, image.naturalWidth, image.naturalHeight);
+        }
+
+        if (blur_mask_input_image) {
+            blur_mask_ctx.drawImage(blur_mask_input_image, 0, 0, image.naturalWidth, image.naturalHeight);
         }
 
         state.clear = function () {
             draw_ctx.clearRect(0, 0, outline_canvas.width, outline_canvas.height);
             mask_ctx.clearRect(0, 0, outline_canvas.width, outline_canvas.height);
+            state.img_base64_cache = null;
+            state.mask_base64_cache = null;
         }
 
         state.composite = function () {
@@ -279,8 +293,8 @@ function painter_init(input, paint_input, mask_input) {
             draw_ctx.translate(image.naturalWidth, 0);
             draw_ctx.scale(-1, 1);
             draw_ctx.drawImage(composite_canvas, 0, 0);
-
             draw_ctx.restore();
+            state.img_base64_cache = null;
         }
 
         state.getPaintLayer = function () {
@@ -289,6 +303,10 @@ function painter_init(input, paint_input, mask_input) {
 
         state.getMaskLayer = function () {
             return mask_canvas.toDataURL("image/png", 1);
+        }
+
+        state.getBlurMaskLayer = function () {
+            return blur_mask_canvas.toDataURL("image/png", 1);
         }
 
         state.compositeMask = function () {
@@ -314,23 +332,39 @@ function painter_init(input, paint_input, mask_input) {
             image.crossOrigin = "Anonymous";
             image.setAttribute("src", data_url);
             state.setDirty();
+            state.img_base64_cache = null;
+            state.mask_base64_cache = null;
             on_image_init(image, function () {
                 ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
             })
         }
 
         state.updateImage = function (data_url) {
+            state.img_base64_cache = null;
             draw_image(data_url, img_ctx);
         }
 
         state.setPaintImage = function (data_url) {
+            state.img_base64_cache = null;
             draw_image(data_url, draw_ctx);
         }
 
         function mousedown(event) {
             event.target.setPointerCapture(event.pointerId);
 
-            var target_ctx = state.mode === "mask" ? mask_ctx : draw_ctx;
+            var target_ctx = null;
+            switch (state.mode) {
+                case "mask":
+                    target_ctx = mask_ctx;
+                    break
+                case "blur":
+                    target_ctx = blur_mask_ctx;
+                    break
+                case "paint":
+                default:
+                    target_ctx = draw_ctx;
+
+            }
 
             var erasing = false;
             var shuffling = false;
@@ -361,7 +395,7 @@ function painter_init(input, paint_input, mask_input) {
                 var x = event.offsetX * window.devicePixelRatio;
                 var y = event.offsetY * window.devicePixelRatio;
 
-                if (state.mode !== "mask") {
+                if (state.mode === "paint") {
                     target_ctx.fillStyle = state.color;
                 } else {
                     target_ctx.fillStyle = "black";

@@ -47,12 +47,14 @@ let editor_view ~parameters (view : Sd_chain.Paint.View.t Bonsai.t) (local_ grap
     let%arr { widget
             ; color_picker
             ; pen_size_slider
+            ; blur_radius_slider
             ; layer_panel
             ; clear_button
             ; forward_button = _
             ; alt_panel
             ; flip_button
             ; clone_button
+            ; blur_button
             }
       =
       view
@@ -67,6 +69,8 @@ let editor_view ~parameters (view : Sd_chain.Paint.View.t Bonsai.t) (local_ grap
           ; alt_panel
           ; flip_button
           ; clone_button
+          ; blur_radius_slider
+          ; blur_button
           ; clear_button
           ]
       ; View.vbox [ Form.view pos_prompt; Form.view neg_prompt ]
@@ -106,7 +110,7 @@ let component
     else (
       let get_images =
         let%arr img in
-        Effect.return { Images.image = img; mask = None }
+        Effect.return { Images.image = img; mask = None; blur_mask = None }
       in
       get_images, Bonsai.return Fn.id, img >>| Sd.Image.to_vdom, Bonsai.return None)
   in
@@ -129,7 +133,7 @@ let component
     let generate =
       let%bind.Effect parameters = modify_parameters parameters in
       let parameters = override_prompt parameters in
-      let%bind.Effect { image = img; mask } = get_images in
+      let%bind.Effect { image = img; mask; blur_mask = _ } = get_images in
       let dispatch ~id ~on_started =
         let parameters =
           { parameters with
@@ -222,7 +226,7 @@ let component
   let edit_button, edit =
     let effect =
       let dispatch ~id:_ ~on_started:_ =
-        let%bind.Effect { image = img; mask = _ } = get_images in
+        let%bind.Effect { image = img; mask = _; blur_mask = _ } = get_images in
         Effect.return (Ok img)
       in
       let on_complete image =
