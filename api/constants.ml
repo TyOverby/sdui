@@ -1,5 +1,7 @@
 open Shared
 
+let _txt2img_query = Yojson_safe.from_string {| {}|}
+
 let txt2img_query =
   Yojson_safe.from_string
     {|
@@ -35,8 +37,6 @@ let txt2img_query =
   "s_tmax": 0,
   "s_tmin": 0,
   "s_noise": 1,
-  "override_settings": {"show_progress_every_n_steps": 5, "show_progress_type": "Full"},
-  "override_settings_restore_afterwards": true,
   "script_args": [],
   "sampler_index": "Euler a",
   "script_name": null,
@@ -46,3 +46,6 @@ let txt2img_query =
 }
 |}
 ;;
+
+(* "override_settings": {"show_progress_every_n_steps": 5, "show_progress_type": "Full"}, *)
+(* "override_settings_restore_afterwards": true, *)

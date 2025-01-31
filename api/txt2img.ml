@@ -68,7 +68,7 @@ module Query = struct
           ()
       in
       { prompt = Pre_process_prompt.strip_prompt query.prompt
-      ; negative_prompt = query.negative_prompt
+      ; negative_prompt = Pre_process_prompt.strip_prompt query.negative_prompt
       ; width = Int63.to_int_exn query.width
       ; height = Int63.to_int_exn query.height
       ; steps = Int63.to_int_exn query.steps
