@@ -244,6 +244,7 @@ let for_img2img t =
   ; sampler
   ; subseed_strength = 0.0
   ; styles = Sd.Styles.none
+  ; ctrlnet = None
   }
 ;;
 

@@ -17,6 +17,7 @@ module Query : sig
     ; denoising_strength : float
     ; styles : Styles.t
     ; mask : Image.t option
+    ; ctrlnet : Alwayson_scripts.Ctrlnet.Query.t option
     }
   [@@deriving sexp, typed_fields, equal]
 

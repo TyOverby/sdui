@@ -20,6 +20,7 @@ module Query = struct
     ; denoising_strength : float
     ; styles : Styles.t
     ; mask : Image.t option
+    ; ctrlnet : Alwayson_scripts.Ctrlnet.Query.t option
     }
   [@@deriving sexp, typed_fields, equal]
 
@@ -36,6 +37,7 @@ module Query = struct
     ; subseed_strength = other.subseed_strength
     ; denoising_strength = other.denoising_strength
     ; styles = other.styles
+    ; ctrlnet = other.ctrlnet
     ; mask
     }
   ;;
@@ -67,6 +69,7 @@ module Query = struct
       ; inpaint_full_res_padding : int [@key "inpaint_full_res_padding"]
       ; inpaint_full_res : bool [@key "inpaint_full_res"]
       ; initial_noise_multiplier : float [@key "initial_noise_multiplier"]
+      ; always_on_scripts : Alwayson_scripts.t option [@key "alwayson_scripts"] [@option]
       }
     [@@deriving yojson_of, sexp, typed_fields]
 
@@ -76,6 +79,9 @@ module Query = struct
     ;;
 
     let of_query (query : query) : t =
+      let always_on_scripts =
+        Alwayson_scripts.create ~ctrlnet:query.ctrlnet ~regional_prompter:None ()
+      in
       { init_images = [ Image.to_string query.image ]
       ; prompt = Pre_process_prompt.strip_prompt query.prompt
       ; negative_prompt = Pre_process_prompt.strip_prompt query.negative_prompt
@@ -99,6 +105,7 @@ module Query = struct
       ; inpainting_mask_invert = 1
       ; include_init_images = true
       ; initial_noise_multiplier = 1.0
+      ; always_on_scripts
       }
     ;;
   end
