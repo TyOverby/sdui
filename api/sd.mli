@@ -12,3 +12,4 @@ module Styles = Styles
 module Upscaler = Upscaler
 module Alwayson_scripts = Alwayson_scripts
 module Load_image_effect = Load_image_effect
+module Controlnet_detect = Controlnet_detect

@@ -31,7 +31,8 @@ let sketch_impl ~prev ~prev_params graph =
   and view
   and params = prev_params in
   let image, mask =
-    Inc.Or_error_or_stale.(unzip (map t ~f:(fun { image; mask } -> image, mask)))
+    Inc.Or_error_or_stale.(
+      unzip (map t ~f:(fun { image; mask; blur_mask = _ } -> image, mask)))
   in
   let mask =
     match mask with

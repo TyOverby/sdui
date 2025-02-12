@@ -231,7 +231,7 @@ let for_img2img t =
     t
   in
   let denoising_strength = Int63.to_float denoise /. 100.0 in
-  { Sd.Img2img.Query.init_images = []
+  { Sd.Img2img.Query.image = Sd.Image.empty
   ; mask = None
   ; prompt = pos_prompt
   ; negative_prompt = neg_prompt

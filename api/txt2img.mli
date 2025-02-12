@@ -33,7 +33,4 @@ module Query : sig
   val apply_info : t -> Info.t -> t
 end
 
-val dispatch
-  :  host_and_port:string
-  -> Query.t
-  -> (Image.t * Info.t) list Or_error.t Effect.t
+val dispatch : host_and_port:string -> Query.t -> (Image.t * Info.t) Or_error.t Effect.t

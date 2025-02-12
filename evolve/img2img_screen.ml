@@ -129,6 +129,47 @@ let component
   and resize_card, _resize_effect = resize_card
   and override_prompt
   and set_paint_image in
+  let ctrlnet_detect, _ctrlnet_detect_effect =
+    let generate =
+      let%bind.Effect { image = img; mask = _; blur_mask = _ } = get_images in
+      let dispatch ~id ~on_started =
+        let parameters =
+          { parameters with
+            Sd_chain.Parameters.seed = Int63.of_int (Image_tree.Unique_id.to_int_exn id)
+          }
+        in
+        let pred =
+          Option.map
+            parameters.specific_model
+            ~f:(fun specific_model _host current_model ->
+              Sd.Hosts.Current_model.equal current_model specific_model)
+        in
+        dispatcher ?pred (fun get_host ->
+          match get_host with
+          | Error e -> Effect.return (Error e)
+          | Ok (host, _current_model) ->
+            let%bind.Effect () = on_started in
+            (match%map.Effect
+               Sd.Controlnet_detect.dispatch
+                 ~host_and_port:(host :> string)
+                 { image = img; module_ = "depth_zoe" }
+             with
+             | Ok img -> Ok img
+             | Error e -> Error e))
+      in
+      let on_complete image =
+        Image_tree.Stage.State.Finished { image; parent_image = Some img; parameters }
+      in
+      inject
+        (Image_tree.Action.Add
+           { parent_id = id
+           ; stage = { desc = Ctrlnet; state = Enqueued }
+           ; dispatch
+           ; on_complete
+           })
+    in
+    View.button theme ~on_click:generate "ctrlnet detect", generate
+  in
   let generate_button ~button_text ~kind ~modify_parameters =
     let generate =
       let%bind.Effect parameters = modify_parameters parameters in
@@ -154,13 +195,9 @@ let component
             (match%map.Effect
                Sd.Img2img.dispatch
                  ~host_and_port:(host :> string)
-                 { (Sd_chain.Parameters.for_img2img parameters) with
-                   init_images = [ img ]
-                 ; mask
-                 }
+                 { (Sd_chain.Parameters.for_img2img parameters) with image = img; mask }
              with
-             | Ok ((img, _) :: _) -> Ok img
-             | Ok [] -> Error (Error.of_string "no images")
+             | Ok (img, _) -> Ok img
              | Error e -> Error e))
       in
       let on_complete image =
@@ -273,6 +310,7 @@ let component
           ; other_model_view ~button:switch_model_button
           ; resize_card
           ; edit_button
+          ; ctrlnet_detect
           ]
       ]
   in

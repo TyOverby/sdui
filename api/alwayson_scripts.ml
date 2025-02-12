@@ -23,9 +23,14 @@ module Ctrlnet = struct
   type t = { args : arg list } [@@deriving yojson_of, sexp]
 
   module Query = struct
-    type t = { image : string } [@@deriving sexp, equal]
+    type t =
+      { image : string
+      ; module_ : string option
+      ; model : string
+      }
+    [@@deriving sexp, equal]
 
-    let to_arg { image } =
+    let to_arg { image; module_; model } =
       { args =
           [ { pixel_perfect = false
             ; control_mode = 0
@@ -38,8 +43,8 @@ module Ctrlnet = struct
             ; resize_mode = 1
             ; image
             ; weight = 1.0
-            ; model = "control_sd15_depth [fef5e48e]"
-            ; module_ = "depth_zoe"
+            ; model
+            ; module_ = Option.value module_ ~default:"none"
             ; enabled = true
             }
           ]

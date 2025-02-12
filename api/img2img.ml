@@ -7,7 +7,7 @@ module Info = Txt2img.Info
 
 module Query = struct
   type t =
-    { init_images : Image.t list
+    { image : Image.t
     ; prompt : string
     ; negative_prompt : string
     ; width : Int63.t
@@ -23,8 +23,8 @@ module Query = struct
     }
   [@@deriving sexp, typed_fields, equal]
 
-  let of_txt2img (other : Txt2img.Query.t) ~init_images ~mask =
-    { init_images
+  let of_txt2img (other : Txt2img.Query.t) ~image ~mask =
+    { image
     ; prompt = other.prompt
     ; negative_prompt = other.negative_prompt
     ; width = other.width
@@ -76,7 +76,7 @@ module Query = struct
     ;;
 
     let of_query (query : query) : t =
-      { init_images = List.map query.init_images ~f:Image.to_string
+      { init_images = [ Image.to_string query.image ]
       ; prompt = Pre_process_prompt.strip_prompt query.prompt
       ; negative_prompt = Pre_process_prompt.strip_prompt query.negative_prompt
       ; width = Int63.to_int_exn query.width
@@ -184,7 +184,8 @@ let dispatch (host_and_port, query) =
          in
          List.map images ~f:(fun s ->
            let width, height = query.width, query.height in
-           Image.of_string ~width ~height ~kind s, info))
+           Image.of_string ~width ~height ~kind s, info)
+         |> List.hd_exn)
     |> Deferred.return)
 ;;
 

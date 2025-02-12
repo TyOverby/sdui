@@ -23,9 +23,8 @@ let perform_dispatch ~dispatcher ~api_fun ~query ~update ~sleep ~width ~height i
         (match%map.Effect
            api_fun ~host_and_port:((host : Sd.Hosts.Host.t) :> string) query
          with
-         | Ok [ (image, _) ] -> Ok image
-         | Error e -> Error e
-         | Ok _ -> Error (Error.of_string "unexpected number of images")))
+         | Ok (image, _) -> Ok image
+         | Error e -> Error e))
 ;;
 
 let image ~params ~prev ~mask ~pool (local_ graph) =
@@ -36,7 +35,7 @@ let image ~params ~prev ~mask ~pool (local_ graph) =
         Inc.of_or_error_bonsai
           ~equal:[%equal: int * Sd.Txt2img.Query.t]
           ~time_to_stable:(Bonsai.return (Time_ns.Span.of_sec 2.0))
-          (let%arr params = params in
+          (let%arr params in
            let%map.Or_error params = Form.value params in
            Parameters.num_images params, Parameters.for_txt2img params)
           graph
@@ -65,7 +64,7 @@ let image ~params ~prev ~mask ~pool (local_ graph) =
         Inc.of_or_error_bonsai
           ~equal:[%equal: int * Sd.Img2img.Query.t]
           ~time_to_stable:(Bonsai.return (Time_ns.Span.of_sec 2.0))
-          (let%arr params = params in
+          (let%arr params in
            let%map.Or_error params = Form.value params in
            Parameters.num_images params, Parameters.for_img2img params)
           graph
@@ -86,7 +85,7 @@ let image ~params ~prev ~mask ~pool (local_ graph) =
                Shared.Effect_utils.parallel_n ~update num_images ~f:(fun i ->
                  let query =
                    { query with
-                     Sd.Img2img.Query.init_images = [ prev ]
+                     Sd.Img2img.Query.image = prev
                    ; seed = Int63.(query.Sd.Img2img.Query.seed + of_int i)
                    ; mask
                    }
@@ -125,13 +124,11 @@ let component ~direction ~pool ~prev ~mask graph =
   let form_view =
     let%arr { view = form; _ } = params
     and theme = View.Theme.current graph
-    and reset = reset in
+    and reset in
     form ~theme ~reset ~direction
   in
   let gallery_view =
-    let%arr images = images
-    and picked = picked
-    and set_picked = set_picked in
+    let%arr images and picked and set_picked in
     let images =
       let base64_to_vdom i img =
         let checked = [%equal: int option] picked (Some i) in
@@ -187,15 +184,13 @@ let component ~direction ~pool ~prev ~mask graph =
     let error =
       Inc.Or_error_or_stale.Error (Error.of_string "you must pick an image to proceed")
     in
-    Inc.map2_pure images picked ~f:(fun images ->
-        function
-        | None ->
-          Inc.Or_error_or_stale.Error
-            (Error.of_string "you must pick an image to proceed")
-        | Some picked ->
-          (match List.nth images (picked mod List.length images) with
-           | None -> error
-           | Some image -> Inc.Or_error_or_stale.Fresh image))
+    Inc.map2_pure images picked ~f:(fun images -> function
+      | None ->
+        Inc.Or_error_or_stale.Error (Error.of_string "you must pick an image to proceed")
+      | Some picked ->
+        (match List.nth images (picked mod List.length images) with
+         | None -> error
+         | Some image -> Inc.Or_error_or_stale.Fresh image))
   in
   { image = image >>| Inc.Or_error_or_stale.join
   ; form = params >>| Form.map_view ~f:(fun _ -> ())

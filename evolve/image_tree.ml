@@ -39,6 +39,7 @@ module Stage = struct
       | Txt2img
       | Img2img of string
       | Resize
+      | Ctrlnet
       | Edit
     [@@deriving equal, sexp_of]
 
@@ -47,6 +48,7 @@ module Stage = struct
       | Txt2img -> "txt2img"
       | Edit -> "edit"
       | Resize -> "resize"
+      | Ctrlnet -> "resize"
       | Img2img s -> s
     ;;
   end

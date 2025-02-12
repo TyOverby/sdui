@@ -169,7 +169,8 @@ let dispatch (host_and_port, query) =
              then Int63.(query.width * of_int 2, query.height * of_int 2)
              else query.width, query.height
            in
-           Image.of_string ~width ~height ~kind s, info))
+           Image.of_string ~width ~height ~kind s, info)
+         |> List.hd_exn)
     |> Deferred.return)
 ;;
 

@@ -61,8 +61,7 @@ let component
                    ~host_and_port:(host :> string)
                    (Sd_chain.Parameters.for_txt2img parameters)
                with
-               | Ok ((img, _) :: _) -> Ok img
-               | Ok [] -> Error (Error.of_string "no images")
+               | Ok (img, _) -> Ok img
                | Error e -> Error e))
         in
         let on_complete image =
