@@ -172,17 +172,17 @@ module Individual = struct
       graph
   ;;
 
-  let min_1_form ?(input_attrs = Bonsai.return []) ~default ~max ~label graph =
+  let min_1_form ?(step = 1) ?(input_attrs = Bonsai.return []) ~default ~max ~label graph =
     let min = Int63.of_int 1 in
     let max = Int63.of_int max in
     Custom_form_elements.int_form
       ~input_attrs
       ~title:label
-      ~step:1
+      ~step
       ~default
       ~validate_or_correct:(between_inclusive ~min ~max)
       ~length:(`Em 3)
-      ~min
+      ~min:(Int63.of_int 0)
       ~max
       graph
   ;;

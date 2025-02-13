@@ -153,8 +153,11 @@ let component
             let%bind.Effect () = on_started in
             let module_ =
               match controlnet_params with
-              | ~module_:(Ok (Some module_)), ~model:_ ->
-                Sd.Controlnet_modules.to_string module_
+              | ( ~module_:(Ok (Some module_))
+                , ~model:_
+                , ~weight:_
+                , ~start_point:_
+                , ~end_point:_ ) -> Sd.Controlnet_modules.to_string module_
               | _ -> "none"
             in
             (match%map.Effect

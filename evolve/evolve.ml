@@ -92,15 +92,52 @@ let children_of_current ~current_id ~state ~set_current_id graph =
 let controlnet_fix_card ~hosts (local_ graph) =
   let%arr module_form = Sd.Controlnet_modules.form ~hosts graph
   and model_form = Sd.Controlnet_models.form ~hosts graph
+  and weight =
+    Form.Elements.Range.float
+      ~min:(Bonsai.return 0.0)
+      ~max:(Bonsai.return 2.0)
+      ~default:(Bonsai.return 1.0)
+      ~step:(Bonsai.return 0.01)
+      ()
+      graph
+  and start_point =
+    Form.Elements.Range.float
+      ~min:(Bonsai.return 0.0)
+      ~max:(Bonsai.return 1.0)
+      ~default:(Bonsai.return 0.0)
+      ~step:(Bonsai.return 0.01)
+      ()
+      graph
+  and end_point =
+    Form.Elements.Range.float
+      ~min:(Bonsai.return 0.0)
+      ~default:(Bonsai.return 1.0)
+      ~max:(Bonsai.return 0.8)
+      ~step:(Bonsai.return 0.01)
+      ()
+      graph
   and theme = View.Theme.current graph in
   let view ~button =
     View.card'
       theme
       ~title_kind:View.Constants.Card_title_kind.Discreet
       ~title:[ Vdom.Node.Text "Control-Net" ]
-      [ View.vbox [ module_form.view; model_form.view; button ] ]
+      [ View.vbox
+          [ module_form.view
+          ; model_form.view
+          ; Form.view weight
+          ; Form.view start_point
+          ; Form.view end_point
+          ; button
+          ]
+      ]
   in
-  let params = ~module_:module_form.value, ~model:model_form.value in
+  let weight = Form.value_or_default weight ~default:0.0 in
+  let start_point = Form.value_or_default start_point ~default:0.0 in
+  let end_point = Form.value_or_default end_point ~default:0.0 in
+  let params =
+    ~module_:module_form.value, ~model:model_form.value, ~weight, ~start_point, ~end_point
+  in
   ~params, ~view
 ;;
 
@@ -108,6 +145,7 @@ let generic_card
   ~default_cfg_enabled
   ~default_denoise_enabled
   ~default_steps_enabled
+  ~default_ctrlnet_enabled
   ~default_cfg
   ~default_denoise
   ~default_steps
@@ -123,6 +161,9 @@ let generic_card
       | false -> Vdom.Attr.disabled
     in
     ~view, ~disable_attr, ~value
+  in
+  let ~view:ctrlnet_enabled_view, ~disable_attr:_, ~value:ctrlnet_enabled =
+    enabled_checkbox ~default:default_ctrlnet_enabled graph
   in
   let ~view:cfg_enabled_view, ~disable_attr:cfg_disabled_attr, ~value:cfg_enabled =
     enabled_checkbox ~default:default_cfg_enabled graph
@@ -146,6 +187,7 @@ let generic_card
   in
   let denoise =
     P.min_1_form
+      ~step:5
       ~input_attrs:(denoise_disabled_attr >>| List.return)
       ~default:default_denoise
       ~max:100
@@ -154,6 +196,7 @@ let generic_card
   in
   let steps =
     P.min_1_form
+      ~step:5
       ~input_attrs:(steps_disabled_attr >>| List.return)
       ~default:default_steps
       ~max:150
@@ -166,6 +209,7 @@ let generic_card
     and { value = new_steps; _ } = steps
     and cfg_enabled
     and denoise_enabled
+    and ctrlnet_enabled
     and steps_enabled
     and ~params:controlnet_params, ~view:_ = controlnet_fix_card in
     let or_default ~default = function
@@ -175,16 +219,17 @@ let generic_card
     fun ~(parameters : Sd_chain.Parameters.t) ~image ->
       let ctrlnet =
         match controlnet_params with
-        | ~module_:(Ok module_), ~model:(Ok model) ->
+        | ~module_:(Ok module_), ~model:(Ok model), ~weight, ~start_point, ~end_point
+          when ctrlnet_enabled ->
           let module_ = Option.map module_ ~f:Sd.Controlnet_modules.to_string in
           let model = Sd.Controlnet_models.to_string model in
           Some
             { Sd.Alwayson_scripts.Ctrlnet.Query.image
             ; module_
             ; model
-            ; weight = 1.0
-            ; guidance_start = 0.0
-            ; guidance_end = 1.0
+            ; weight
+            ; guidance_start = start_point
+            ; guidance_end = end_point
             }
         | _ -> None
       in
@@ -210,8 +255,13 @@ let generic_card
     and { view = steps_view; _ } = steps
     and cfg_enabled_view
     and denoise_enabled_view
+    and ctrlnet_enabled_view
     and steps_enabled_view in
-    [ View.hbox ~cross_axis_alignment:Baseline [ cfg_enabled_view; cfg_view ]
+    [ View.hbox
+        ~cross_axis_alignment:Baseline
+        ~attrs:[ {%css|user-select:none|} ]
+        [ Vdom.Node.label [ ctrlnet_enabled_view; Vdom.Node.text "ctrlnet" ] ]
+    ; View.hbox ~cross_axis_alignment:Baseline [ cfg_enabled_view; cfg_view ]
     ; View.hbox ~cross_axis_alignment:Baseline [ denoise_enabled_view; denoise_view ]
     ; View.hbox ~cross_axis_alignment:Baseline [ steps_enabled_view; steps_view ]
     ]
@@ -225,9 +275,10 @@ let refine_card ~controlnet_fix_card (local_ graph) =
       ~default_cfg_enabled:true
       ~default_denoise_enabled:true
       ~default_steps_enabled:true
-      ~default_cfg:(Int63.of_int 5)
-      ~default_denoise:(Int63.of_int 50)
-      ~default_steps:(Int63.of_int 30)
+      ~default_ctrlnet_enabled:true
+      ~default_cfg:(Int63.of_int 10)
+      ~default_denoise:(Int63.of_int 55)
+      ~default_steps:(Int63.of_int 25)
       ~controlnet_fix_card
       graph
   in
@@ -251,6 +302,7 @@ let reimagine_card ~controlnet_fix_card (local_ graph) =
       ~default_cfg_enabled:true
       ~default_denoise_enabled:true
       ~default_steps_enabled:true
+      ~default_ctrlnet_enabled:false
       ~default_cfg:(Int63.of_int 10)
       ~default_denoise:(Int63.of_int 70)
       ~default_steps:(Int63.of_int 25)
@@ -277,6 +329,7 @@ let upscale_card ~controlnet_fix_card (local_ graph) =
       ~default_cfg_enabled:false
       ~default_denoise_enabled:true
       ~default_steps_enabled:true
+      ~default_ctrlnet_enabled:true
       ~default_cfg:(Int63.of_int 7)
       ~default_denoise:(Int63.of_int 30)
       ~default_steps:(Int63.of_int 50)
@@ -303,6 +356,7 @@ let other_model_card ~controlnet_fix_card (local_ graph) =
       ~default_cfg_enabled:false
       ~default_denoise_enabled:true
       ~default_steps_enabled:true
+      ~default_ctrlnet_enabled:true
       ~default_cfg:(Int63.of_int 7)
       ~default_denoise:(Int63.of_int 40)
       ~default_steps:(Int63.of_int 40)
