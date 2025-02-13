@@ -111,40 +111,45 @@ let component (local_ graph) =
   in
   let nearest_multiple_of_8 i = if i % 8 = 0 then i else i + (8 - (i % 8)) in
   let view ~get_images ~set_result =
-    View.vbox
-      [ Form.view padding_top
-      ; Form.view padding_right
-      ; Form.view padding_bottom
-      ; Form.view padding_left
-      ; Form.view keep_area
-      ; View.button
-          theme
-          "add padding"
-          ~on_click:
-            (let%bind.Effect input = get_images in
-             let%bind.Effect ( ~new_width
-                             , ~new_height
-                             , ~old_width
-                             , ~old_height
-                             , ~image:output )
-               =
-               effect input.Sd_chain.Paint.Images.image
-             in
-             let new_width, new_height =
-               if Form.value_or_default keep_area ~default:true
-               then (
-                 let old_area = Float.of_int (old_width * old_height) in
-                 let new_area = Float.of_int (new_width * new_height) in
-                 let scale = Float.sqrt (old_area /. new_area) in
-                 let new_width = Int.of_float (Float.of_int new_width *. scale) in
-                 let new_height = Int.of_float (Float.of_int new_height *. scale) in
-                 nearest_multiple_of_8 new_width, nearest_multiple_of_8 new_height)
-               else new_width, new_height
-             in
-             set_result
-               ~new_width:(Int63.of_int new_width)
-               ~new_height:(Int63.of_int new_height)
-               output)
+    View.card'
+      theme
+      ~title_kind:View.Constants.Card_title_kind.Discreet
+      ~title:[ Vdom.Node.text "Resize" ]
+      [ View.vbox
+          [ Form.view padding_top
+          ; Form.view padding_right
+          ; Form.view padding_bottom
+          ; Form.view padding_left
+          ; Form.view keep_area
+          ; View.button
+              theme
+              "add padding"
+              ~on_click:
+                (let%bind.Effect input = get_images in
+                 let%bind.Effect ( ~new_width
+                                 , ~new_height
+                                 , ~old_width
+                                 , ~old_height
+                                 , ~image:output )
+                   =
+                   effect input.Sd_chain.Paint.Images.image
+                 in
+                 let new_width, new_height =
+                   if Form.value_or_default keep_area ~default:true
+                   then (
+                     let old_area = Float.of_int (old_width * old_height) in
+                     let new_area = Float.of_int (new_width * new_height) in
+                     let scale = Float.sqrt (old_area /. new_area) in
+                     let new_width = Int.of_float (Float.of_int new_width *. scale) in
+                     let new_height = Int.of_float (Float.of_int new_height *. scale) in
+                     nearest_multiple_of_8 new_width, nearest_multiple_of_8 new_height)
+                   else new_width, new_height
+                 in
+                 set_result
+                   ~new_width:(Int63.of_int new_width)
+                   ~new_height:(Int63.of_int new_height)
+                   output)
+          ]
       ]
   in
   view, effect

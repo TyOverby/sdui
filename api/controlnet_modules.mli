@@ -15,4 +15,4 @@ val all
 val form
   :  hosts:_ Hosts.Host.Map.t Bonsai.t
   -> local_ Bonsai.graph
-  -> (t, Vdom.Node.t) Form.t Bonsai.t
+  -> (t option, Vdom.Node.t) Form.t Bonsai.t

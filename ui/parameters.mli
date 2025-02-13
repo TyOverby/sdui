@@ -15,6 +15,7 @@ type t =
   ; num_images : int
   ; sampler : Sd.Samplers.t
   ; specific_model : Sd.Hosts.Current_model.t option
+  ; ctrlnet : Sd.Alwayson_scripts.Ctrlnet.Query.t option
   }
 [@@deriving equal, sexp_of]
 

@@ -89,6 +89,21 @@ let children_of_current ~current_id ~state ~set_current_id graph =
          children_imgs)
 ;;
 
+let controlnet_fix_card ~hosts (local_ graph) =
+  let%arr module_form = Sd.Controlnet_modules.form ~hosts graph
+  and model_form = Sd.Controlnet_models.form ~hosts graph
+  and theme = View.Theme.current graph in
+  let view ~button =
+    View.card'
+      theme
+      ~title_kind:View.Constants.Card_title_kind.Discreet
+      ~title:[ Vdom.Node.Text "Control-Net" ]
+      [ View.vbox [ module_form.view; model_form.view; button ] ]
+  in
+  let params = ~module_:module_form.value, ~model:model_form.value in
+  ~params, ~view
+;;
+
 let generic_card
   ~default_cfg_enabled
   ~default_denoise_enabled
@@ -96,6 +111,7 @@ let generic_card
   ~default_cfg
   ~default_denoise
   ~default_steps
+  ~controlnet_fix_card
   (local_ graph)
   =
   let enabled_checkbox ~default (local_ graph) =
@@ -150,23 +166,42 @@ let generic_card
     and { value = new_steps; _ } = steps
     and cfg_enabled
     and denoise_enabled
-    and steps_enabled in
+    and steps_enabled
+    and ~params:controlnet_params, ~view:_ = controlnet_fix_card in
     let or_default ~default = function
       | Ok v -> v
       | Error _ -> default
     in
-    fun (params : Sd_chain.Parameters.t) ->
-      { params with
+    fun ~(parameters : Sd_chain.Parameters.t) ~image ->
+      let ctrlnet =
+        match controlnet_params with
+        | ~module_:(Ok module_), ~model:(Ok model) ->
+          let module_ = Option.map module_ ~f:Sd.Controlnet_modules.to_string in
+          let model = Sd.Controlnet_models.to_string model in
+          Some
+            { Sd.Alwayson_scripts.Ctrlnet.Query.image
+            ; module_
+            ; model
+            ; weight = 1.0
+            ; guidance_start = 0.0
+            ; guidance_end = 1.0
+            }
+        | _ -> None
+      in
+      { parameters with
         cfg =
-          (if cfg_enabled then new_cfg |> or_default ~default:default_cfg else params.cfg)
+          (if cfg_enabled
+           then new_cfg |> or_default ~default:default_cfg
+           else parameters.cfg)
       ; denoise =
           (if denoise_enabled
            then new_denoise |> or_default ~default:default_denoise
-           else params.denoise)
+           else parameters.denoise)
       ; steps =
           (if steps_enabled
            then new_steps |> or_default ~default:default_steps
-           else params.steps)
+           else parameters.steps)
+      ; ctrlnet
       }
   in
   let view =
@@ -184,7 +219,7 @@ let generic_card
   ~modifier, ~view
 ;;
 
-let refine_card (local_ graph) =
+let refine_card ~controlnet_fix_card (local_ graph) =
   let ~modifier, ~view =
     generic_card
       ~default_cfg_enabled:true
@@ -193,18 +228,24 @@ let refine_card (local_ graph) =
       ~default_cfg:(Int63.of_int 5)
       ~default_denoise:(Int63.of_int 50)
       ~default_steps:(Int63.of_int 30)
+      ~controlnet_fix_card
       graph
   in
   let view =
     let%arr view
     and theme = View.Theme.current graph in
-    fun ~button -> View.card' theme (view @ [ button ])
+    fun ~button ->
+      View.card'
+        theme
+        ~title_kind:View.Constants.Card_title_kind.Discreet
+        ~title:[ Vdom.Node.text "Refinement" ]
+        (view @ [ button ])
   in
   let%arr modifier and view in
   ~modifier, ~view
 ;;
 
-let reimagine_card (local_ graph) =
+let reimagine_card ~controlnet_fix_card (local_ graph) =
   let ~modifier, ~view =
     generic_card
       ~default_cfg_enabled:true
@@ -213,18 +254,24 @@ let reimagine_card (local_ graph) =
       ~default_cfg:(Int63.of_int 10)
       ~default_denoise:(Int63.of_int 70)
       ~default_steps:(Int63.of_int 25)
+      ~controlnet_fix_card
       graph
   in
   let view =
     let%arr view
     and theme = View.Theme.current graph in
-    fun ~button -> View.card' theme (view @ [ button ])
+    fun ~button ->
+      View.card'
+        theme
+        ~title_kind:View.Constants.Card_title_kind.Discreet
+        ~title:[ Vdom.Node.text "Reimagine" ]
+        (view @ [ button ])
   in
   let%arr modifier and view in
   ~modifier, ~view
 ;;
 
-let upscale_card (local_ graph) =
+let upscale_card ~controlnet_fix_card (local_ graph) =
   let ~modifier, ~view =
     generic_card
       ~default_cfg_enabled:false
@@ -233,18 +280,24 @@ let upscale_card (local_ graph) =
       ~default_cfg:(Int63.of_int 7)
       ~default_denoise:(Int63.of_int 30)
       ~default_steps:(Int63.of_int 50)
+      ~controlnet_fix_card
       graph
   in
   let view =
     let%arr view
     and theme = View.Theme.current graph in
-    fun ~button -> View.card' theme (view @ [ button ])
+    fun ~button ->
+      View.card'
+        theme
+        ~title_kind:View.Constants.Card_title_kind.Discreet
+        ~title:[ Vdom.Node.text "Upscale" ]
+        (view @ [ button ])
   in
   let%arr modifier and view in
   ~modifier, ~view
 ;;
 
-let other_model_card (local_ graph) =
+let other_model_card ~controlnet_fix_card (local_ graph) =
   let ~modifier, ~view =
     generic_card
       ~default_cfg_enabled:false
@@ -253,12 +306,18 @@ let other_model_card (local_ graph) =
       ~default_cfg:(Int63.of_int 7)
       ~default_denoise:(Int63.of_int 40)
       ~default_steps:(Int63.of_int 40)
+      ~controlnet_fix_card
       graph
   in
   let view =
     let%arr view
     and theme = View.Theme.current graph in
-    fun ~button -> View.card' theme (view @ [ button ])
+    fun ~button ->
+      View.card'
+        theme
+        ~title_kind:View.Constants.Card_title_kind.Discreet
+        ~title:[ Vdom.Node.text "Change model" ]
+        (view @ [ button ])
   in
   let%arr modifier and view in
   ~modifier, ~view
@@ -356,10 +415,13 @@ let component (local_ graph) =
     Some (current_id, desc, state)
   in
   let children_of_current = children_of_current in
-  let refine_card = refine_card graph in
-  let reimagine_card = reimagine_card graph in
-  let upscale_card = upscale_card graph in
-  let other_model_card = other_model_card graph in
+  let controlnet_fix_card =
+    controlnet_fix_card ~hosts:(Lease_pool.all lease_pool) graph
+  in
+  let refine_card = refine_card ~controlnet_fix_card graph in
+  let reimagine_card = reimagine_card ~controlnet_fix_card graph in
+  let upscale_card = upscale_card ~controlnet_fix_card graph in
+  let other_model_card = other_model_card ~controlnet_fix_card graph in
   let resize_card = Resize_screen.component graph in
   let main_viewport =
     Bonsai.scope_model
@@ -403,6 +465,7 @@ let component (local_ graph) =
             ~other_model_card
             ~resize_card
             ~is_image_editor:true
+            ~controlnet_fix_card
             graph
         | Some
             (id, _desc, Finished { image; parent_image = Some parent_image; parameters })
@@ -422,6 +485,7 @@ let component (local_ graph) =
             ~other_model_card
             ~resize_card
             ~is_image_editor:false
+            ~controlnet_fix_card
             graph
         | _ ->
           Bonsai.return

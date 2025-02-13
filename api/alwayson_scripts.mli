@@ -1,9 +1,12 @@
 module Ctrlnet : sig
   module Query : sig
     type t =
-      { image : string
+      { image : Image.t
       ; module_ : string option
       ; model : string
+      ; weight : float
+      ; guidance_start : float
+      ; guidance_end : float
       }
     [@@deriving equal, sexp]
   end

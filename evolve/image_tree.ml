@@ -48,7 +48,7 @@ module Stage = struct
       | Txt2img -> "txt2img"
       | Edit -> "edit"
       | Resize -> "resize"
-      | Ctrlnet -> "resize"
+      | Ctrlnet -> "control net"
       | Img2img s -> s
     ;;
   end

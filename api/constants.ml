@@ -46,6 +46,3 @@ let txt2img_query =
 }
 |}
 ;;
-
-(* "override_settings": {"show_progress_every_n_steps": 5, "show_progress_type": "Full"}, *)
-(* "override_settings_restore_afterwards": true, *)

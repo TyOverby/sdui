@@ -13,3 +13,5 @@ module Upscaler = Upscaler
 module Alwayson_scripts = Alwayson_scripts
 module Load_image_effect = Load_image_effect
 module Controlnet_detect = Controlnet_detect
+module Controlnet_models = Controlnet_models
+module Controlnet_modules = Controlnet_modules

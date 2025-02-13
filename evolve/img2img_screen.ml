@@ -98,6 +98,7 @@ let component
   ~upscale_card
   ~other_model_card
   ~resize_card
+  ~controlnet_fix_card
   (local_ graph)
   =
   add_seen_after_active ~add_seen ~id graph;
@@ -122,6 +123,7 @@ let component
   and inject
   and get_images
   and img_view
+  and ~params:controlnet_params, ~view:controlnet_view = controlnet_fix_card
   and ~modifier:modify_refine, ~view:refine_view = refine_card
   and ~modifier:modify_reimagine, ~view:reimagine_view = reimagine_card
   and ~modifier:modify_upscale, ~view:upscale_view = upscale_card
@@ -149,10 +151,16 @@ let component
           | Error e -> Effect.return (Error e)
           | Ok (host, _current_model) ->
             let%bind.Effect () = on_started in
+            let module_ =
+              match controlnet_params with
+              | ~module_:(Ok (Some module_)), ~model:_ ->
+                Sd.Controlnet_modules.to_string module_
+              | _ -> "none"
+            in
             (match%map.Effect
                Sd.Controlnet_detect.dispatch
                  ~host_and_port:(host :> string)
-                 { image = img; module_ = "depth_zoe" }
+                 { image = img; module_ }
              with
              | Ok img -> Ok img
              | Error e -> Error e))
@@ -168,13 +176,13 @@ let component
            ; on_complete
            })
     in
-    View.button theme ~on_click:generate "ctrlnet detect", generate
+    View.button theme ~on_click:generate "detect", generate
   in
   let generate_button ~button_text ~kind ~modify_parameters =
     let generate =
-      let%bind.Effect parameters = modify_parameters parameters in
-      let parameters = override_prompt parameters in
       let%bind.Effect { image = img; mask; blur_mask = _ } = get_images in
+      let%bind.Effect parameters = modify_parameters ~parameters ~image:img in
+      let parameters = override_prompt parameters in
       let dispatch ~id ~on_started =
         let parameters =
           { parameters with
@@ -217,8 +225,8 @@ let component
     generate_button
       ~button_text:"[u]pscale"
       ~kind:(Img2img "upscaled")
-      ~modify_parameters:(fun (params : Sd_chain.Parameters.t) ->
-        let params : Sd_chain.Parameters.t = modify_upscale params in
+      ~modify_parameters:(fun ~(parameters : Sd_chain.Parameters.t) ~image ->
+        let params : Sd_chain.Parameters.t = modify_upscale ~parameters ~image in
         Effect.return
           { params with
             width = Int63.(params.width * of_int 2)
@@ -231,22 +239,22 @@ let component
     generate_button
       ~button_text:"ref[y]ne"
       ~kind:(Img2img "refined")
-      ~modify_parameters:(fun (params : Sd_chain.Parameters.t) ->
-        Effect.return (modify_refine params))
+      ~modify_parameters:(fun ~parameters ~image ->
+        Effect.return (modify_refine ~parameters ~image))
   in
   let reimagine_button, reimagine =
     generate_button
       ~button_text:"re[i]magine"
       ~kind:(Img2img "reimagined")
-      ~modify_parameters:(fun (params : Sd_chain.Parameters.t) ->
-        Effect.return (modify_reimagine params))
+      ~modify_parameters:(fun ~parameters ~image ->
+        Effect.return (modify_reimagine ~parameters ~image))
   in
   let switch_model_button, switch_model =
     generate_button
       ~button_text:"[o]ther model"
       ~kind:(Img2img "model")
-      ~modify_parameters:(fun (params : Sd_chain.Parameters.t) ->
-        let params : Sd_chain.Parameters.t = modify_other_model params in
+      ~modify_parameters:(fun ~parameters ~image ->
+        let params : Sd_chain.Parameters.t = modify_other_model ~parameters ~image in
         let%bind.Effect new_model =
           Effect.of_thunk (fun () ->
             match params.specific_model with
@@ -302,15 +310,17 @@ let component
       ~gap:(`Em_float 0.5)
       [ img_view
       ; Vdom.Node.div ~attrs:[ {%css|flex-grow:1;|} ] []
-      ; View.hbox
-          ~gap:(`Em_float 0.5)
+      ; View.hbox_wrap
+          ~row_gap:(`Em_float 0.5)
+          ~column_gap:(`Em_float 0.5)
+          ~cross_axis_alignment:Start
           [ upscale_view ~button:upscale_button
           ; refine_view ~button:refine_button
           ; reimagine_view ~button:reimagine_button
           ; other_model_view ~button:switch_model_button
+          ; controlnet_view ~button:ctrlnet_detect
           ; resize_card
           ; edit_button
-          ; ctrlnet_detect
           ]
       ]
   in

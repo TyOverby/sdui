@@ -271,7 +271,7 @@ let component
     min_1_form ~default:(Int63.of_int 25) ~max:150 ~label:"steps" graph
   in
   let cfg_scale_form = min_1_form ~default:(Int63.of_int 7) ~max:30 ~label:"cfg" graph in
-  let%sub sampler_form, sampler_form_view =
+  let%sub sampler_form =
     Samplers.form
       ~hosts:(hosts >>| fun { Hosts.available_hosts; _ } -> available_hosts)
       graph
@@ -346,7 +346,7 @@ let component
     and { view = seed_form_view; _ } = seed_form
     and { view = upscaler_form_view; _ } = upscaler_form
     and theme
-    and sampler = sampler_form_view
+    and { view = sampler_form_view; _ } = sampler_form
     and styles_form
     and { view = hr_form_view; _ } = hr_form
     and collapsed
@@ -393,7 +393,7 @@ let component
                    @ [ width; height ])
               ; View.hbox
                   ~main_axis_alignment:Space_between
-                  [ sampler; cfg_scale_view; sampling_steps_view ]
+                  [ sampler_form_view; cfg_scale_view; sampling_steps_view ]
               ; View.hbox
                   ~main_axis_alignment:Space_between
                   [ seed_form_view; Submit_button.make theme ~on_submit ]

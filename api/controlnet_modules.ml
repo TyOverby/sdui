@@ -1,12 +1,34 @@
 open! Core
 open! Bonsai_web
+open Async_kernel
 open Bonsai.Let_syntax
+open Ppx_yojson_conv_lib.Yojson_conv.Primitives
 module Form = Bonsai_web_ui_form.With_manual_view
 
-let default = "Euler a"
+let default = "depth_anything_v2"
 let to_string = Fn.id
 
-include Samplers_request
+type t = string [@@deriving sexp, yojson, equal]
+
+module Api_response = struct
+  type t = { module_list : string list }
+  [@@yojson.allow_extra_fields] [@@deriving of_yojson, sexp_of]
+end
+
+let dispatch host_and_port =
+  Deferred.Or_error.try_with (fun () ->
+    let%bind.Deferred response =
+      Async_js.Http.get (sprintf "%s/controlnet/module_list" host_and_port)
+      |> Deferred.Or_error.ok_exn
+    in
+    response
+    |> Yojson.Safe.from_string
+    |> Api_response.t_of_yojson
+    |> (fun { Api_response.module_list } -> module_list)
+    |> Deferred.return)
+;;
+
+let dispatch = Effect.of_deferred_fun dispatch
 
 let random_healthy_host hosts =
   Effect.of_thunk (fun () -> List.random_element (Map.keys hosts))
@@ -17,7 +39,7 @@ let all (type a) ~(hosts : a Hosts.Host.Map.t Bonsai.t) graph =
     Bonsai.Edge.Poll.manual_refresh
       (Bonsai.Edge.Poll.Starting.initial (Error (Error.of_string "loading...")))
       ~effect:
-        (let%map hosts in
+        (let%map.Bonsai hosts in
          match%bind.Effect random_healthy_host hosts with
          | None -> Effect.return (Ok [])
          | Some host -> dispatch (host :> string))
@@ -30,13 +52,6 @@ let all (type a) ~(hosts : a Hosts.Host.Map.t Bonsai.t) graph =
     refresh
     graph;
   r
-;;
-
-let str_rep ~find ~replace s =
-  String.Search_pattern.replace_all
-    (String.Search_pattern.create find)
-    ~in_:s
-    ~with_:replace
 ;;
 
 let form ~hosts graph =
@@ -52,15 +67,9 @@ let form ~hosts graph =
     | Ok all -> all
   in
   let options =
-    List.map all ~f:(fun sampler ->
-      let view =
-        sampler
-        |> str_rep ~find:"Karras" ~replace:"K"
-        |> str_rep ~find:"Exponential" ~replace:"E"
-        |> str_rep ~find:"Heun" ~replace:"H"
-        |> Vdom.Node.text
-      in
-      sampler, String.equal sampler state, view)
+    List.map all ~f:(fun module_ ->
+      let view = Vdom.Node.text module_ in
+      module_, String.equal module_ state, view)
   in
   let view =
     Kado.Unstable.Input.dropdown
@@ -75,9 +84,18 @@ let form ~hosts graph =
                  (Css_gen.Color.to_string_css (View.extreme_primary_border_color theme))
                ~fg:(Css_gen.Color.to_string_css (View.primary_colors theme).foreground)
            ])
-      ~title:(Some "sampler")
+      ~title:(Some "module")
       ~on_change:set_state
       ~options
   in
-  { Form.value = Ok state; set = set_state; view }
+  let value =
+    match state with
+    | "none" -> Ok None
+    | other -> Ok (Some other)
+  in
+  let set_state = function
+    | Some s -> set_state s
+    | None -> set_state "none"
+  in
+  { Form.value; set = set_state; view }
 ;;

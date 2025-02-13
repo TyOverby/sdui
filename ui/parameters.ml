@@ -17,6 +17,7 @@ type t =
   ; num_images : int
   ; sampler : Sd.Samplers.t
   ; specific_model : Sd.Hosts.Current_model.t option
+  ; ctrlnet : Sd.Alwayson_scripts.Ctrlnet.Query.t option
   }
 [@@deriving typed_fields, equal, sexp_of]
 
@@ -129,6 +130,12 @@ let component
         | Num_images -> num_images
         | Specific_model -> specific_model
         | Sampler -> sampler
+        | Ctrlnet ->
+          Bonsai.return
+            { Form.value = Ok None
+            ; set = (fun _ -> Effect.return ())
+            ; view = Vdom.Node.none
+            }
       ;;
 
       let finalize_view { f } _graph =
@@ -226,6 +233,7 @@ let for_img2img t =
       ; ratios = _
       ; num_images = _
       ; specific_model = _
+      ; ctrlnet
       }
     =
     t
@@ -244,7 +252,7 @@ let for_img2img t =
   ; sampler
   ; subseed_strength = 0.0
   ; styles = Sd.Styles.none
-  ; ctrlnet = None
+  ; ctrlnet
   }
 ;;
 
@@ -261,6 +269,7 @@ let for_txt2img t =
       ; sampler
       ; num_images = _
       ; specific_model = _
+      ; ctrlnet = _
       }
     =
     t

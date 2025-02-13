@@ -8,14 +8,14 @@ module Ctrlnet = struct
     ; model : string
     ; weight : float
     ; image : string
-    ; resize_mode : int [@key "resize_mode"]
     ; lowvram : bool
     ; processor_res : int [@key "processor_res"]
     ; threshold_a : int [@key "threshold_a"]
     ; threshold_b : int [@key "threshold_b"]
     ; guidance_start : float [@key "guidance_start"]
     ; guidance_end : float [@key "guidance_end"]
-    ; control_mode : int [@key "control_mode"]
+    ; control_mode : string [@key "control_mode"]
+    ; resize_mode : string [@key "resize_mode"]
     ; pixel_perfect : bool [@key "pixel_perfect"]
     }
   [@@deriving yojson_of, sexp]
@@ -24,25 +24,28 @@ module Ctrlnet = struct
 
   module Query = struct
     type t =
-      { image : string
+      { image : Image.t
       ; module_ : string option
       ; model : string
+      ; weight : float
+      ; guidance_start : float
+      ; guidance_end : float
       }
     [@@deriving sexp, equal]
 
-    let to_arg { image; module_; model } =
+    let to_arg { image; module_; model; guidance_start; guidance_end; weight } =
       { args =
           [ { pixel_perfect = false
-            ; control_mode = 0
-            ; guidance_start = 0.0
-            ; guidance_end = 0.8
+            ; control_mode = "Balanced"
+            ; guidance_start
+            ; guidance_end
             ; threshold_a = 64
             ; threshold_b = 64
             ; processor_res = 64
             ; lowvram = false
-            ; resize_mode = 1
-            ; image
-            ; weight = 1.0
+            ; resize_mode = "Just Resize"
+            ; image = Image.to_string image
+            ; weight
             ; model
             ; module_ = Option.value module_ ~default:"none"
             ; enabled = true
