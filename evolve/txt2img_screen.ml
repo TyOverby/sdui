@@ -14,11 +14,8 @@ let component
         Lease_pool.t)
   ~inject
   ~id
-  ~add_seen
-  ~add_seen_after_active
   (local_ graph)
   =
-  add_seen_after_active ~add_seen ~id graph;
   let models =
     let%arr hosts = Lease_pool.all lease_pool in
     hosts |> Map.data |> Sd.Hosts.Current_model.Set.of_list

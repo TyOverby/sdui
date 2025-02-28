@@ -91,8 +91,6 @@ let component
   ~parent_img
   ~is_image_editor
   ~parameters
-  ~add_seen
-  ~add_seen_after_active
   ~refine_card
   ~reimagine_card
   ~upscale_card
@@ -101,7 +99,6 @@ let component
   ~controlnet_fix_card
   (local_ graph)
   =
-  add_seen_after_active ~add_seen ~id graph;
   let get_images, override_prompt, img_view, set_paint_image =
     if is_image_editor
     then (
@@ -128,7 +125,7 @@ let component
   and ~modifier:modify_reimagine, ~view:reimagine_view = reimagine_card
   and ~modifier:modify_upscale, ~view:upscale_view = upscale_card
   and ~modifier:modify_other_model, ~view:other_model_view = other_model_card
-  and resize_card, _resize_effect = resize_card
+  and resize_card
   and override_prompt
   and set_paint_image in
   let ctrlnet_detect, _ctrlnet_detect_effect =

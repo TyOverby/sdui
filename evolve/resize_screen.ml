@@ -110,7 +110,7 @@ let component (local_ graph) =
            , ~image )))
   in
   let nearest_multiple_of_8 i = if i % 8 = 0 then i else i + (8 - (i % 8)) in
-  let view ~get_images ~set_result =
+  fun ~get_images ~set_result ->
     View.card'
       theme
       ~title_kind:View.Constants.Card_title_kind.Discreet
@@ -151,6 +151,4 @@ let component (local_ graph) =
                    output)
           ]
       ]
-  in
-  view, effect
 ;;

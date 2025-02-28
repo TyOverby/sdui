@@ -3,20 +3,8 @@ open! Bonsai_web
 open Bonsai.Let_syntax
 module Snips = Shared.Snips
 module Form = Bonsai_web_ui_form.With_manual_view
-module Feather = Feather_icon
 module Lease_pool = Sd_chain.Lease_pool
 module P = Sd.Parameters.Individual
-
-module Seen = struct
-  type t = Image_tree.Unique_id.Set.t
-
-  let state graph =
-    Bonsai.state_machine0
-      graph
-      ~default_model:Image_tree.Unique_id.Set.empty
-      ~apply_action:(fun _ctx -> Set.add)
-  ;;
-end
 
 let none_screen ~inject graph =
   let%arr theme = View.Theme.current graph
@@ -486,15 +474,8 @@ let component (local_ graph) =
         match%sub current with
         | None -> none_screen ~inject graph
         | Some (id, _desc, Initial) ->
-          let%sub view, kbd =
-            Txt2img_screen.component
-              ~lease_pool
-              ~add_seen
-              ~id
-              ~inject
-              ~add_seen_after_active
-              graph
-          in
+          add_seen_after_active ~id ~add_seen graph;
+          let%sub view, kbd = Txt2img_screen.component ~lease_pool ~id ~inject graph in
           let%arr view and kbd in
           view, kbd, None
         | Some (_, _, Finished { parent_image = None; _ }) ->
@@ -504,6 +485,7 @@ let component (local_ graph) =
             , None )
         | Some (id, Edit, Finished { image; parent_image = Some parent_image; parameters })
           ->
+          add_seen_after_active ~id ~add_seen graph;
           Img2img_screen.component
             ~lease_pool
             ~id
@@ -511,8 +493,6 @@ let component (local_ graph) =
             ~img:image
             ~parent_img:parent_image
             ~parameters
-            ~add_seen
-            ~add_seen_after_active
             ~refine_card
             ~reimagine_card
             ~upscale_card
@@ -524,6 +504,7 @@ let component (local_ graph) =
         | Some
             (id, _desc, Finished { image; parent_image = Some parent_image; parameters })
           ->
+          add_seen_after_active ~id ~add_seen graph;
           Img2img_screen.component
             ~lease_pool
             ~id
@@ -531,8 +512,6 @@ let component (local_ graph) =
             ~img:image
             ~parent_img:parent_image
             ~parameters
-            ~add_seen
-            ~add_seen_after_active
             ~refine_card
             ~reimagine_card
             ~upscale_card
