@@ -57,6 +57,7 @@ module Model : sig
     ; parents : Unique_id.t Unique_id.Map.t
     ; roots : Unique_id.Set.t
     ; seen : Unique_id.Set.t
+    ; starred : Unique_id.Set.t
     }
 
   val first_id : Unique_id.t
@@ -104,6 +105,7 @@ module Action : sig
         { id : Unique_id.t
         ; stage : Stage.t
         }
+    | Toggle_starred of Unique_id.t
     | Set_seen of Unique_id.t
 end
 

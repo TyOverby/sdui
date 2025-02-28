@@ -67,6 +67,7 @@ module Model = struct
     ; parents : Unique_id.t Unique_id.Map.t
     ; roots : Unique_id.Set.t
     ; seen : Unique_id.Set.t
+    ; starred : Unique_id.Set.t
     }
 
   let first_id = Unique_id.create ()
@@ -77,6 +78,7 @@ module Model = struct
     ; parents = Unique_id.Map.empty
     ; roots = Unique_id.Set.singleton first_id
     ; seen = Unique_id.Set.empty
+    ; starred = Unique_id.Set.empty
     }
   ;;
 
@@ -198,6 +200,7 @@ module Action = struct
         { id : Unique_id.t
         ; stage : Stage.t
         }
+    | Toggle_starred of Unique_id.t
     | Set_seen of Unique_id.t
 end
 
@@ -212,6 +215,13 @@ let state (local_ graph) =
         if from_kbd && Set.mem model.roots id then model else Model.remove ~id model
       | Set { id; stage = { desc; state } } -> Model.set model ~id ~desc ~state
       | Set_seen id -> { model with seen = Set.add model.seen id }
+      | Toggle_starred id ->
+        let starred =
+          if Set.mem model.starred id
+          then Set.remove model.starred id
+          else Set.add model.starred id
+        in
+        { model with starred }
       | Add { parent_id; stage = { desc; state }; dispatch; on_complete } ->
         let state, id = Model.add model ~parent_id ~desc ~state in
         Bonsai.Apply_action_context.schedule_event
@@ -283,6 +293,35 @@ let render
     in
     Vdom.Attr.many [ selected_attrs; seen_attrs ]
   in
+  let is_starred id = Set.mem state.starred id in
+  let star_button_attrs ~child_is_starred ~id =
+    [ {%css| 
+        cursor:pointer; 
+
+        &:hover {
+          opacity: 1;
+        }
+      |}
+    ; (if is_starred id
+       then
+         {%css|
+      fill: gold;
+      stroke: gold;
+
+      &:hover {
+        opacity: 0.5;
+      }
+        |}
+       else {%css| |})
+    ; (if child_is_starred
+       then {%css|
+        stroke: gold;
+       |}
+       else Vdom.Attr.empty)
+    ; Vdom.Attr.on_click (fun _ ->
+        Effect.Many [ inject (Action.Toggle_starred id); Effect.Stop_propagation ])
+    ]
+  in
   let remove_button_attrs ~id =
     [ {%css| 
         cursor:pointer; 
@@ -295,7 +334,6 @@ let render
         }
       |}
     ; Vdom.Attr.on_click (fun _ ->
-        print_s [%message (state.parents : Unique_id.t Unique_id.Map.t)];
         Effect.Many
           [ inject (Action.Remove { id; from_kbd = false })
           ; (if [%equal: Unique_id.t option] (Some id) current_id
@@ -322,7 +360,19 @@ let render
       | Finished _ -> Feather.Image
       | Error _ -> Feather.Alert_triangle
     in
+    let child_is_starred = List.exists children ~f:(fun { id; _ } -> is_starred id) in
     let children =
+      let i_am_selected = [%equal: Unique_id.t option] (Some id) current_id in
+      let child_of_mine_is_selected =
+        List.exists children ~f:(fun { id; _ } ->
+          [%equal: Unique_id.t option] (Some id) current_id)
+      in
+      let only_have_one_child = List.length children = 1 in
+      let children =
+        if only_have_one_child || i_am_selected || child_of_mine_is_selected
+        then children
+        else List.filter children ~f:(fun { id; _ } -> not (is_starred id))
+      in
       match children with
       | [] -> Vdom.Node.none
       | [ child ] when only_child -> loop ~only_child:true ~deindented:true child
@@ -356,6 +406,11 @@ let render
              else Vdom.Node.none)
           ; Feather.svg ~extra_attrs:[ {%css| margin-right: 0.5em; |} ] ~size:(`Em 1) icon
           ; Vdom.Node.text (Stage.Kind.to_string desc)
+          ; Feather.svg
+              ~extra_attrs:
+                ({%css| margin-left: 0.5em; |} :: star_button_attrs ~child_is_starred ~id)
+              ~size:(`Em 1)
+              Star
           ; Feather.svg
               ~extra_attrs:({%css| margin-left: 0.5em; |} :: remove_button_attrs ~id)
               ~size:(`Em 1)
