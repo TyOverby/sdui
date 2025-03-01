@@ -36,7 +36,7 @@ module Ctrlnet = struct
     let to_arg { image; module_; model; guidance_start; guidance_end; weight } =
       { args =
           [ { pixel_perfect = false
-            ; control_mode = "Balanced"
+            ; control_mode = "ControlNet is more important"
             ; guidance_start
             ; guidance_end
             ; threshold_a = 64

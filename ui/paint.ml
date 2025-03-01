@@ -338,7 +338,9 @@ type t =
   { images : Images.t Inc.t
   ; get_images : Images.t Effect.t Bonsai.t
   ; view : View_.t Bonsai.t
-  ; set_paint_image : (Sd.Image.t -> unit Effect.t) option Bonsai.t
+  ; set_paint_image :
+      (which:[ `Paint | `Underlying ] -> Sd.Image.t -> unit Effect.t) Bonsai.t
+  ; requesting_set_paint_image : (Sd.Image.t -> unit Effect.t) option Bonsai.t
   }
 
 module Canvas_ops = struct
@@ -611,20 +613,35 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
              let data_url = Canvas2d.Image.to_data_url output in
              state##setPaintImage (Js.string data_url)))
   in
-  let set_paint_image, clone_button =
+  let set_paint_image =
+    let%arr get_widget = Bonsai.peek widget graph
+    and next_id
+    and wait_after_display = Bonsai.Edge.wait_after_display graph in
+    fun ~which image ->
+      match%bind.Effect get_widget with
+      | Inactive -> Effect.return ()
+      | Active { modify; _ } ->
+        (match which with
+         | `Paint ->
+           modify (fun _ state ->
+             state##setPaintImage (Js.string (Sd.Image.to_string image)))
+         | `Underlying ->
+           let%bind.Effect () = next_id () in
+           let%bind.Effect () = wait_after_display in
+           modify (fun _ state ->
+             state##updateImage (Js.string (Sd.Image.to_string image))))
+  in
+  let requesting_set_paint_image, clone_button =
     let enabled, set_enabled = Bonsai.state false graph in
     let set_paint_image =
-      let%arr { modify; _ } = widget
-      and enabled
-      and set_enabled in
+      let%arr set_paint_image and enabled and set_enabled in
       match enabled with
       | false -> None
       | true ->
         Some
           (fun image ->
             let%bind.Effect () = set_enabled false in
-            modify (fun _ state ->
-              state##setPaintImage (Js.string (Sd.Image.to_string image))))
+            set_paint_image ~which:`Paint image)
     in
     let clone_button =
       let%arr enabled
@@ -661,7 +678,12 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
     ; widget
     }
   in
-  { images = value; get_images = get_images_effect; view; set_paint_image }
+  { images = value
+  ; get_images = get_images_effect
+  ; view
+  ; set_paint_image
+  ; requesting_set_paint_image
+  }
 ;;
 
 external empty_white_image : int -> int -> Js.js_string Js.t = "empty_white_image"

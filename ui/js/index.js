@@ -55,15 +55,20 @@ function on_images_init(images, f) {
     }
 }
 
-//Provides:createCanvas
-function createCanvas(name, image, parent) {
-    const canvas = document.createElement("canvas");
-    canvas.setAttribute("data-name", name);
-
+//Provides:resizeCanvas
+function resizeCanvas(image, canvas) {
     canvas.setAttribute("width", image.naturalWidth);
     canvas.setAttribute("height", image.naturalHeight);
     canvas.style.width = (image.naturalWidth / window.devicePixelRatio) + "px";
     canvas.style.height = (image.naturalHeight / window.devicePixelRatio) + "px";
+}
+
+//Provides:createCanvas
+//Requires:resizeCanvas
+function createCanvas(name, image, parent) {
+    const canvas = document.createElement("canvas");
+    canvas.setAttribute("data-name", name);
+    resizeCanvas(image, canvas)
 
     if (parent) {
         parent.appendChild(canvas);
@@ -191,7 +196,7 @@ function prep_img(img_string) {
 }
 
 //Provides:painter_init
-//Requires:drawPill, sanatize_url, on_image_init, rgbToHex, createCanvas, isCanvasAllWhite, scramble, prep_img, on_images_init
+//Requires:drawPill, sanatize_url, on_image_init, rgbToHex, createCanvas, isCanvasAllWhite, scramble, prep_img, on_images_init, resizeCanvas
 function painter_init(input, paint_input, mask_input, blur_mask_input) {
     var stack = document.createElement("div");
     stack.className = "stack";
@@ -326,7 +331,7 @@ function painter_init(input, paint_input, mask_input, blur_mask_input) {
             }
         }
 
-        function draw_image(data_url, ctx) {
+        function draw_image(data_url, ctx, before_draw) {
             data_url = sanatize_url(data_url);
             image = document.createElement("img");
             image.crossOrigin = "Anonymous";
@@ -335,18 +340,27 @@ function painter_init(input, paint_input, mask_input, blur_mask_input) {
             state.img_base64_cache = null;
             state.mask_base64_cache = null;
             on_image_init(image, function () {
+                before_draw(image);
                 ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
             })
         }
 
         state.updateImage = function (data_url) {
             state.img_base64_cache = null;
-            draw_image(data_url, img_ctx);
+            draw_image(data_url, img_ctx, function (image) {
+                resizeCanvas(image, img_canvas);
+                resizeCanvas(image, draw_canvas);
+                resizeCanvas(image, mask_canvas);
+                resizeCanvas(image, blur_mask_canvas);
+                resizeCanvas(image, outline_canvas);
+                resizeCanvas(image, composite_canvas);
+                resizeCanvas(image, composite_mask_canvas);
+            });
         }
 
         state.setPaintImage = function (data_url) {
             state.img_base64_cache = null;
-            draw_image(data_url, draw_ctx);
+            draw_image(data_url, draw_ctx, function () { });
         }
 
         function mousedown(event) {

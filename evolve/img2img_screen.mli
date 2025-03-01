@@ -11,6 +11,7 @@ type lease_pool :=
 type basic_card :=
   (modifier:(parameters:Sd_chain.Parameters.t
              -> image:Sd.Image.t
+             -> ctrlnet_image:Sd.Image.t option
              -> Sd_chain.Parameters.t)
   * view:(button:Vdom.Node.t -> Vdom.Node.t))
     Bonsai.t
@@ -30,12 +31,6 @@ type ('a, 'b, 'c, 'd, 'e) controlnet_fix_card :=
           * end_point:'e)
   * view:(button:Vdom.Node.t -> Vdom.Node.t))
     Bonsai.t
-
-val editor_view
-  :  parameters:Sd_chain.Parameters.t Bonsai.t
-  -> Sd_chain.Paint.View.t Bonsai.t
-  -> local_ Bonsai.graph
-  -> (Sd_chain.Parameters.t -> Sd_chain.Parameters.t) Bonsai.t * Vdom.Node.t Bonsai.t
 
 val component
   :  lease_pool:lease_pool

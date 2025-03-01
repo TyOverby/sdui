@@ -100,7 +100,7 @@ let controlnet_fix_card ~hosts (local_ graph) =
     Form.Elements.Range.float
       ~min:(Bonsai.return 0.0)
       ~default:(Bonsai.return 1.0)
-      ~max:(Bonsai.return 0.8)
+      ~max:(Bonsai.return 1.0)
       ~step:(Bonsai.return 0.01)
       ()
       graph
@@ -204,15 +204,28 @@ let generic_card
       | Ok v -> v
       | Error _ -> default
     in
-    fun ~(parameters : Sd_chain.Parameters.t) ~image ->
+    fun ~(parameters : Sd_chain.Parameters.t) ~image ~ctrlnet_image ->
       let ctrlnet =
-        match controlnet_params with
-        | ~module_:(Ok module_), ~model:(Ok model), ~weight, ~start_point, ~end_point
-          when ctrlnet_enabled ->
+        match controlnet_params, ctrlnet_image with
+        | ( (~module_:_, ~model:(Ok model), ~weight, ~start_point, ~end_point)
+          , Some ctrlnet_image ) ->
+          let model = Sd.Controlnet_models.to_string model in
+          Some
+            { Sd.Alwayson_scripts.Ctrlnet.Query.image = ctrlnet_image
+            ; module_ = None
+            ; model
+            ; weight
+            ; guidance_start = start_point
+            ; guidance_end = end_point
+            }
+        | ( (~module_:(Ok module_), ~model:(Ok model), ~weight, ~start_point, ~end_point)
+          , ctrlnet_image )
+          when ctrlnet_enabled || Option.is_some ctrlnet_image ->
           let module_ = Option.map module_ ~f:Sd.Controlnet_modules.to_string in
           let model = Sd.Controlnet_models.to_string model in
           Some
-            { Sd.Alwayson_scripts.Ctrlnet.Query.image
+            { Sd.Alwayson_scripts.Ctrlnet.Query.image =
+                Option.value ctrlnet_image ~default:image
             ; module_
             ; model
             ; weight
@@ -456,7 +469,6 @@ let component (local_ graph) =
     let%bind.Option { Image_tree.Stage.desc; state } = Map.find images current_id in
     Some (current_id, desc, state)
   in
-  let children_of_current = children_of_current in
   let controlnet_fix_card =
     controlnet_fix_card ~hosts:(Lease_pool.all lease_pool) graph
   in
@@ -606,7 +618,9 @@ let component (local_ graph) =
   and queue_view
   and global_keyboard_handlers
   and children_of_current =
-    children_of_current ~current_id ~state ~set_current_id graph
+    if false
+    then children_of_current ~current_id ~state ~set_current_id graph
+    else Bonsai.return None
   in
   let open Snips.Infix in
   let handler =

@@ -29,7 +29,9 @@ type t =
   { images : Images.t Inc.t
   ; get_images : Images.t Effect.t Bonsai.t
   ; view : View.t Bonsai.t
-  ; set_paint_image : (Sd.Image.t -> unit Effect.t) option Bonsai.t
+  ; set_paint_image :
+      (which:[ `Paint | `Underlying ] -> Sd.Image.t -> unit Effect.t) Bonsai.t
+  ; requesting_set_paint_image : (Sd.Image.t -> unit Effect.t) option Bonsai.t
   }
 
 val component : prev:Sd.Image.t Bonsai.t -> local_ Bonsai.graph -> t

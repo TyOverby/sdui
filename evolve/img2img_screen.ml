@@ -8,7 +8,46 @@ module Lease_pool = Sd_chain.Lease_pool
 module Images = Sd_chain.Paint.Images
 module P = Sd.Parameters.Individual
 
-let editor_view ~parameters (view : Sd_chain.Paint.View.t Bonsai.t) (local_ graph) =
+let editor_view_for_ctrlnet_image
+  ~remove_button
+  ~clone_current_button
+  (view : Sd_chain.Paint.View.t Bonsai.t)
+  =
+  let%arr { widget
+          ; color_picker
+          ; pen_size_slider
+          ; blur_radius_slider = _
+          ; layer_panel = _
+          ; clear_button = _
+          ; forward_button = _
+          ; alt_panel
+          ; flip_button
+          ; clone_button
+          ; blur_button = _
+          }
+    =
+    view
+  and clone_current_button
+  and remove_button in
+  View.hbox
+    [ widget
+    ; View.vbox
+        [ color_picker
+        ; pen_size_slider
+        ; alt_panel
+        ; flip_button
+        ; clone_current_button
+        ; clone_button
+        ; remove_button
+        ]
+    ]
+;;
+
+let editor_view_with_parameters
+  ~parameters
+  (view : Sd_chain.Paint.View.t Bonsai.t)
+  (local_ graph)
+  =
   let pos_prompt =
     P.prompt_form
       ~default:"! score_9, score_8_up, score_7_up,\n"
@@ -79,6 +118,26 @@ let editor_view ~parameters (view : Sd_chain.Paint.View.t Bonsai.t) (local_ grap
   override_prompt, view
 ;;
 
+let extend_ctrlnet_setter ~dispatcher ~controlnet_params ~f image =
+  dispatcher (fun get_host ->
+    match get_host with
+    | Error _e -> Effect.return ()
+    | Ok (host, _current_model) ->
+      let module_ =
+        match controlnet_params with
+        | ~module_:(Ok (Some module_)), ~model:_, ~weight:_, ~start_point:_, ~end_point:_
+          -> Sd.Controlnet_modules.to_string module_
+        | _ -> "none"
+      in
+      (match%bind.Effect
+         Sd.Controlnet_detect.dispatch
+           ~host_and_port:((host : Sd.Hosts.Host.t) :> string)
+           { image; module_ }
+       with
+       | Ok image -> f image
+       | Error _ -> Effect.return ()))
+;;
+
 let component
   ~(lease_pool :
       ( Sd.Hosts.Host.t
@@ -99,18 +158,108 @@ let component
   ~controlnet_fix_card
   (local_ graph)
   =
-  let get_images, override_prompt, img_view, set_paint_image =
+  let ( ~get_images
+      , ~get_ctrlnet
+      , ~override_prompt
+      , ~view:img_view
+      , ~set_ctrlnet_image
+      , ~set_paint_image )
+    =
     if is_image_editor
     then (
       let editor = Sd_chain.Paint.component ~prev:parent_img graph in
-      let override_prompt, view = editor_view editor.view ~parameters graph in
-      editor.get_images, override_prompt, view, editor.set_paint_image)
+      let ctrlnet_image, set_ctrlnet_image = Bonsai.state_opt graph in
+      let ctrlnet_editor =
+        Sd_chain.Paint.component
+          ~prev:(ctrlnet_image >>| Option.value ~default:Sd.Image.empty)
+          graph
+      in
+      let override_prompt, view =
+        editor_view_with_parameters editor.view ~parameters graph
+      in
+      let view =
+        let clone_current_button =
+          let%arr theme = View.Theme.current graph
+          and get_images = editor.get_images
+          and set_ctrlnet_image
+          and dispatcher = Lease_pool.dispatcher lease_pool
+          and ~params:controlnet_params, ~view:_ = controlnet_fix_card in
+          View.button
+            theme
+            "clone current"
+            ~on_click:
+              (let%bind.Effect { image; mask = _; blur_mask = _ } = get_images in
+               extend_ctrlnet_setter
+                 ~dispatcher:(fun f -> dispatcher f)
+                 ~controlnet_params
+                 ~f:(fun image -> set_ctrlnet_image (Some image))
+                 image)
+        in
+        let remove_button =
+          let%arr theme = View.Theme.current graph
+          and set_ctrlnet_image in
+          View.button theme "remove" ~on_click:(set_ctrlnet_image None)
+        in
+        let%arr ctrlnet_editor_view =
+          editor_view_for_ctrlnet_image
+            ~remove_button
+            ~clone_current_button
+            ctrlnet_editor.view
+        and view
+        and ctrlnet_image in
+        View.vbox
+          [ view
+          ; (if Option.is_some ctrlnet_image then ctrlnet_editor_view else Vdom.Node.none)
+          ]
+      in
+      let set_paint_image =
+        let%arr editor_setter = editor.requesting_set_paint_image
+        and ctrlnet_setter = ctrlnet_editor.requesting_set_paint_image
+        and ~params:controlnet_params, ~view:_ = controlnet_fix_card
+        and set_ctrlnet_image
+        and dispatcher = Lease_pool.dispatcher lease_pool in
+        match editor_setter with
+        | Some f -> Some f
+        | None ->
+          (match ctrlnet_setter with
+           | None -> None
+           | Some f ->
+             Some
+               (fun image ->
+                 extend_ctrlnet_setter
+                   ~dispatcher:(fun f -> dispatcher f)
+                   ~controlnet_params
+                   ~f:(fun image ->
+                     let%bind.Effect () = set_ctrlnet_image (Some image) in
+                     f image)
+                   image))
+      in
+      let get_ctrlnet =
+        let%arr get_ctrlnet = ctrlnet_editor.get_images
+        and ctrlnet_image in
+        if Option.is_none ctrlnet_image
+        then Effect.return None
+        else (
+          let%map.Effect { image; mask = _; blur_mask = _ } = get_ctrlnet in
+          if Sd.Image.is_empty image then None else Some image)
+      in
+      ( ~get_images:editor.get_images
+      , ~get_ctrlnet
+      , ~override_prompt
+      , ~view
+      , ~set_ctrlnet_image:(Some set_ctrlnet_image)
+      , ~set_paint_image ))
     else (
       let get_images =
         let%arr img in
         Effect.return { Images.image = img; mask = None; blur_mask = None }
       in
-      get_images, Bonsai.return Fn.id, img >>| Sd.Image.to_vdom, Bonsai.return None)
+      ( ~get_images
+      , ~get_ctrlnet:(Bonsai.return (Effect.return None))
+      , ~override_prompt:(Bonsai.return Fn.id)
+      , ~view:(img >>| Sd.Image.to_vdom)
+      , ~set_ctrlnet_image:None
+      , ~set_paint_image:(Bonsai.return None) ))
   in
   let%arr parameters
   and theme = View.Theme.current graph
@@ -126,7 +275,9 @@ let component
   and ~modifier:modify_upscale, ~view:upscale_view = upscale_card
   and ~modifier:modify_other_model, ~view:other_model_view = other_model_card
   and resize_card
+  and get_ctrlnet
   and override_prompt
+  and set_ctrlnet_image = Bonsai.transpose_opt set_ctrlnet_image
   and set_paint_image in
   let ctrlnet_detect, _ctrlnet_detect_effect =
     let generate =
@@ -165,23 +316,33 @@ let component
              | Ok img -> Ok img
              | Error e -> Error e))
       in
-      let on_complete image =
-        Image_tree.Stage.State.Finished { image; parent_image = Some img; parameters }
-      in
-      inject
-        (Image_tree.Action.Add
-           { parent_id = id
-           ; stage = { desc = Ctrlnet; state = Enqueued }
-           ; dispatch
-           ; on_complete
-           })
+      match set_ctrlnet_image with
+      | Some setter ->
+        let%bind.Effect result = dispatch ~id ~on_started:Effect.Ignore in
+        (match result with
+         | Ok image -> setter (Some image)
+         | Error _e -> Effect.Ignore)
+      | None ->
+        let on_complete image =
+          Image_tree.Stage.State.Finished { image; parent_image = Some img; parameters }
+        in
+        inject
+          (Image_tree.Action.Add
+             { parent_id = id
+             ; stage = { desc = Ctrlnet; state = Enqueued }
+             ; dispatch
+             ; on_complete
+             })
     in
     View.button theme ~on_click:generate "detect", generate
   in
   let generate_button ~button_text ~kind ~modify_parameters =
     let generate =
       let%bind.Effect { image = img; mask; blur_mask = _ } = get_images in
-      let%bind.Effect parameters = modify_parameters ~parameters ~image:img in
+      let%bind.Effect ctrlnet_image = get_ctrlnet in
+      let%bind.Effect parameters =
+        modify_parameters ~parameters ~image:img ~ctrlnet_image
+      in
       let parameters = override_prompt parameters in
       let dispatch ~id ~on_started =
         let parameters =
@@ -225,8 +386,12 @@ let component
     generate_button
       ~button_text:"[u]pscale"
       ~kind:(Img2img "upscaled")
-      ~modify_parameters:(fun ~(parameters : Sd_chain.Parameters.t) ~image ->
-        let params : Sd_chain.Parameters.t = modify_upscale ~parameters ~image in
+      ~modify_parameters:
+        (fun
+          ~(parameters : Sd_chain.Parameters.t) ~image ~ctrlnet_image ->
+        let params : Sd_chain.Parameters.t =
+          modify_upscale ~parameters ~image ~ctrlnet_image
+        in
         Effect.return
           { params with
             width = Int63.(params.width * of_int 2)
@@ -239,22 +404,24 @@ let component
     generate_button
       ~button_text:"ref[y]ne"
       ~kind:(Img2img "refined")
-      ~modify_parameters:(fun ~parameters ~image ->
-        Effect.return (modify_refine ~parameters ~image))
+      ~modify_parameters:(fun ~parameters ~image ~ctrlnet_image ->
+        Effect.return (modify_refine ~parameters ~image ~ctrlnet_image))
   in
   let reimagine_button, reimagine =
     generate_button
       ~button_text:"re[i]magine"
       ~kind:(Img2img "reimagined")
-      ~modify_parameters:(fun ~parameters ~image ->
-        Effect.return (modify_reimagine ~parameters ~image))
+      ~modify_parameters:(fun ~parameters ~image ~ctrlnet_image ->
+        Effect.return (modify_reimagine ~parameters ~image ~ctrlnet_image))
   in
   let switch_model_button, switch_model =
     generate_button
       ~button_text:"[o]ther model"
       ~kind:(Img2img "model")
-      ~modify_parameters:(fun ~parameters ~image ->
-        let params : Sd_chain.Parameters.t = modify_other_model ~parameters ~image in
+      ~modify_parameters:(fun ~parameters ~image ~ctrlnet_image ->
+        let params : Sd_chain.Parameters.t =
+          modify_other_model ~parameters ~image ~ctrlnet_image
+        in
         let%bind.Effect new_model =
           Effect.of_thunk (fun () ->
             match params.specific_model with
