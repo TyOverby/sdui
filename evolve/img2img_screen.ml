@@ -11,6 +11,7 @@ module P = Sd.Parameters.Individual
 let editor_view_for_ctrlnet_image
   ~remove_button
   ~clone_current_button
+  ~clone_parent_button
   (view : Sd_chain.Paint.View.t Bonsai.t)
   =
   let%arr { widget
@@ -28,6 +29,7 @@ let editor_view_for_ctrlnet_image
     =
     view
   and clone_current_button
+  and clone_parent_button
   and remove_button in
   View.hbox
     [ widget
@@ -37,6 +39,7 @@ let editor_view_for_ctrlnet_image
         ; alt_panel
         ; flip_button
         ; clone_current_button
+        ; clone_parent_button
         ; clone_button
         ; remove_button
         ]
@@ -178,6 +181,22 @@ let component
         editor_view_with_parameters editor.view ~parameters graph
       in
       let view =
+        let clone_parent_button =
+          let%arr theme = View.Theme.current graph
+          and set_ctrlnet_image
+          and dispatcher = Lease_pool.dispatcher lease_pool
+          and parent_img
+          and ~params:controlnet_params, ~view:_ = controlnet_fix_card in
+          View.button
+            theme
+            "clone parent"
+            ~on_click:
+              (extend_ctrlnet_setter
+                 ~dispatcher:(fun f -> dispatcher f)
+                 ~controlnet_params
+                 ~f:(fun image -> set_ctrlnet_image (Some image))
+                 parent_img)
+        in
         let clone_current_button =
           let%arr theme = View.Theme.current graph
           and get_images = editor.get_images
@@ -204,6 +223,7 @@ let component
           editor_view_for_ctrlnet_image
             ~remove_button
             ~clone_current_button
+            ~clone_parent_button
             ctrlnet_editor.view
         and view
         and ctrlnet_image in
@@ -471,25 +491,30 @@ let component
     in
     resize_card ~get_images ~set_result
   in
-  let view =
-    View.hbox
-      ~attrs:[ {%css|margin: 0.5em; align-items: flex-start;|} ]
-      ~gap:(`Em_float 0.5)
-      [ img_view
-      ; Vdom.Node.div ~attrs:[ {%css|flex-grow:1;|} ] []
-      ; View.hbox_wrap
-          ~row_gap:(`Em_float 0.5)
-          ~column_gap:(`Em_float 0.5)
-          ~cross_axis_alignment:Start
-          [ upscale_view ~button:upscale_button
-          ; refine_view ~button:refine_button
-          ; reimagine_view ~button:reimagine_button
-          ; other_model_view ~button:switch_model_button
-          ; controlnet_view ~button:ctrlnet_detect
-          ; resize_card
-          ; edit_button
-          ]
-      ]
+  let view ~state_tree =
+    let view =
+      View.hbox
+        ~attrs:[ {%css|margin: 0.5em; align-items: flex-start;|} ]
+        ~gap:(`Em_float 0.5)
+        [ img_view
+        ; Vdom.Node.div ~attrs:[ {%css|flex-grow:1;|} ] []
+        ; View.hbox_wrap
+            ~row_gap:(`Em_float 0.5)
+            ~column_gap:(`Em_float 0.5)
+            ~cross_axis_alignment:Start
+            [ upscale_view ~button:upscale_button
+            ; refine_view ~button:refine_button
+            ; reimagine_view ~button:reimagine_button
+            ; other_model_view ~button:switch_model_button
+            ; controlnet_view ~button:ctrlnet_detect
+            ; resize_card
+            ; edit_button
+            ]
+        ; state_tree
+        ]
+    in
+    (* Vdom.Node.none *)
+    view
   in
   let key_commands =
     Vdom_keyboard.Keyboard_event_handler.of_command_list_exn

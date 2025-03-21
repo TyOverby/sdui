@@ -18,13 +18,13 @@ let ui (local_ graph) =
   let tab, set_tab = Bonsai.state Tab.default graph in
   let which =
     match%sub tab with
-    | Gen -> Sd_chain.component graph[@nontail]
-    | Comp -> Comp.component graph[@nontail]
+    | Gen -> Sd_chain.component graph [@nontail]
+    | Comp -> Comp.component graph [@nontail]
     | Evolve -> Evolve.component graph [@nontail]
   in
-  let%arr which = which
-  and tab = tab
-  and set_tab = set_tab
+  let%arr which
+  and tab
+  and set_tab
   and theme = View.Theme.current graph in
   View.vbox
     [ View.tabs_enum
@@ -39,6 +39,6 @@ let ui (local_ graph) =
 let () =
   Bonsai_web.Start.start
     (View.Theme.set_for_app
-       (Bonsai.return (Kado.theme ~style:Dark ~version:Bleeding ()))
+       (Bonsai.return (Kado.theme ~style:Light ~version:Bleeding ()))
        (fun graph -> ui graph [@nontail]))
 ;;

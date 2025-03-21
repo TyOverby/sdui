@@ -9,10 +9,13 @@ module P = Sd.Parameters.Individual
 let none_screen ~inject graph =
   let%arr theme = View.Theme.current graph
   and inject in
-  let view =
-    Vdom.Node.div
-      [ Vdom.Node.text "none_screen"
-      ; View.button theme "new series" ~on_click:(inject Image_tree.Action.Add_root)
+  let view ~state_tree =
+    View.hbox
+      [ Vdom.Node.div
+          [ Vdom.Node.text "none_screen"
+          ; View.button theme "new series" ~on_click:(inject Image_tree.Action.Add_root)
+          ]
+      ; state_tree
       ]
   in
   view, Vdom_keyboard.Keyboard_event_handler.of_command_list_exn [], None
@@ -492,7 +495,8 @@ let component (local_ graph) =
           view, kbd, None
         | Some (_, _, Finished { parent_image = None; _ }) ->
           Bonsai.return
-            ( Vdom.Node.text "somehow no parent image"
+            ( (fun ~state_tree ->
+                View.hbox [ Vdom.Node.text "somehow no parent image"; state_tree ])
             , Vdom_keyboard.Keyboard_event_handler.of_command_list_exn []
             , None )
         | Some (id, Edit, Finished { image; parent_image = Some parent_image; parameters })
@@ -534,7 +538,7 @@ let component (local_ graph) =
             graph
         | _ ->
           Bonsai.return
-            ( Vdom.Node.none
+            ( (fun ~state_tree -> state_tree)
             , Vdom_keyboard.Keyboard_event_handler.of_command_list_exn []
             , None ))
   in
@@ -632,12 +636,13 @@ let component (local_ graph) =
            subview_handlers)
         event)
   in
-  Snips.right ~scroll:(Snips.Scroll_config.only_on_primary ~gutter:`Stable ()) state_tree
-  |+| Snips.top (View.hbox [ hosts_view; queue_view ])
+  (* Snips.right ~scroll:(Snips.Scroll_config.only_on_primary ~gutter:`Stable ()) state_tree *)
+  (* |+|  *)
+  Snips.top (View.hbox [ hosts_view; queue_view ])
   |+| Option.value_map
         children_of_current
         ~f:(Snips.bottom ~attr:{%css| max-height: 30vh; |})
         ~default:(Snips.bottom Vdom.Node.none)
-  |+| Snips.body ~attr:handler main_viewport
+  |+| Snips.body ~attr:handler (main_viewport ~state_tree)
   |> Snips.render
 ;;

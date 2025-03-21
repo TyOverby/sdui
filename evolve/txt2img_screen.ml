@@ -79,11 +79,14 @@ let component
           "generate"
       , generate )
   in
-  let view =
-    View.vbox
-      [ Vdom.Node.div
-          [ Form.view parameters ~direction:`Horizontal ~theme ~reset:Effect.Ignore ]
-      ; generate_button
+  let view ~state_tree =
+    View.hbox
+      [ View.vbox
+          [ Vdom.Node.div
+              [ Form.view parameters ~direction:`Horizontal ~theme ~reset:Effect.Ignore ]
+          ; generate_button
+          ]
+      ; state_tree
       ]
   in
   let key_commands =
