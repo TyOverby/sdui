@@ -12,5 +12,6 @@ val component
   -> inject:(Image_tree.Action.t -> unit Ui_effect.t) Bonsai.t
   -> id:Image_tree.Unique_id.t Bonsai.t
   -> local_ Bonsai.graph
-  -> ((state_tree:Vdom.Node.t -> Vdom.Node.t) * Vdom_keyboard.Keyboard_event_handler.t)
+  -> ((state_tree:Vdom.Node.t -> host_monitor:Vdom.Node.t -> Vdom.Node.t)
+     * Vdom_keyboard.Keyboard_event_handler.t)
        Bonsai.t

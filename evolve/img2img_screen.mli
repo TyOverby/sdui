@@ -46,8 +46,9 @@ val component
   -> other_model_card:basic_card
   -> resize_card:resize_card
   -> controlnet_fix_card:(_, _, _, _, _) controlnet_fix_card
+  -> zoom:(float * Vdom.Node.t) Bonsai.t
   -> local_ Bonsai.graph
-  -> ((state_tree:Vdom.Node.t -> Vdom.Node.t)
+  -> ((state_tree:Vdom.Node.t -> host_monitor:Vdom.Node.t -> Vdom.Node.t)
      * Vdom_keyboard.Keyboard_event_handler.t
      * (Sd.Image.t -> unit Effect.t) option)
        Bonsai.t

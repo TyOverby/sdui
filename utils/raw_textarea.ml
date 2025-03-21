@@ -6,7 +6,7 @@ module Kado_textarea =
   stylesheet
     {|
   fieldset.cusom-textarea-fieldset {
-    width: fit-content;
+    /* width: fit-content; */
     padding: 0px;
     margin: 0.6em 0.25em 0.25em;
     border: 1px solid var(--border);

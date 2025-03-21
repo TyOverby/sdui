@@ -92,7 +92,7 @@ let editor_view_with_parameters
             ; blur_radius_slider
             ; layer_panel
             ; clear_button
-            ; forward_button = _
+            ; forward_button
             ; alt_panel
             ; flip_button
             ; clone_button
@@ -102,21 +102,19 @@ let editor_view_with_parameters
       view
     and pos_prompt
     and neg_prompt in
-    View.hbox
-      [ layer_panel
-      ; widget
-      ; View.vbox
-          [ color_picker
-          ; pen_size_slider
-          ; alt_panel
-          ; flip_button
-          ; clone_button
-          ; blur_radius_slider
-          ; blur_button
-          ; clear_button
-          ]
-      ; View.vbox [ Form.view pos_prompt; Form.view neg_prompt ]
-      ]
+    ( ~pos_prompt
+    , ~neg_prompt
+    , ~widget
+    , ~color_picker
+    , ~pen_size_slider
+    , ~blur_radius_slider
+    , ~layer_panel
+    , ~clear_button
+    , ~forward_button
+    , ~alt_panel
+    , ~flip_button
+    , ~clone_button
+    , ~blur_button )
   in
   override_prompt, view
 ;;
@@ -159,6 +157,7 @@ let component
   ~other_model_card
   ~resize_card
   ~controlnet_fix_card
+  ~zoom
   (local_ graph)
   =
   let ( ~get_images
@@ -227,10 +226,9 @@ let component
             ctrlnet_editor.view
         and view
         and ctrlnet_image in
-        View.vbox
-          [ view
-          ; (if Option.is_some ctrlnet_image then ctrlnet_editor_view else Vdom.Node.none)
-          ]
+        match ctrlnet_image with
+        | None -> `Editor_view (view, None)
+        | Some _ -> `Editor_view (view, Some ctrlnet_editor_view)
       in
       let set_paint_image =
         let%arr editor_setter = editor.requesting_set_paint_image
@@ -277,9 +275,12 @@ let component
       ( ~get_images
       , ~get_ctrlnet:(Bonsai.return (Effect.return None))
       , ~override_prompt:(Bonsai.return Fn.id)
-      , ~view:(img >>| Sd.Image.to_vdom)
+      , ~view:(img >>| Sd.Image.to_vdom >>| fun img -> `Image_view img)
       , ~set_ctrlnet_image:None
       , ~set_paint_image:(Bonsai.return None) ))
+  in
+  let settings_accordion_open, toggle_settings_accordion =
+    Bonsai.toggle ~default_model:false graph
   in
   let%arr parameters
   and theme = View.Theme.current graph
@@ -297,6 +298,9 @@ let component
   and resize_card
   and get_ctrlnet
   and override_prompt
+  and settings_accordion_open
+  and toggle_settings_accordion
+  and zoom, zoom_slider = zoom
   and set_ctrlnet_image = Bonsai.transpose_opt set_ctrlnet_image
   and set_paint_image in
   let ctrlnet_detect, _ctrlnet_detect_effect =
@@ -491,18 +495,80 @@ let component
     in
     resize_card ~get_images ~set_result
   in
-  let view ~state_tree =
-    let view =
-      View.hbox
-        ~attrs:[ {%css|margin: 0.5em; align-items: flex-start;|} ]
-        ~gap:(`Em_float 0.5)
-        [ img_view
-        ; Vdom.Node.div ~attrs:[ {%css|flex-grow:1;|} ] []
-        ; View.hbox_wrap
-            ~row_gap:(`Em_float 0.5)
-            ~column_gap:(`Em_float 0.5)
-            ~cross_axis_alignment:Start
-            [ upscale_view ~button:upscale_button
+  let view ~state_tree ~host_monitor =
+    let container_css =
+      {%css|
+      width:100%;
+      height:100%;
+
+      display: grid; 
+      grid-template-columns: 1fr auto auto; 
+      grid-template-rows: auto auto 1fr auto; 
+      gap: 0px 0px; 
+
+      & > * {
+        contain: paint;
+      }
+    |}
+    in
+    let host_monitor_css = {%css|
+      grid-area: 1 / 1 / 2 / 2;
+    |} in
+    let sidebar_css =
+      {%css|
+      grid-area: 1 / 3 / 5 / 4;
+      overflow:auto;
+    |}
+    in
+    let paint_opts_css = {%css|
+      grid-area: 1 / 2 / 3 / 3;
+    |} in
+    let zoom_css = {%css|
+      grid-area: 4 / 1 / 5 / 2;
+    |} in
+    let canvas_css =
+      {%css|
+      grid-area: 1 / 1 / 5 / 3;
+      display:flex; 
+      align-items: center ;
+      justify-content: center; 
+      overflow:clip;
+    |}
+    in
+    let canvas =
+      let css = {%css| transform: scale(%{ Virtual_dom.Dom_float.to_string zoom}); |} in
+      let contained =
+        match img_view with
+        | `Editor_view ((~widget, ..), _ctrlnet) -> widget
+        | `Image_view img -> img
+      in
+      Vdom.Node.div ~attrs:[ {%css| |} ] [ Vdom.Node.div ~attrs:[ css ] [ contained ] ]
+    in
+    let paint_opts =
+      let color_picker =
+        match img_view with
+        | `Editor_view
+            ((~color_picker, ~layer_panel, ~flip_button, ~pen_size_slider, ..), _ctrlnet)
+          ->
+          View.vbox
+            [ View.hbox [ layer_panel; color_picker ]; pen_size_slider; flip_button ]
+        | `Image_view _ -> Vdom.Node.none
+      in
+      color_picker
+    in
+    let sidebar =
+      let params =
+        let onclick = Vdom.Attr.on_click (fun _ -> toggle_settings_accordion) in
+        let section_title =
+          {%html|<%{View.vbox}> <h2 %{onclick} style="margin:0; padding:0;"> settings </h2> </>|}
+        in
+        if not settings_accordion_open
+        then section_title
+        else
+          View.vbox
+            ~gap:(`Em_float 0.5)
+            [ section_title
+            ; upscale_view ~button:upscale_button
             ; refine_view ~button:refine_button
             ; reimagine_view ~button:reimagine_button
             ; other_model_view ~button:switch_model_button
@@ -510,10 +576,30 @@ let component
             ; resize_card
             ; edit_button
             ]
-        ; state_tree
-        ]
+      in
+      match img_view with
+      | `Editor_view ((~pos_prompt, ~neg_prompt, ..), _ctrlnet) ->
+        {%html| 
+        <div> 
+          %{Form.view pos_prompt} 
+          %{Form.view neg_prompt} 
+          %{params} 
+          %{state_tree} 
+        </div> 
+        |}
+      | `Image_view _ -> {%html| <div> %{params}  %{state_tree} </div> |}
     in
-    (* Vdom.Node.none *)
+    let view =
+      {%html|
+    <div %{container_css}> 
+      <div %{canvas_css}> %{canvas} </div>
+      <div %{host_monitor_css}> %{host_monitor} </div>
+      <div %{sidebar_css}> %{sidebar} </div>
+      <div %{paint_opts_css}> %{paint_opts} </div>
+      <div %{zoom_css}> %{zoom_slider} </div>
+    </div>
+    |}
+    in
     view
   in
   let key_commands =

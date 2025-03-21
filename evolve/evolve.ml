@@ -9,13 +9,19 @@ module P = Sd.Parameters.Individual
 let none_screen ~inject graph =
   let%arr theme = View.Theme.current graph
   and inject in
-  let view ~state_tree =
-    View.hbox
-      [ Vdom.Node.div
-          [ Vdom.Node.text "none_screen"
-          ; View.button theme "new series" ~on_click:(inject Image_tree.Action.Add_root)
+  let view ~state_tree ~host_monitor =
+    View.vbox
+      [ host_monitor
+      ; View.hbox
+          [ Vdom.Node.div
+              [ Vdom.Node.text "none_screen"
+              ; View.button
+                  theme
+                  "new series"
+                  ~on_click:(inject Image_tree.Action.Add_root)
+              ]
+          ; state_tree
           ]
-      ; state_tree
       ]
   in
   view, Vdom_keyboard.Keyboard_event_handler.of_command_list_exn [], None
@@ -480,6 +486,19 @@ let component (local_ graph) =
   let upscale_card = upscale_card ~controlnet_fix_card graph in
   let other_model_card = other_model_card ~controlnet_fix_card graph in
   let resize_card = Resize_screen.component graph in
+  let zoom =
+    let form =
+      Form.Elements.Range.float
+        ~min:(Bonsai.return 0.1)
+        ~default:(Bonsai.return 1.0)
+        ~max:(Bonsai.return 5.0)
+        ~step:(Bonsai.return 0.001)
+        ()
+        graph
+    in
+    let%arr form in
+    Form.value_or_default form ~default:1.0, Form.view form
+  in
   let main_viewport =
     Bonsai.scope_model
       (module Image_tree.Optional_unique_id)
@@ -495,8 +514,9 @@ let component (local_ graph) =
           view, kbd, None
         | Some (_, _, Finished { parent_image = None; _ }) ->
           Bonsai.return
-            ( (fun ~state_tree ->
-                View.hbox [ Vdom.Node.text "somehow no parent image"; state_tree ])
+            ( (fun ~state_tree ~host_monitor ->
+                View.hbox
+                  [ Vdom.Node.text "somehow no parent image"; state_tree; host_monitor ])
             , Vdom_keyboard.Keyboard_event_handler.of_command_list_exn []
             , None )
         | Some (id, Edit, Finished { image; parent_image = Some parent_image; parameters })
@@ -516,6 +536,7 @@ let component (local_ graph) =
             ~resize_card
             ~is_image_editor:true
             ~controlnet_fix_card
+            ~zoom
             graph
         | Some
             (id, _desc, Finished { image; parent_image = Some parent_image; parameters })
@@ -535,10 +556,11 @@ let component (local_ graph) =
             ~resize_card
             ~is_image_editor:false
             ~controlnet_fix_card
+            ~zoom
             graph
         | _ ->
           Bonsai.return
-            ( (fun ~state_tree -> state_tree)
+            ( (fun ~state_tree ~host_monitor -> View.vbox [ state_tree; host_monitor ])
             , Vdom_keyboard.Keyboard_event_handler.of_command_list_exn []
             , None ))
   in
@@ -636,13 +658,11 @@ let component (local_ graph) =
            subview_handlers)
         event)
   in
-  (* Snips.right ~scroll:(Snips.Scroll_config.only_on_primary ~gutter:`Stable ()) state_tree *)
-  (* |+|  *)
-  Snips.top (View.hbox [ hosts_view; queue_view ])
-  |+| Option.value_map
-        children_of_current
-        ~f:(Snips.bottom ~attr:{%css| max-height: 30vh; |})
-        ~default:(Snips.bottom Vdom.Node.none)
-  |+| Snips.body ~attr:handler (main_viewport ~state_tree)
+  let host_monitor = View.hbox [ hosts_view; queue_view ] in
+  Option.value_map
+    children_of_current
+    ~f:(Snips.bottom ~attr:{%css| max-height: 30vh; |})
+    ~default:(Snips.bottom Vdom.Node.none)
+  |+| Snips.body ~attr:handler (main_viewport ~state_tree ~host_monitor)
   |> Snips.render
 ;;
