@@ -18,6 +18,7 @@ depends: [
   "js_of_ocaml"
   "yojson"
   "ppx_css"
+  "ppx_html"
   "incr_dom"
   "ppx_yojson_conv"
   "odoc" {with-doc}
