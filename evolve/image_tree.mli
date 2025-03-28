@@ -21,8 +21,8 @@ module Stage : sig
   module State : sig
     type t =
       | Initial
-      | Enqueued
-      | In_progress
+      | Enqueued of { parameters : Sd_chain.Parameters.t }
+      | In_progress of { parameters : Sd_chain.Parameters.t }
       | Finished of
           { parent_image : Sd.Image.t option
           ; image : Sd.Image.t
@@ -95,6 +95,7 @@ module Action : sig
     | Add of
         { parent_id : Unique_id.t
         ; stage : Stage.t
+        ; parameters : Sd_chain.Parameters.t
         ; dispatch :
             id:Unique_id.t
             -> on_started:unit Effect.t

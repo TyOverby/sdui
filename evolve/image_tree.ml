@@ -22,8 +22,8 @@ module Stage = struct
   module State = struct
     type t =
       | Initial
-      | Enqueued
-      | In_progress
+      | Enqueued of { parameters : Sd_chain.Parameters.t }
+      | In_progress of { parameters : Sd_chain.Parameters.t }
       | Finished of
           { parent_image : Sd.Image.t option
           ; image : Sd.Image.t
@@ -196,6 +196,7 @@ module Action = struct
     | Add of
         { parent_id : Unique_id.t
         ; stage : Stage.t
+        ; parameters : Sd_chain.Parameters.t
         ; dispatch :
             id:Unique_id.t -> on_started:unit Effect.t -> Sd.Image.t Or_error.t Effect.t
         ; on_complete : Sd.Image.t -> Stage.State.t
@@ -226,7 +227,7 @@ let state (local_ graph) =
           else Set.add model.starred id
         in
         { model with starred }
-      | Add { parent_id; stage = { desc; state }; dispatch; on_complete } ->
+      | Add { parent_id; stage = { desc; state }; dispatch; on_complete; parameters } ->
         let state, id = Model.add model ~parent_id ~desc ~state in
         Bonsai.Apply_action_context.schedule_event
           ctx
@@ -236,7 +237,7 @@ let state (local_ graph) =
                ~on_started:
                  (Bonsai.Apply_action_context.inject
                     ctx
-                    (Set { id; stage = { desc; state = In_progress } }))
+                    (Set { id; stage = { desc; state = In_progress { parameters } } }))
            with
            | Ok image ->
              Bonsai.Apply_action_context.inject
@@ -354,8 +355,8 @@ let render ~state ~current_id ~inject ~seen ~set_current_id ~override_on_click =
     let icon =
       match state with
       | Initial -> Feather.File_text
-      | Enqueued -> Feather.Upload
-      | In_progress -> Feather.Loader
+      | Enqueued _ -> Feather.Upload
+      | In_progress _ -> Feather.Loader
       | Finished _ -> Feather.Image
       | Error _ -> Feather.Alert_triangle
     in

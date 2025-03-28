@@ -63,8 +63,8 @@ let children_of_current ~current_id ~state ~set_current_id graph =
         let image =
           match stage.state with
           | Initial -> None
-          | Enqueued -> None
-          | In_progress -> None
+          | Enqueued _ -> None
+          | In_progress _ -> None
           | Finished { image; _ } ->
             Some
               (Sd.Image.to_vdom
@@ -555,6 +555,24 @@ let component (local_ graph) =
             ~inject
             ~img:image
             ~parent_img:parent_image
+            ~parameters
+            ~refine_card
+            ~reimagine_card
+            ~upscale_card
+            ~other_model_card
+            ~resize_card
+            ~is_image_editor:false
+            ~controlnet_fix_card
+            ~zoom
+            graph
+        | Some (id, _desc, (In_progress { parameters } | Enqueued { parameters })) ->
+          let empty_image = Bonsai.return Sd.Image.empty in
+          Img2img_screen.component
+            ~lease_pool
+            ~id
+            ~inject
+            ~img:empty_image
+            ~parent_img:empty_image
             ~parameters
             ~refine_card
             ~reimagine_card

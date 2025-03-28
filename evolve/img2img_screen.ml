@@ -363,9 +363,10 @@ let component
         inject
           (Image_tree.Action.Add
              { parent_id = id
-             ; stage = { desc = Ctrlnet; state = Enqueued }
+             ; stage = { desc = Ctrlnet; state = Enqueued { parameters } }
              ; dispatch
              ; on_complete
+             ; parameters
              })
     in
     View.button theme ~on_click:generate "detect", generate
@@ -418,9 +419,10 @@ let component
         inject
           (Image_tree.Action.Add
              { parent_id = id
-             ; stage = { desc = kind; state = Enqueued }
+             ; stage = { desc = kind; state = Enqueued { parameters } }
              ; dispatch
              ; on_complete
+             ; parameters
              })
       in
       View.button theme ~on_click:generate button_text, generate
@@ -508,9 +510,10 @@ let component
       inject
         (Image_tree.Action.Add
            { parent_id = id
-           ; stage = { desc = Edit; state = Enqueued }
+           ; stage = { desc = Edit; state = Enqueued { parameters } }
            ; dispatch
            ; on_complete
+           ; parameters
            })
     in
     let view = View.button theme "[p]aint" ~on_click:effect in
@@ -526,9 +529,10 @@ let component
       inject
         (Image_tree.Action.Add
            { parent_id = id
-           ; stage = { desc = Resize; state = Enqueued }
+           ; stage = { desc = Resize; state = Enqueued { parameters } }
            ; dispatch = (fun ~id:_ ~on_started:_ -> Effect.return (Ok img))
            ; on_complete
+           ; parameters
            })
     in
     resize_card ~get_images ~set_result
