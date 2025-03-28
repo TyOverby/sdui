@@ -27,6 +27,7 @@ module Style =
 
         .outline_layer {
           z-index:1;
+          /* mix-blend-mode:difference;*/
         }
 
         .mask_layer {

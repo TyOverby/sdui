@@ -118,5 +118,4 @@ val render
   -> seen:(Unique_id.t, 'a) Set.t Bonsai.t
   -> set_current_id:(Unique_id.t -> unit Effect.t) Bonsai.t
   -> override_on_click:(Sd.Image.t -> unit Effect.t) option Bonsai.t
-  -> local_ Bonsai.graph
   -> Vdom.Node.t Bonsai.t

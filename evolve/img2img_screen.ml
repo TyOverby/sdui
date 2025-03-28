@@ -7,6 +7,7 @@ module Feather = Feather_icon
 module Lease_pool = Sd_chain.Lease_pool
 module Images = Sd_chain.Paint.Images
 module P = Sd.Parameters.Individual
+module Size_tracker = Bonsai_web_ui_element_size_hooks.Size_tracker
 
 let editor_view_for_ctrlnet_image
   ~remove_button
@@ -282,14 +283,25 @@ let component
   let settings_accordion_open, toggle_settings_accordion =
     Bonsai.toggle ~default_model:false graph
   in
+  let inner_size, set_inner_size = Bonsai.state_opt graph in
+  let outer_size, set_outer_size = Bonsai.state_opt graph in
   let%arr parameters
   and theme = View.Theme.current graph
-  and models = Lease_pool.all lease_pool >>| Map.data
+  and models =
+    Lease_pool.all lease_pool
+    >>| Map.data
+    |> Bonsai.cutoff ~equal:[%equal: Sd.Hosts.Current_model.t list]
   and id
   and dispatcher = Lease_pool.dispatcher lease_pool
   and inject
   and get_images
   and img_view
+  and inner_size =
+    Bonsai.cutoff inner_size ~equal:[%equal: Size_tracker.Dimensions.t option]
+  and set_inner_size
+  and outer_size =
+    Bonsai.cutoff outer_size ~equal:[%equal: Size_tracker.Dimensions.t option]
+  and set_outer_size
   and ~params:controlnet_params, ~view:controlnet_view = controlnet_fix_card
   and ~modifier:modify_refine, ~view:refine_view = refine_card
   and ~modifier:modify_reimagine, ~view:reimagine_view = reimagine_card
@@ -297,6 +309,7 @@ let component
   and ~modifier:modify_other_model, ~view:other_model_view = other_model_card
   and resize_card
   and get_ctrlnet
+  and img
   and override_prompt
   and settings_accordion_open
   and toggle_settings_accordion
@@ -536,13 +549,44 @@ let component
     |}
     in
     let canvas =
-      let css = {%css| transform: scale(%{ Virtual_dom.Dom_float.to_string zoom}); |} in
+      let css =
+        let zoom =
+          match inner_size, outer_size with
+          | ( Some
+                { Size_tracker.Dimensions.border_box =
+                    { width = inner_width; height = inner_height }
+                ; _
+                }
+            , Some
+                { Size_tracker.Dimensions.border_box =
+                    { width = outer_width; height = outer_height }
+                ; _
+                } ) ->
+            let rat_w = inner_width /. outer_width in
+            let rat_h = inner_height /. outer_height in
+            let biggest_rat = Float.max rat_w rat_h in
+            1.0 /. biggest_rat *. zoom
+          | _ -> 1.0
+        in
+        {%css| transform: scale(%{ Virtual_dom.Dom_float.to_string zoom}); |}
+      in
       let contained =
         match img_view with
         | `Editor_view ((~widget, ..), _ctrlnet) -> widget
         | `Image_view img -> img
       in
-      Vdom.Node.div ~attrs:[ {%css| |} ] [ Vdom.Node.div ~attrs:[ css ] [ contained ] ]
+      let size =
+        match Sd.Image.size img with
+        | None ->
+          print_endline "no image size";
+          Vdom.Attr.empty
+        | Some (w, h) ->
+          print_endline "got image size";
+          {%css| width: %{ Int63.to_string w ^ "px"};  height: %{ Int63.to_string h ^ "px"};  |}
+      in
+      Vdom.Node.div
+        ~attrs:[ Size_tracker.on_change (fun dims -> set_inner_size (Some dims)) ]
+        [ Vdom.Node.div ~attrs:[ css; size ] [ contained ] ]
     in
     let paint_opts =
       let color_picker =
@@ -589,14 +633,23 @@ let component
         |}
       | `Image_view _ -> {%html| <div> %{params}  %{state_tree} </div> |}
     in
+    let zoom =
+      let size =
+        match inner_size with
+        | None -> Vdom.Node.none
+        | Some { border_box = { width; height }; content_box = _ } ->
+          Vdom.Node.textf "%d x %d" (Float.to_int width) (Float.to_int height)
+      in
+      View.hbox ~gap:(`Em 1) [ zoom_slider; size ]
+    in
     let view =
       {%html|
     <div %{container_css}> 
-      <div %{canvas_css}> %{canvas} </div>
+      <div %{canvas_css} %{Size_tracker.on_change (fun dims -> set_outer_size (Some dims))}>%{canvas}</div>
       <div %{host_monitor_css}> %{host_monitor} </div>
       <div %{sidebar_css}> %{sidebar} </div>
       <div %{paint_opts_css}> %{paint_opts} </div>
-      <div %{zoom_css}> %{zoom_slider} </div>
+      <div %{zoom_css}> %{zoom} </div>
     </div>
     |}
     in

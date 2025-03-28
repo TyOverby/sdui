@@ -463,9 +463,10 @@ function painter_init(input, paint_input, mask_input, blur_mask_input) {
             var r = image_data.data[0];
             var g = image_data.data[1];
             var b = image_data.data[2];
-            var inverse = "rgb(" + (255 - r) + "," + (255 - g) + "," + (255 - b) + ")";
-            outline_ctx.strokeStyle = inverse;
+            //var inverse = "rgb(" + (255 - r) + "," + (255 - g) + "," + (255 - b) + ")";
+            outline_ctx.strokeStyle = "rgb(255,255,255)";
             if (event.shiftKey) {
+                outline_canvas.style.mixBlendMode = "normal"
                 state.color = "rgb(" + r + "," + g + "," + b + ")";
                 state.onColorChange(rgbToHex(r, g, b));
 
@@ -479,6 +480,8 @@ function painter_init(input, paint_input, mask_input, blur_mask_input) {
                 outline_ctx.ellipse(x, y, state.penSize, state.penSize, 0, 0, Math.PI * 2);
                 outline_ctx.fill();
                 outline_ctx.globalCompositeOperation = 'source-over';
+            } else {
+                outline_canvas.style.mixBlendMode = "difference"
             }
 
             outline_ctx.beginPath();

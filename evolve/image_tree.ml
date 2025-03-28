@@ -248,19 +248,10 @@ let state (local_ graph) =
 let ul_styles = {%css| list-style-type:none; padding-left:20px; user-select:none; |}
 let li_styles = {%css| margin:0; padding:0; |}
 
-let render
-  ~state
-  ~current_id
-  ~inject
-  ~seen
-  ~set_current_id
-  ~override_on_click
-  (local_ graph)
-  =
+let render ~state ~current_id ~inject ~seen ~set_current_id ~override_on_click =
   let%arr state
   and current_id
   and inject
-  and theme = View.Theme.current graph
   and seen
   and set_current_id
   and override_on_click in
@@ -424,10 +415,5 @@ let render
         ~attrs:[ ul_styles ]
         (List.map tree_structure ~f:(fun child ->
            Vdom.Node.li [ loop ~only_child:false ~deindented:false child ]))
-    ; View.button
-        theme
-        "New Prompt"
-        ~attrs:[ {%css| width: 100%; text-align: center; |} ]
-        ~on_click:(inject Action.Add_root)
     ]
 ;;

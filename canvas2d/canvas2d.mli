@@ -208,4 +208,6 @@ and Image : sig
     -> fill_color:string
     -> on_load:(Image.t -> unit)
     -> unit
+
+  val resize : t -> w:int -> h:int -> on_load:(Image.t -> unit) -> unit
 end

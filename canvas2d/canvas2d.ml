@@ -391,7 +391,6 @@ module Image1 = struct
     match left, right, top, bottom with
     | 0, 0, 0, 0 -> on_load img
     | _ ->
-      print_s [%message "adding padding" (left : int)];
       let canvas =
         Canvas2.create
           ~width:(width img + left + right)
@@ -407,6 +406,13 @@ module Image1 = struct
         ctx;
       Ctx2d1.draw_image ctx img ~x:(Float.of_int left) ~y:(Float.of_int top);
       of_ctx ctx ~on_load
+  ;;
+
+  let resize (img : Image0.t) ~w ~h ~on_load =
+    let canvas = Canvas2.create ~width:w ~height:h in
+    let ctx = Canvas2.ctx2d canvas in
+    Ctx2d1.draw_image ctx img ~x:0.0 ~y:0.0 ~w:(Float.of_int w) ~h:(Float.of_int h);
+    of_ctx ctx ~on_load
   ;;
 end
 

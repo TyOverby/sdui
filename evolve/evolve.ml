@@ -489,9 +489,9 @@ let component (local_ graph) =
   let zoom =
     let form =
       Form.Elements.Range.float
-        ~min:(Bonsai.return 0.1)
+        ~min:(Bonsai.return 0.0)
         ~default:(Bonsai.return 1.0)
-        ~max:(Bonsai.return 5.0)
+        ~max:(Bonsai.return 2.0)
         ~step:(Bonsai.return 0.001)
         ()
         graph
@@ -560,7 +560,8 @@ let component (local_ graph) =
             graph
         | _ ->
           Bonsai.return
-            ( (fun ~state_tree ~host_monitor -> View.vbox [ state_tree; host_monitor ])
+            ( (fun ~state_tree ~host_monitor ->
+                View.hbox ~main_axis_alignment:Space_between [ host_monitor; state_tree ])
             , Vdom_keyboard.Keyboard_event_handler.of_command_list_exn []
             , None ))
   in
@@ -572,7 +573,6 @@ let component (local_ graph) =
       ~seen
       ~set_current_id
       ~override_on_click:(main_viewport >>| Tuple3.get3)
-      graph
   in
   let global_keyboard_handlers =
     let%arr current_id and state and set_current_id and inject in

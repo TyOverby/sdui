@@ -39,6 +39,6 @@ let ui (local_ graph) =
 let () =
   Bonsai_web.Start.start
     (View.Theme.set_for_app
-       (Bonsai.return (Kado.theme ~style:Light ~version:Bleeding ()))
+       (Bonsai.return (Kado.theme ~style:Dark ~version:Bleeding ()))
        (fun graph -> ui graph [@nontail]))
 ;;
