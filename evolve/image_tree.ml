@@ -125,6 +125,10 @@ module Model = struct
       in
       loop (linearize ~drop_children_of t_list)
     ;;
+
+    let rec is_or_contains { id; children; _ } ~id:needle =
+      Unique_id.equal id needle || List.exists children ~f:(is_or_contains ~id:needle)
+    ;;
   end
 
   let tree_structure { images; children; roots; _ } =
@@ -266,20 +270,24 @@ let render ~state ~current_id ~inject ~seen ~set_current_id ~override_on_click =
         padding: 3px 5px; 
         border:2px solid transparent;
         border-radius: 5px;
+        background: rgba(0,0,0,0.5);
+        backgdrop-filter: blur(10px);
+        margin: 2px;
         |}
   in
   let maybe_highlight ~state ~id =
-    let selected_attrs =
-      if [%equal: Unique_id.t option] (Some id) current_id
-      then {%css| border-color: #1ba1f2; |}
-      else Vdom.Attr.empty
-    in
     let seen_attrs =
       if not (Set.mem seen id)
       then (
         match state with
-        | Stage.State.Finished _ | Error _ -> {%css| background: #1bf2372e; |}
+        | Stage.State.Finished _ | Error _ ->
+          {%css| background: #20592794; border: 2px solid  #91df94 |}
         | _ -> Vdom.Attr.empty)
+      else Vdom.Attr.empty
+    in
+    let selected_attrs =
+      if [%equal: Unique_id.t option] (Some id) current_id
+      then {%css| border-color: #1ba1f2; |}
       else Vdom.Attr.empty
     in
     Vdom.Attr.many [ selected_attrs; seen_attrs ]
@@ -362,7 +370,14 @@ let render ~state ~current_id ~inject ~seen ~set_current_id ~override_on_click =
       let children =
         if only_have_one_child || i_am_selected || child_of_mine_is_selected
         then children
-        else List.filter children ~f:(fun { id; _ } -> not (is_starred id))
+        else
+          List.filter children ~f:(fun ({ id; _ } as t) ->
+            let is_or_contains_selected =
+              match current_id with
+              | None -> false
+              | Some id -> Model.Tree_structure.is_or_contains t ~id
+            in
+            (not (is_starred id)) || is_or_contains_selected)
       in
       match children with
       | [] -> Vdom.Node.none
@@ -395,7 +410,11 @@ let render ~state ~current_id ~inject ~seen ~set_current_id ~override_on_click =
                  ~size:(`Em 1)
                  Corner_down_right
              else Vdom.Node.none)
-          ; Feather.svg ~extra_attrs:[ {%css| margin-right: 0.5em; |} ] ~size:(`Em 1) icon
+          ; Feather.svg
+              ~stroke_width:(`Px 1)
+              ~extra_attrs:[ {%css| margin-right: 0.5em; |} ]
+              ~size:(`Em 1)
+              icon
           ; Vdom.Node.text (Stage.Kind.to_string desc)
           ; Feather.svg
               ~extra_attrs:

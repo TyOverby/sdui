@@ -176,7 +176,9 @@ module Alt_panel = struct
             ; Vdom.Attr.on_click (fun _ -> set_alt Erase)
             ; Style.layer
             ]
-          [ Feather_icon.svg ~size:(`Px 16) Trash; Vdom.Node.text "Erase" ]
+          [ Feather_icon.svg ~stroke_width:(`Px 1) ~size:(`Px 16) Trash
+          ; Vdom.Node.text "Erase"
+          ]
       in
       let scramble_box =
         View.hbox
@@ -187,7 +189,9 @@ module Alt_panel = struct
             ; Vdom.Attr.on_click (fun _ -> set_alt Shuffle)
             ; Style.layer
             ]
-          [ Feather_icon.svg Minimize ~size:(`Px 16); Vdom.Node.text "Shuffle" ]
+          [ Feather_icon.svg ~stroke_width:(`Px 1) ~size:(`Px 16) Minimize
+          ; Vdom.Node.text "Shuffle"
+          ]
       in
       let colors =
         let { View.Fg_bg.foreground; background } = View.intent_colors theme Info in
@@ -253,6 +257,7 @@ module Layer_panel = struct
             ]
           [ Feather_icon.svg
               (if paint_visible then Eye else Eye_off)
+              ~stroke_width:(`Px 1)
               ~size:(`Px 16)
               ~extra_attrs:
                 [ Vdom.Attr.on_click (fun _ ->
@@ -272,6 +277,7 @@ module Layer_panel = struct
             ]
           [ Feather_icon.svg
               (if mask_visible then Eye else Eye_off)
+              ~stroke_width:(`Px 1)
               ~size:(`Px 16)
               ~extra_attrs:
                 [ Vdom.Attr.on_click (fun _ ->
@@ -291,6 +297,7 @@ module Layer_panel = struct
             ]
           [ Feather_icon.svg
               (if blur_visible then Eye else Eye_off)
+              ~stroke_width:(`Px 1)
               ~size:(`Px 16)
               ~extra_attrs:
                 [ Vdom.Attr.on_click (fun _ ->

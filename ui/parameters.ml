@@ -50,14 +50,14 @@ let component
   in
   let pos_prompt =
     P.prompt_form
-      ~default:"! score_9, score_8_up, score_7_up,\n"
+      ~default:(Bonsai.return "! score_9, score_8_up, score_7_up,\n")
       ~container_attrs:[ {%css| flex-grow: 2 |} ]
       ~textarea_attrs:[ Vdom.Attr.create "data-kind" "prompt" ]
       ~label:"prompt"
       graph
   and neg_prompt =
     P.prompt_form
-      ~default:"! score_1, score_2, score_3,\n"
+      ~default:(Bonsai.return "! score_1, score_2, score_3,\n")
       ~container_attrs:[ {%css| flex-grow: 1 |} ]
       ~label:"negative"
       graph

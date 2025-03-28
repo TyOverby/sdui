@@ -5,6 +5,13 @@ module Snips = Shared.Snips
 module Form = Bonsai_web_ui_form.With_manual_view
 module Lease_pool = Sd_chain.Lease_pool
 module P = Sd.Parameters.Individual
+module Toplayer = Bonsai_web_ui_toplayer
+
+module _ = [%css stylesheet {|
+  svg * {
+    vector-effect: non-scaling-stroke;
+    }
+|}]
 
 let none_screen ~inject graph =
   let%arr theme = View.Theme.current graph
@@ -658,7 +665,7 @@ let component (local_ graph) =
            subview_handlers)
         event)
   in
-  let host_monitor = View.hbox [ hosts_view; queue_view ] in
+  let host_monitor = View.hbox ~cross_axis_alignment:Center [ queue_view; hosts_view ] in
   Option.value_map
     children_of_current
     ~f:(Snips.bottom ~attr:{%css| max-height: 30vh; |})

@@ -8,6 +8,7 @@ module Lease_pool = Sd_chain.Lease_pool
 module Images = Sd_chain.Paint.Images
 module P = Sd.Parameters.Individual
 module Size_tracker = Bonsai_web_ui_element_size_hooks.Size_tracker
+module Toplayer = Bonsai_web_ui_toplayer
 
 let editor_view_for_ctrlnet_image
   ~remove_button
@@ -47,27 +48,45 @@ let editor_view_for_ctrlnet_image
     ]
 ;;
 
-let editor_view_with_parameters
-  ~parameters
-  (view : Sd_chain.Paint.View.t Bonsai.t)
-  (local_ graph)
+let prompt_boxes ?(textarea_attrs = []) ?(container_attrs = []) ~parameters (local_ graph)
   =
   let pos_prompt =
     P.prompt_form
-      ~default:"! score_9, score_8_up, score_7_up,\n"
-      ~container_attrs:[ {%css| flex-grow: 2 |} ]
-      ~textarea_attrs:[ Vdom.Attr.create "data-kind" "prompt" ]
+      ~default:
+        (match%arr parameters with
+         | { Sd_chain.Parameters.pos_prompt = s; _ } -> s)
+      ~container_attrs:({%css| flex-grow: 2 |} :: container_attrs)
+      ~textarea_attrs:(Vdom.Attr.create "data-kind" "prompt" :: textarea_attrs)
       ~label:"prompt"
       graph
   in
   let neg_prompt =
     P.prompt_form
-      ~default:"! score_1, score_2, score_3,\n"
-      ~container_attrs:[ {%css| flex-grow: 2 |} ]
-      ~textarea_attrs:[ Vdom.Attr.create "data-kind" "neg-prompt" ]
+      ~default:
+        (match%arr parameters with
+         | { Sd_chain.Parameters.neg_prompt = s; _ } -> s)
+      ~container_attrs:({%css| flex-grow: 2 |} :: container_attrs)
+      ~textarea_attrs:(Vdom.Attr.create "data-kind" "neg-prompt" :: textarea_attrs)
       ~label:"neg-prompt"
       graph
   in
+  let _ : unit Bonsai.t =
+    Bonsai_extra.exactly_once
+      (let%arr { Form.set = set_pos_prompt; _ } = pos_prompt
+       and { Form.set = set_neg_prompt; _ } = neg_prompt
+       and { Sd_chain.Parameters.pos_prompt; neg_prompt; _ } = parameters in
+       Effect.Many [ set_pos_prompt pos_prompt; set_neg_prompt neg_prompt ])
+      graph
+  in
+  ~pos_prompt, ~neg_prompt
+;;
+
+let editor_view_with_parameters
+  ~parameters
+  (view : Sd_chain.Paint.View.t Bonsai.t)
+  (local_ graph)
+  =
+  let ~pos_prompt, ~neg_prompt = prompt_boxes ~parameters graph in
   let override_prompt =
     let%arr { Form.value = pos_prompt; _ } = pos_prompt
     and { Form.value = neg_prompt; _ } = neg_prompt in
@@ -77,14 +96,6 @@ let editor_view_with_parameters
       | Error _, Ok neg_prompt -> { params with neg_prompt }
       | Ok pos_prompt, Ok neg_prompt -> { params with pos_prompt; neg_prompt }
       | Error _, Error _ -> params
-  in
-  let _ : unit Bonsai.t =
-    Bonsai_extra.exactly_once
-      (let%arr { Form.set = set_pos_prompt; _ } = pos_prompt
-       and { Form.set = set_neg_prompt; _ } = neg_prompt
-       and { Sd_chain.Parameters.pos_prompt; neg_prompt; _ } = parameters in
-       Effect.Many [ set_pos_prompt pos_prompt; set_neg_prompt neg_prompt ])
-      graph
   in
   let view =
     let%arr { widget
@@ -146,8 +157,8 @@ let component
         , Sd.Hosts.Current_model.t
         , Sd.Hosts.Host.comparator_witness )
         Lease_pool.t)
-  ~inject
-  ~id
+  ~(inject : _ Bonsai.t)
+  ~(id : _ Bonsai.t)
   ~img
   ~parent_img
   ~is_image_editor
@@ -156,7 +167,7 @@ let component
   ~reimagine_card
   ~upscale_card
   ~other_model_card
-  ~resize_card
+  ~(resize_card : _ Bonsai.t)
   ~controlnet_fix_card
   ~zoom
   (local_ graph)
@@ -269,54 +280,40 @@ let component
       , ~set_ctrlnet_image:(Some set_ctrlnet_image)
       , ~set_paint_image ))
     else (
+      let ~pos_prompt, ~neg_prompt =
+        prompt_boxes
+          ~parameters
+          ~container_attrs:[ {%css| opacity: 0.7; |} ]
+          ~textarea_attrs:[ Vdom.Attr.disabled ]
+          graph
+      in
       let get_images =
         let%arr img in
         Effect.return { Images.image = img; mask = None; blur_mask = None }
       in
+      let view =
+        let%arr img and pos_prompt and neg_prompt in
+        let img = Sd.Image.to_vdom img in
+        `Image_view (~pos_prompt, ~neg_prompt, ~img)
+      in
       ( ~get_images
       , ~get_ctrlnet:(Bonsai.return (Effect.return None))
       , ~override_prompt:(Bonsai.return Fn.id)
-      , ~view:(img >>| Sd.Image.to_vdom >>| fun img -> `Image_view img)
+      , ~view
       , ~set_ctrlnet_image:None
       , ~set_paint_image:(Bonsai.return None) ))
   in
-  let settings_accordion_open, toggle_settings_accordion =
-    Bonsai.toggle ~default_model:false graph
-  in
   let inner_size, set_inner_size = Bonsai.state_opt graph in
   let outer_size, set_outer_size = Bonsai.state_opt graph in
-  let%arr parameters
-  and theme = View.Theme.current graph
-  and models =
-    Lease_pool.all lease_pool
-    >>| Map.data
-    |> Bonsai.cutoff ~equal:[%equal: Sd.Hosts.Current_model.t list]
-  and id
-  and dispatcher = Lease_pool.dispatcher lease_pool
-  and inject
-  and get_images
-  and img_view
-  and inner_size =
-    Bonsai.cutoff inner_size ~equal:[%equal: Size_tracker.Dimensions.t option]
-  and set_inner_size
-  and outer_size =
-    Bonsai.cutoff outer_size ~equal:[%equal: Size_tracker.Dimensions.t option]
-  and set_outer_size
-  and ~params:controlnet_params, ~view:controlnet_view = controlnet_fix_card
-  and ~modifier:modify_refine, ~view:refine_view = refine_card
-  and ~modifier:modify_reimagine, ~view:reimagine_view = reimagine_card
-  and ~modifier:modify_upscale, ~view:upscale_view = upscale_card
-  and ~modifier:modify_other_model, ~view:other_model_view = other_model_card
-  and resize_card
-  and get_ctrlnet
-  and img
-  and override_prompt
-  and settings_accordion_open
-  and toggle_settings_accordion
-  and zoom, zoom_slider = zoom
-  and set_ctrlnet_image = Bonsai.transpose_opt set_ctrlnet_image
-  and set_paint_image in
-  let ctrlnet_detect, _ctrlnet_detect_effect =
+  let%sub ctrlnet_detect, _ctrlnet_detect_effect =
+    let%arr get_images
+    and parameters
+    and id
+    and inject
+    and dispatcher = Lease_pool.dispatcher lease_pool
+    and ~params:controlnet_params, ~view:_ = controlnet_fix_card
+    and set_ctrlnet_image = Bonsai.transpose_opt set_ctrlnet_image
+    and theme = View.Theme.current graph in
     let generate =
       let%bind.Effect { image = img; mask = _; blur_mask = _ } = get_images in
       let dispatch ~id ~on_started =
@@ -373,53 +370,64 @@ let component
     in
     View.button theme ~on_click:generate "detect", generate
   in
-  let generate_button ~button_text ~kind ~modify_parameters =
-    let generate =
-      let%bind.Effect { image = img; mask; blur_mask = _ } = get_images in
-      let%bind.Effect ctrlnet_image = get_ctrlnet in
-      let%bind.Effect parameters =
-        modify_parameters ~parameters ~image:img ~ctrlnet_image
-      in
-      let parameters = override_prompt parameters in
-      let dispatch ~id ~on_started =
-        let parameters =
-          { parameters with
-            Sd_chain.Parameters.seed = Int63.of_int (Image_tree.Unique_id.to_int_exn id)
-          }
+  let generate_button =
+    let%arr theme = View.Theme.current graph
+    and get_images
+    and get_ctrlnet
+    and override_prompt
+    and id
+    and inject
+    and dispatcher = Lease_pool.dispatcher lease_pool
+    and parameters in
+    fun ~button_text ~kind ~modify_parameters ->
+      let generate =
+        let%bind.Effect { image = img; mask; blur_mask = _ } = get_images in
+        let%bind.Effect ctrlnet_image = get_ctrlnet in
+        let%bind.Effect parameters =
+          modify_parameters ~parameters ~image:img ~ctrlnet_image
         in
-        let pred =
-          Option.map
-            parameters.specific_model
-            ~f:(fun specific_model _host current_model ->
-              Sd.Hosts.Current_model.equal current_model specific_model)
+        let parameters = override_prompt parameters in
+        let dispatch ~id ~on_started =
+          let parameters =
+            { parameters with
+              Sd_chain.Parameters.seed = Int63.of_int (Image_tree.Unique_id.to_int_exn id)
+            }
+          in
+          let pred =
+            Option.map
+              parameters.specific_model
+              ~f:(fun specific_model _host current_model ->
+                Sd.Hosts.Current_model.equal current_model specific_model)
+          in
+          dispatcher ?pred (fun get_host ->
+            match get_host with
+            | Error e -> Effect.return (Error e)
+            | Ok (host, _current_model) ->
+              let%bind.Effect () = on_started in
+              (match%map.Effect
+                 Sd.Img2img.dispatch
+                   ~host_and_port:(host :> string)
+                   { (Sd_chain.Parameters.for_img2img parameters) with image = img; mask }
+               with
+               | Ok (img, _) -> Ok img
+               | Error e -> Error e))
         in
-        dispatcher ?pred (fun get_host ->
-          match get_host with
-          | Error e -> Effect.return (Error e)
-          | Ok (host, _current_model) ->
-            let%bind.Effect () = on_started in
-            (match%map.Effect
-               Sd.Img2img.dispatch
-                 ~host_and_port:(host :> string)
-                 { (Sd_chain.Parameters.for_img2img parameters) with image = img; mask }
-             with
-             | Ok (img, _) -> Ok img
-             | Error e -> Error e))
+        let on_complete image =
+          Image_tree.Stage.State.Finished { image; parent_image = Some img; parameters }
+        in
+        inject
+          (Image_tree.Action.Add
+             { parent_id = id
+             ; stage = { desc = kind; state = Enqueued }
+             ; dispatch
+             ; on_complete
+             })
       in
-      let on_complete image =
-        Image_tree.Stage.State.Finished { image; parent_image = Some img; parameters }
-      in
-      inject
-        (Image_tree.Action.Add
-           { parent_id = id
-           ; stage = { desc = kind; state = Enqueued }
-           ; dispatch
-           ; on_complete
-           })
-    in
-    View.button theme ~on_click:generate button_text, generate
+      View.button theme ~on_click:generate button_text, generate
   in
-  let upscale_button, upscale =
+  let%sub upscale_button, upscale =
+    let%arr generate_button
+    and ~modifier:modify_upscale, ~view:_ = upscale_card in
     generate_button
       ~button_text:"[u]pscale"
       ~kind:(Img2img "upscaled")
@@ -437,21 +445,32 @@ let component
           ; steps = Int63.of_int 50
           })
   in
-  let refine_button, refine =
+  let%sub refine_button, refine =
+    let%arr generate_button
+    and ~modifier:modify_refine, ~view:_ = refine_card in
     generate_button
       ~button_text:"ref[y]ne"
       ~kind:(Img2img "refined")
       ~modify_parameters:(fun ~parameters ~image ~ctrlnet_image ->
         Effect.return (modify_refine ~parameters ~image ~ctrlnet_image))
   in
-  let reimagine_button, reimagine =
+  let%sub reimagine_button, reimagine =
+    let%arr generate_button
+    and ~modifier:modify_reimagine, ~view:_ = reimagine_card in
     generate_button
       ~button_text:"re[i]magine"
       ~kind:(Img2img "reimagined")
       ~modify_parameters:(fun ~parameters ~image ~ctrlnet_image ->
         Effect.return (modify_reimagine ~parameters ~image ~ctrlnet_image))
   in
-  let switch_model_button, switch_model =
+  let%sub switch_model_button, switch_model =
+    let%arr generate_button
+    and ~modifier:modify_other_model, ~view:_ = other_model_card
+    and models =
+      Lease_pool.all lease_pool
+      >>| Map.data
+      |> Bonsai.cutoff ~equal:[%equal: Sd.Hosts.Current_model.t list]
+    in
     generate_button
       ~button_text:"[o]ther model"
       ~kind:(Img2img "model")
@@ -472,7 +491,12 @@ let component
         Effect.return
           { params with denoise = Int63.of_int 40; specific_model = new_model })
   in
-  let edit_button, edit =
+  let%sub edit_button, edit =
+    let%arr get_images
+    and parameters
+    and theme = View.Theme.current graph
+    and id
+    and inject in
     let effect =
       let dispatch ~id:_ ~on_started:_ =
         let%bind.Effect { image = img; mask = _; blur_mask = _ } = get_images in
@@ -493,6 +517,7 @@ let component
     view, effect
   in
   let resize_card =
+    let%arr parameters and id and inject and resize_card and get_images in
     let set_result ~new_width ~new_height img =
       let parameters = { parameters with width = new_width; height = new_height } in
       let on_complete image =
@@ -508,6 +533,65 @@ let component
     in
     resize_card ~get_images ~set_result
   in
+  let settings_modal =
+    Toplayer.Modal.create
+      ~content:(fun ~close:close_modal graph ->
+        let%arr ~modifier:_, ~view:reimagine_view = reimagine_card
+        and ~modifier:_, ~view:refine_view = refine_card
+        and ~modifier:_, ~view:upscale_view = upscale_card
+        and ~modifier:_, ~view:other_model_view = other_model_card
+        and ~params:_, ~view:controlnet_view = controlnet_fix_card
+        and upscale_button
+        and resize_card
+        and edit_button
+        and ctrlnet_detect
+        and switch_model_button
+        and reimagine_button
+        and refine_button
+        and theme = View.Theme.current graph
+        and close_modal in
+        View.card'
+          theme
+          ~title:
+            [ Vdom.Node.div
+                [ Vdom.Node.text "Generation Settings"
+                ; Vdom.Node.button
+                    ~attrs:[ Vdom.Attr.on_click (fun _ -> close_modal) ]
+                    [ Vdom.Node.text "x" ]
+                ]
+            ]
+          [ View.vbox
+              ~gap:(`Em_float 0.5)
+              [ View.hbox
+                  ~gap:(`Em_float 0.5)
+                  [ upscale_view ~button:upscale_button
+                  ; refine_view ~button:refine_button
+                  ; reimagine_view ~button:reimagine_button
+                  ; other_model_view ~button:switch_model_button
+                  ]
+              ; controlnet_view ~button:ctrlnet_detect
+              ; resize_card
+              ; edit_button
+              ]
+          ])
+      graph
+  in
+  let%arr img_view
+  and inner_size =
+    Bonsai.cutoff inner_size ~equal:[%equal: Size_tracker.Dimensions.t option]
+  and set_inner_size
+  and outer_size =
+    Bonsai.cutoff outer_size ~equal:[%equal: Size_tracker.Dimensions.t option]
+  and set_outer_size
+  and img
+  and zoom, zoom_slider = zoom
+  and refine
+  and upscale
+  and reimagine
+  and switch_model
+  and edit
+  and set_paint_image
+  and open_settings_modal = settings_modal.open_ in
   let view ~state_tree ~host_monitor =
     let container_css =
       {%css|
@@ -524,24 +608,43 @@ let component
       }
     |}
     in
-    let host_monitor_css = {%css|
-      grid-area: 1 / 1 / 2 / 2;
-    |} in
-    let sidebar_css =
+    let header_css =
       {%css|
-      grid-area: 1 / 3 / 5 / 4;
-      overflow:auto;
+      grid-area: 1 / 1 / 2 / 4;
+      display:flex;
+      justify-content: space-between;
+      align-items: center;
+      /* */
+      background: rgb(0 0 0 / 18%);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid #ffffff73;
     |}
     in
-    let paint_opts_css = {%css|
-      grid-area: 1 / 2 / 3 / 3;
-    |} in
+    let sidebar_css =
+      {%css|
+      grid-area: 2 / 3 / 5 / 4;
+      overflow:auto;
+      height: fit-content;
+    |}
+    in
+    let paint_opts_css =
+      {%css|
+      grid-area: 2 / 2 / 3 / 3;
+
+     margin: 0.5em;
+     padding: 0.5em;
+     border: 1px solid rgba(255, 255, 255, 0.3);
+     background: rgba(0, 0, 0, 0.6);
+     backdrop-filter: blur(10px);
+     border-radius: 3px;
+    |}
+    in
     let zoom_css = {%css|
       grid-area: 4 / 1 / 5 / 2;
     |} in
     let canvas_css =
       {%css|
-      grid-area: 1 / 1 / 5 / 3;
+      grid-area: 1 / 1 / 5 / 4;
       display:flex; 
       align-items: center ;
       justify-content: center; 
@@ -573,7 +676,7 @@ let component
       let contained =
         match img_view with
         | `Editor_view ((~widget, ..), _ctrlnet) -> widget
-        | `Image_view img -> img
+        | `Image_view (~img, ..) -> img
       in
       let size =
         match Sd.Image.size img with
@@ -600,38 +703,22 @@ let component
       in
       color_picker
     in
+    let settings_button =
+      {%html|
+        <div style="margin-right: 1em;" on_click=%{fun _ -> open_settings_modal}> %{Feather_icon.svg ~stroke_width:(`Px 1) ~size:(`Em 2) Settings} </div>
+      |}
+    in
     let sidebar =
-      let params =
-        let onclick = Vdom.Attr.on_click (fun _ -> toggle_settings_accordion) in
-        let section_title =
-          {%html|<%{View.vbox}> <h2 %{onclick} style="margin:0; padding:0;"> settings </h2> </>|}
-        in
-        if not settings_accordion_open
-        then section_title
-        else
-          View.vbox
-            ~gap:(`Em_float 0.5)
-            [ section_title
-            ; upscale_view ~button:upscale_button
-            ; refine_view ~button:refine_button
-            ; reimagine_view ~button:reimagine_button
-            ; other_model_view ~button:switch_model_button
-            ; controlnet_view ~button:ctrlnet_detect
-            ; resize_card
-            ; edit_button
-            ]
-      in
       match img_view with
-      | `Editor_view ((~pos_prompt, ~neg_prompt, ..), _ctrlnet) ->
+      | `Editor_view ((~pos_prompt, ~neg_prompt, ..), _)
+      | `Image_view (~pos_prompt, ~neg_prompt, ..) ->
         {%html| 
         <div> 
           %{Form.view pos_prompt} 
           %{Form.view neg_prompt} 
-          %{params} 
           %{state_tree} 
         </div> 
         |}
-      | `Image_view _ -> {%html| <div> %{params}  %{state_tree} </div> |}
     in
     let zoom =
       let size =
@@ -646,7 +733,7 @@ let component
       {%html|
     <div %{container_css}> 
       <div %{canvas_css} %{Size_tracker.on_change (fun dims -> set_outer_size (Some dims))}>%{canvas}</div>
-      <div %{host_monitor_css}> %{host_monitor} </div>
+      <div %{header_css}> %{host_monitor} %{settings_button} </div>
       <div %{sidebar_css}> %{sidebar} </div>
       <div %{paint_opts_css}> %{paint_opts} </div>
       <div %{zoom_css}> %{zoom} </div>

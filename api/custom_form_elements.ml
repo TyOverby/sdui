@@ -121,7 +121,7 @@ let textarea
 ;;
 
 let textarea
-  ?(default = "")
+  ?default
   ?validate
   ?(container_attrs = [])
   ?(textarea_attrs = [])
@@ -129,7 +129,16 @@ let textarea
   graph
   =
   let theme = View.Theme.current graph in
-  let state, set_state = Bonsai.state default graph in
+  let state, set_state = Bonsai.state_opt graph in
+  let state =
+    let%arr state
+    and default = Bonsai.transpose_opt default in
+    Option.value (Option.first_some state default) ~default:""
+  in
+  let set_state =
+    let%arr set_state in
+    fun s -> set_state (Some s)
+  in
   let%arr theme and state and set_state in
   let on_blur =
     match validate with

@@ -1,25 +1,14 @@
 (library
  (name sd_chain)
- (libraries
-  shared
-  bonsai_web
-  async_js
-  yojson
-  sd
-  bonsai_web_components.web_ui_form
-  bonsai_web.kado
+ (libraries shared bonsai_web async_js yojson sd
+  bonsai_web_components.web_ui_form bonsai_web.kado
   bonsai_web_components.web_ui_low_level_vdom
-  virtual_dom.svg
+  bonsai_web_components.web_ui_toplayer virtual_dom.svg
   bonsai_web_components.feather_icon)
  (js_of_ocaml
   (javascript_files ./js/index.js))
  (preprocess
-  (pps
-   ppx_jane
-   js_of_ocaml-ppx
-   ppx_css
-   ppx_typed_fields
-   ppx_yojson_conv
+  (pps ppx_jane js_of_ocaml-ppx ppx_css ppx_typed_fields ppx_yojson_conv
    bonsai.ppx_bonsai)))
 
 (env

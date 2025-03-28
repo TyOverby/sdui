@@ -7,21 +7,25 @@ module Style =
   stylesheet
     {|
 .worker {
-  width: 50px;
-  height: 50px;
-  border: 2px solid white;
-  border-radius: 10px;
+  width: 20px;
+  height: 20px;
+  border: 1px solid #ffffff94;
+  border-radius: 5px;
+  margin:5px;
 }
 
 .leased {
   background: green;
+  background: #20592794; 
+  border: 2px solid  #91df94;
 }
 
 .job {
-  width: 50px;
-  height: 50px;
-  border-radius: 20px;
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
   background: green;
+  background: #91df94;
 }
 
 |}]
@@ -56,5 +60,5 @@ let component ~data_to_string ~pool =
   let queued_jobs =
     List.map queued_jobs ~f:(fun _ -> Vdom.Node.div ~attrs:[ Style.job ] [])
   in
-  View.hbox ~gap:(`Px 10) (workers @ queued_jobs)
+  View.hbox ~cross_axis_alignment:Center ~gap:(`Px 10) (workers @ queued_jobs)
 ;;

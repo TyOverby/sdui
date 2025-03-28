@@ -12,7 +12,8 @@ module Kado_textarea =
     border: 1px solid var(--border);
     border-radius: 3px;
     overflow: hidden;
-    background: var(--bg);
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(10px);
     display: flex;
     align-items: stretch;
   }

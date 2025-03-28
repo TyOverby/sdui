@@ -5,6 +5,7 @@ module Parameters = Parameters
 module Form = Bonsai_web_ui_form.With_manual_view
 module Lease_pool = Lease_pool
 module Paint = Paint
+module Toplayer = Bonsai_web_ui_toplayer
 
 module _ = [%css stylesheet {|
 body {
@@ -15,6 +16,25 @@ body {
 let hosts_and_queue (local_ graph) =
   let%sub { view = hosts_view; available_hosts; set_worker_in_use } =
     Sd.Hosts.component graph
+  in
+  let hosts_popover, hosts_popover_controls =
+    Toplayer.Popover.create
+      ~match_anchor_side_length:(Bonsai.return None)
+        (* ~alignment:(Bonsai.return Toplayer.Alignment.Start) *)
+      ~position:(Bonsai.return Toplayer.Position.Bottom)
+      ~content:(fun ~close:_ _graph -> hosts_view)
+      graph
+  in
+  let hosts_view =
+    let%arr hosts_popover
+    and open_ = hosts_popover_controls.open_ in
+    Vdom.Node.div
+      ~attrs:
+        [ hosts_popover
+        ; Vdom.Attr.on_click (fun _ -> open_)
+        ; {%css| margin: 0.5em; cursor:pointer; |}
+        ]
+      [ Feather_icon.svg ~stroke_width:(`Px 1) ~size:(`Px 20) Edit ]
   in
   let lease_pool =
     let on_take =

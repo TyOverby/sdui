@@ -38,7 +38,7 @@ module Individual : sig
     -> (Int63.t, Vdom.Node.t) Form.t Bonsai.t
 
   val prompt_form
-    :  ?default:string
+    :  ?default:string Bonsai.t
     -> ?textarea_attrs:Vdom.Attr.t list
     -> ?container_attrs:Vdom.Attr.t list
     -> label:string
