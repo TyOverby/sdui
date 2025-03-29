@@ -23,16 +23,16 @@ let ui (local_ graph) =
     | Evolve -> Evolve.component graph [@nontail]
   in
   let%arr which
-  and tab
-  and set_tab
-  and theme = View.Theme.current graph in
+  and _ = tab
+  and _ = set_tab
+  and _ = View.Theme.current graph in
   View.vbox
-    [ View.tabs_enum
+    [ (*       View.tabs_enum
         theme
         (module Tab)
         ~active:tab
-        ~on_change:(fun ~from:_ ~to_ -> set_tab to_)
-    ; which
+        ~on_change:(fun ~from:_ ~to_ -> set_tab to_) *)
+      which
     ]
 ;;
 

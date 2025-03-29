@@ -60,5 +60,5 @@ let component ~data_to_string ~pool =
   let queued_jobs =
     List.map queued_jobs ~f:(fun _ -> Vdom.Node.div ~attrs:[ Style.job ] [])
   in
-  View.hbox ~cross_axis_alignment:Center ~gap:(`Px 10) (workers @ queued_jobs)
+  View.hbox ~cross_axis_alignment:Center (workers @ queued_jobs)
 ;;
