@@ -256,6 +256,85 @@ let image_editor_specialization
   , ~set_paint_image )
 ;;
 
+let ctrlnet_detect
+  ~get_images
+  ~parameters
+  ~id
+  ~inject
+  ~lease_pool
+  ~controlnet_fix_card
+  ~set_ctrlnet_image
+  graph
+  =
+  let%sub ctrlnet_detect, _ctrlnet_detect_effect =
+    let%arr get_images
+    and parameters
+    and id
+    and inject
+    and dispatcher = Lease_pool.dispatcher lease_pool
+    and ~params:controlnet_params, ~view:_ = controlnet_fix_card
+    and set_ctrlnet_image = Bonsai.transpose_opt set_ctrlnet_image
+    and theme = View.Theme.current graph in
+    let generate =
+      let%bind.Effect { Images.image = img; mask = _; blur_mask = _ } = get_images in
+      let dispatch ~id ~on_started =
+        let parameters =
+          { parameters with
+            Sd_chain.Parameters.seed = Int63.of_int (Image_tree.Unique_id.to_int_exn id)
+          }
+        in
+        let pred =
+          Option.map
+            parameters.specific_model
+            ~f:(fun specific_model _host current_model ->
+              Sd.Hosts.Current_model.equal current_model specific_model)
+        in
+        dispatcher ?pred (fun get_host ->
+          match get_host with
+          | Error e -> Effect.return (Error e)
+          | Ok (host, _current_model) ->
+            let%bind.Effect () = on_started in
+            let module_ =
+              match controlnet_params with
+              | ( ~module_:(Ok (Some module_))
+                , ~model:_
+                , ~weight:_
+                , ~start_point:_
+                , ~end_point:_ ) -> Sd.Controlnet_modules.to_string module_
+              | _ -> "none"
+            in
+            (match%map.Effect
+               Sd.Controlnet_detect.dispatch
+                 ~host_and_port:((host : Sd.Hosts.Host.t) :> string)
+                 { image = img; module_ }
+             with
+             | Ok img -> Ok img
+             | Error e -> Error e))
+      in
+      match set_ctrlnet_image with
+      | Some setter ->
+        let%bind.Effect result = dispatch ~id ~on_started:Effect.Ignore in
+        (match result with
+         | Ok image -> setter (Some image)
+         | Error _e -> Effect.Ignore)
+      | None ->
+        let on_complete image =
+          Image_tree.Stage.State.Finished { image; parent_image = Some img; parameters }
+        in
+        inject
+          (Image_tree.Action.Add
+             { parent_id = id
+             ; stage = { desc = Ctrlnet; state = Enqueued { parameters } }
+             ; dispatch
+             ; on_complete
+             ; parameters
+             })
+    in
+    View.button theme ~on_click:generate "detect", generate
+  in
+  ctrlnet_detect
+;;
+
 let component
   ~(lease_pool :
       ( Sd.Hosts.Host.t
@@ -318,71 +397,16 @@ let component
   in
   let inner_size, set_inner_size = Bonsai.state_opt graph in
   let outer_size, set_outer_size = Bonsai.state_opt graph in
-  let%sub ctrlnet_detect, _ctrlnet_detect_effect =
-    let%arr get_images
-    and parameters
-    and id
-    and inject
-    and dispatcher = Lease_pool.dispatcher lease_pool
-    and ~params:controlnet_params, ~view:_ = controlnet_fix_card
-    and set_ctrlnet_image = Bonsai.transpose_opt set_ctrlnet_image
-    and theme = View.Theme.current graph in
-    let generate =
-      let%bind.Effect { image = img; mask = _; blur_mask = _ } = get_images in
-      let dispatch ~id ~on_started =
-        let parameters =
-          { parameters with
-            Sd_chain.Parameters.seed = Int63.of_int (Image_tree.Unique_id.to_int_exn id)
-          }
-        in
-        let pred =
-          Option.map
-            parameters.specific_model
-            ~f:(fun specific_model _host current_model ->
-              Sd.Hosts.Current_model.equal current_model specific_model)
-        in
-        dispatcher ?pred (fun get_host ->
-          match get_host with
-          | Error e -> Effect.return (Error e)
-          | Ok (host, _current_model) ->
-            let%bind.Effect () = on_started in
-            let module_ =
-              match controlnet_params with
-              | ( ~module_:(Ok (Some module_))
-                , ~model:_
-                , ~weight:_
-                , ~start_point:_
-                , ~end_point:_ ) -> Sd.Controlnet_modules.to_string module_
-              | _ -> "none"
-            in
-            (match%map.Effect
-               Sd.Controlnet_detect.dispatch
-                 ~host_and_port:(host :> string)
-                 { image = img; module_ }
-             with
-             | Ok img -> Ok img
-             | Error e -> Error e))
-      in
-      match set_ctrlnet_image with
-      | Some setter ->
-        let%bind.Effect result = dispatch ~id ~on_started:Effect.Ignore in
-        (match result with
-         | Ok image -> setter (Some image)
-         | Error _e -> Effect.Ignore)
-      | None ->
-        let on_complete image =
-          Image_tree.Stage.State.Finished { image; parent_image = Some img; parameters }
-        in
-        inject
-          (Image_tree.Action.Add
-             { parent_id = id
-             ; stage = { desc = Ctrlnet; state = Enqueued { parameters } }
-             ; dispatch
-             ; on_complete
-             ; parameters
-             })
-    in
-    View.button theme ~on_click:generate "detect", generate
+  let ctrlnet_detect =
+    ctrlnet_detect
+      ~get_images
+      ~parameters
+      ~id
+      ~inject
+      ~lease_pool
+      ~controlnet_fix_card
+      ~set_ctrlnet_image
+      graph
   in
   let generate_button =
     let%arr theme = View.Theme.current graph
