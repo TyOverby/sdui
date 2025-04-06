@@ -632,15 +632,9 @@ let component
     |}
     in
     let paint_opts_css =
-      {%css|
-      grid-area: 2 / 2 / 3 / 3;
-
-     margin: 0.5em;
-     padding: 0.5em;
-     border: 1px solid rgba(255, 255, 255, 0.3);
-     background: rgba(0, 0, 0, 0.6);
-     backdrop-filter: blur(10px);
-     border-radius: 3px;
+      {%css| 
+      grid-area: 2 / 2 / 3 / 3; 
+      padding: 3px;
     |}
     in
     let zoom_css = {%css|
@@ -653,6 +647,7 @@ let component
       align-items: center ;
       justify-content: center; 
       overflow:clip;
+      position:relative;
     |}
     in
     let canvas =
@@ -687,9 +682,10 @@ let component
         | None ->
           print_endline "no image size";
           Vdom.Attr.empty
-        | Some (w, h) ->
+        | Some (_w, _h) ->
           print_endline "got image size";
-          {%css| width: %{ Int63.to_string w ^ "px"};  height: %{ Int63.to_string h ^ "px"};  |}
+          Vdom.Attr.empty
+        (* {%css| width: %{ Int63.to_string w ^ "px"};  height: %{ Int63.to_string h ^ "px"};  |} *)
       in
       Vdom.Node.div
         ~attrs:[ Size_tracker.on_change (fun dims -> set_inner_size (Some dims)) ]
@@ -705,7 +701,15 @@ let component
             [ View.hbox [ layer_panel; color_picker ]; pen_size_slider; flip_button ]
         | `Image_view _ -> Vdom.Node.none
       in
-      color_picker
+      let fancy_box =
+        Shared.Fancy_box.test_box
+          ~inner:(~color:"black", ~radius:3, ~border:"1px solid black")
+          ~outer:(~color:"white", ~radius:5, ~border:"1px solid rgba(255,255,255, 0.75)")
+          ~opacity:0.5
+          ~gap:3
+          ~blur:10
+      in
+      {%html| <%{fancy_box}> %{color_picker} </> |}
     in
     let settings_button =
       {%html|

@@ -1,17 +1,7 @@
 (library
  (name shared)
- (libraries
-  bonsai_web
-  async_js
-  yojson
-  bonsai_web_components.web_ui_form
-  bonsai_web.kado
-  virtual_dom.svg)
+ (libraries bonsai_web async_js yojson bonsai_web_components.web_ui_form
+  bonsai_web.kado virtual_dom.svg)
  (preprocess
-  (pps
-   ppx_jane
-   js_of_ocaml-ppx
-   ppx_css
-   ppx_typed_fields
-   ppx_yojson_conv
-   bonsai.ppx_bonsai)))
+  (pps ppx_jane js_of_ocaml-ppx ppx_css ppx_html ppx_typed_fields
+   ppx_yojson_conv bonsai.ppx_bonsai)))

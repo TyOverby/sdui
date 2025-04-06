@@ -407,6 +407,7 @@ let render ~state ~current_id ~inject ~seen ~set_current_id ~override_on_click =
           [ (if deindented
              then
                Feather.svg
+                 ~stroke_width:(`Px 1)
                  ~extra_attrs:[ {%css| margin-right: 0.5em; |} ]
                  ~size:(`Em 1)
                  Corner_down_right
@@ -418,11 +419,13 @@ let render ~state ~current_id ~inject ~seen ~set_current_id ~override_on_click =
               icon
           ; Vdom.Node.text (Stage.Kind.to_string desc)
           ; Feather.svg
+              ~stroke_width:(`Px 1)
               ~extra_attrs:
                 ({%css| margin-left: 0.5em; |} :: star_button_attrs ~child_is_starred ~id)
               ~size:(`Em 1)
               Star
           ; Feather.svg
+              ~stroke_width:(`Px 1)
               ~extra_attrs:({%css| margin-left: 0.5em; |} :: remove_button_attrs ~id)
               ~size:(`Em 1)
               X
