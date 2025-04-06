@@ -151,6 +151,111 @@ let extend_ctrlnet_setter ~dispatcher ~controlnet_params ~f image =
        | Error _ -> Effect.return ()))
 ;;
 
+let image_editor_specialization
+  ~parent_img
+  ~parameters
+  ~lease_pool
+  ~controlnet_fix_card
+  graph
+  =
+  let editor = Sd_chain.Paint.component ~prev:parent_img graph in
+  let ctrlnet_image, set_ctrlnet_image = Bonsai.state_opt graph in
+  let ctrlnet_editor =
+    Sd_chain.Paint.component
+      ~prev:(ctrlnet_image >>| Option.value ~default:Sd.Image.empty)
+      graph
+  in
+  let override_prompt, view = editor_view_with_parameters editor.view ~parameters graph in
+  let view =
+    let clone_parent_button =
+      let%arr theme = View.Theme.current graph
+      and set_ctrlnet_image
+      and dispatcher = Lease_pool.dispatcher lease_pool
+      and parent_img
+      and ~params:controlnet_params, ~view:_ = controlnet_fix_card in
+      View.button
+        theme
+        "clone parent"
+        ~on_click:
+          (extend_ctrlnet_setter
+             ~dispatcher:(fun f -> dispatcher f)
+             ~controlnet_params
+             ~f:(fun image -> set_ctrlnet_image (Some image))
+             parent_img)
+    in
+    let clone_current_button =
+      let%arr theme = View.Theme.current graph
+      and get_images = editor.get_images
+      and set_ctrlnet_image
+      and dispatcher = Lease_pool.dispatcher lease_pool
+      and ~params:controlnet_params, ~view:_ = controlnet_fix_card in
+      View.button
+        theme
+        "clone current"
+        ~on_click:
+          (let%bind.Effect { image; mask = _; blur_mask = _ } = get_images in
+           extend_ctrlnet_setter
+             ~dispatcher:(fun f -> dispatcher f)
+             ~controlnet_params
+             ~f:(fun image -> set_ctrlnet_image (Some image))
+             image)
+    in
+    let remove_button =
+      let%arr theme = View.Theme.current graph
+      and set_ctrlnet_image in
+      View.button theme "remove" ~on_click:(set_ctrlnet_image None)
+    in
+    let%arr ctrlnet_editor_view =
+      editor_view_for_ctrlnet_image
+        ~remove_button
+        ~clone_current_button
+        ~clone_parent_button
+        ctrlnet_editor.view
+    and view
+    and ctrlnet_image in
+    match ctrlnet_image with
+    | None -> `Editor_view (view, None)
+    | Some _ -> `Editor_view (view, Some ctrlnet_editor_view)
+  in
+  let set_paint_image =
+    let%arr editor_setter = editor.requesting_set_paint_image
+    and ctrlnet_setter = ctrlnet_editor.requesting_set_paint_image
+    and ~params:controlnet_params, ~view:_ = controlnet_fix_card
+    and set_ctrlnet_image
+    and dispatcher = Lease_pool.dispatcher lease_pool in
+    match editor_setter with
+    | Some f -> Some f
+    | None ->
+      (match ctrlnet_setter with
+       | None -> None
+       | Some f ->
+         Some
+           (fun image ->
+             extend_ctrlnet_setter
+               ~dispatcher:(fun f -> dispatcher f)
+               ~controlnet_params
+               ~f:(fun image ->
+                 let%bind.Effect () = set_ctrlnet_image (Some image) in
+                 f image)
+               image))
+  in
+  let get_ctrlnet =
+    let%arr get_ctrlnet = ctrlnet_editor.get_images
+    and ctrlnet_image in
+    if Option.is_none ctrlnet_image
+    then Effect.return None
+    else (
+      let%map.Effect { image; mask = _; blur_mask = _ } = get_ctrlnet in
+      if Sd.Image.is_empty image then None else Some image)
+  in
+  ( ~get_images:editor.get_images
+  , ~get_ctrlnet
+  , ~override_prompt
+  , ~view
+  , ~set_ctrlnet_image:(Some set_ctrlnet_image)
+  , ~set_paint_image )
+;;
+
 let component
   ~(lease_pool :
       ( Sd.Hosts.Host.t
@@ -180,105 +285,13 @@ let component
       , ~set_paint_image )
     =
     if is_image_editor
-    then (
-      let editor = Sd_chain.Paint.component ~prev:parent_img graph in
-      let ctrlnet_image, set_ctrlnet_image = Bonsai.state_opt graph in
-      let ctrlnet_editor =
-        Sd_chain.Paint.component
-          ~prev:(ctrlnet_image >>| Option.value ~default:Sd.Image.empty)
-          graph
-      in
-      let override_prompt, view =
-        editor_view_with_parameters editor.view ~parameters graph
-      in
-      let view =
-        let clone_parent_button =
-          let%arr theme = View.Theme.current graph
-          and set_ctrlnet_image
-          and dispatcher = Lease_pool.dispatcher lease_pool
-          and parent_img
-          and ~params:controlnet_params, ~view:_ = controlnet_fix_card in
-          View.button
-            theme
-            "clone parent"
-            ~on_click:
-              (extend_ctrlnet_setter
-                 ~dispatcher:(fun f -> dispatcher f)
-                 ~controlnet_params
-                 ~f:(fun image -> set_ctrlnet_image (Some image))
-                 parent_img)
-        in
-        let clone_current_button =
-          let%arr theme = View.Theme.current graph
-          and get_images = editor.get_images
-          and set_ctrlnet_image
-          and dispatcher = Lease_pool.dispatcher lease_pool
-          and ~params:controlnet_params, ~view:_ = controlnet_fix_card in
-          View.button
-            theme
-            "clone current"
-            ~on_click:
-              (let%bind.Effect { image; mask = _; blur_mask = _ } = get_images in
-               extend_ctrlnet_setter
-                 ~dispatcher:(fun f -> dispatcher f)
-                 ~controlnet_params
-                 ~f:(fun image -> set_ctrlnet_image (Some image))
-                 image)
-        in
-        let remove_button =
-          let%arr theme = View.Theme.current graph
-          and set_ctrlnet_image in
-          View.button theme "remove" ~on_click:(set_ctrlnet_image None)
-        in
-        let%arr ctrlnet_editor_view =
-          editor_view_for_ctrlnet_image
-            ~remove_button
-            ~clone_current_button
-            ~clone_parent_button
-            ctrlnet_editor.view
-        and view
-        and ctrlnet_image in
-        match ctrlnet_image with
-        | None -> `Editor_view (view, None)
-        | Some _ -> `Editor_view (view, Some ctrlnet_editor_view)
-      in
-      let set_paint_image =
-        let%arr editor_setter = editor.requesting_set_paint_image
-        and ctrlnet_setter = ctrlnet_editor.requesting_set_paint_image
-        and ~params:controlnet_params, ~view:_ = controlnet_fix_card
-        and set_ctrlnet_image
-        and dispatcher = Lease_pool.dispatcher lease_pool in
-        match editor_setter with
-        | Some f -> Some f
-        | None ->
-          (match ctrlnet_setter with
-           | None -> None
-           | Some f ->
-             Some
-               (fun image ->
-                 extend_ctrlnet_setter
-                   ~dispatcher:(fun f -> dispatcher f)
-                   ~controlnet_params
-                   ~f:(fun image ->
-                     let%bind.Effect () = set_ctrlnet_image (Some image) in
-                     f image)
-                   image))
-      in
-      let get_ctrlnet =
-        let%arr get_ctrlnet = ctrlnet_editor.get_images
-        and ctrlnet_image in
-        if Option.is_none ctrlnet_image
-        then Effect.return None
-        else (
-          let%map.Effect { image; mask = _; blur_mask = _ } = get_ctrlnet in
-          if Sd.Image.is_empty image then None else Some image)
-      in
-      ( ~get_images:editor.get_images
-      , ~get_ctrlnet
-      , ~override_prompt
-      , ~view
-      , ~set_ctrlnet_image:(Some set_ctrlnet_image)
-      , ~set_paint_image ))
+    then
+      image_editor_specialization
+        ~parent_img
+        ~parameters
+        ~lease_pool
+        ~controlnet_fix_card
+        graph
     else (
       let ~pos_prompt, ~neg_prompt =
         prompt_boxes
