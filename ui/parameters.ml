@@ -28,11 +28,7 @@ let component
   ?(models = Bonsai.return Sd.Hosts.Current_model.Set.empty)
   graph
   =
-  let is_localhost =
-    String.equal
-      "localhost"
-      (Js_of_ocaml.Js.to_string Js_of_ocaml.Dom_html.window##.location##.hostname)
-  in
+  let is_localhost = false in
   let default_size = if is_localhost then 128 else 256 in
   let sampler =
     Form.Elements.Dropdown.list_opt
