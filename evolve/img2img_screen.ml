@@ -50,34 +50,29 @@ let editor_view_for_ctrlnet_image
 
 let prompt_boxes ?(textarea_attrs = []) ?(container_attrs = []) ~parameters (local_ graph)
   =
-  let pos_prompt =
+  let make_prompt ~default ~label =
     P.prompt_form
-      ~default:
-        (match%arr parameters with
-         | { Sd_chain.Parameters.pos_prompt = s; _ } -> s)
-      ~container_attrs:({%css| flex-grow: 2; flex-shrink:0; |} :: container_attrs)
-      ~textarea_attrs:(Vdom.Attr.create "data-kind" "prompt" :: textarea_attrs)
-      ~label:"prompt"
+      ~default
+      ~container_attrs:({%css| flex-shrink: 0; |} :: container_attrs)
+      ~textarea_attrs:(Vdom.Attr.create "data-kind" label :: textarea_attrs)
+      ~label
       graph
+  in
+  let pos_prompt =
+    make_prompt ~label:"prompt" ~default:(parameters >>| Sd_chain.Parameters.pos_prompt)
   in
   let neg_prompt =
-    P.prompt_form
-      ~default:
-        (match%arr parameters with
-         | { Sd_chain.Parameters.neg_prompt = s; _ } -> s)
-      ~container_attrs:({%css| flex-grow: 2; flex-shrink: 0; |} :: container_attrs)
-      ~textarea_attrs:(Vdom.Attr.create "data-kind" "neg-prompt" :: textarea_attrs)
+    make_prompt
       ~label:"neg-prompt"
-      graph
+      ~default:(parameters >>| Sd_chain.Parameters.neg_prompt)
   in
-  let _ : unit Bonsai.t =
-    Bonsai_extra.exactly_once
-      (let%arr { Form.set = set_pos_prompt; _ } = pos_prompt
-       and { Form.set = set_neg_prompt; _ } = neg_prompt
-       and { Sd_chain.Parameters.pos_prompt; neg_prompt; _ } = parameters in
-       Effect.Many [ set_pos_prompt pos_prompt; set_neg_prompt neg_prompt ])
-      graph
-  in
+  ignore
+    (Bonsai_extra.exactly_once
+       (let%arr { Form.set = set_pos_prompt; _ } = pos_prompt
+        and { Form.set = set_neg_prompt; _ } = neg_prompt
+        and { Sd_chain.Parameters.pos_prompt; neg_prompt; _ } = parameters in
+        Effect.Many [ set_pos_prompt pos_prompt; set_neg_prompt neg_prompt ])
+       graph);
   ~pos_prompt, ~neg_prompt
 ;;
 
@@ -167,38 +162,32 @@ let image_editor_specialization
   in
   let override_prompt, view = editor_view_with_parameters editor.view ~parameters graph in
   let view =
-    let clone_parent_button =
+    let generic_clone_button ~label ~get_image =
       let%arr theme = View.Theme.current graph
       and set_ctrlnet_image
       and dispatcher = Lease_pool.dispatcher lease_pool
-      and parent_img
+      and get_image
       and ~params:controlnet_params, ~view:_ = controlnet_fix_card in
-      View.button
-        theme
-        "clone parent"
-        ~on_click:
-          (extend_ctrlnet_setter
-             ~dispatcher:(fun f -> dispatcher f)
-             ~controlnet_params
-             ~f:(fun image -> set_ctrlnet_image (Some image))
-             parent_img)
+      let on_click =
+        let%bind.Effect image = get_image in
+        extend_ctrlnet_setter
+          ~dispatcher:(fun f -> dispatcher f)
+          ~controlnet_params
+          ~f:(fun image -> set_ctrlnet_image (Some image))
+          image
+      in
+      View.button theme label ~on_click
+    in
+    let clone_parent_button =
+      generic_clone_button ~label:"clone parent" ~get_image:(parent_img >>| Effect.return)
     in
     let clone_current_button =
-      let%arr theme = View.Theme.current graph
-      and get_images = editor.get_images
-      and set_ctrlnet_image
-      and dispatcher = Lease_pool.dispatcher lease_pool
-      and ~params:controlnet_params, ~view:_ = controlnet_fix_card in
-      View.button
-        theme
-        "clone current"
-        ~on_click:
-          (let%bind.Effect { image; mask = _; blur_mask = _ } = get_images in
-           extend_ctrlnet_setter
-             ~dispatcher:(fun f -> dispatcher f)
-             ~controlnet_params
-             ~f:(fun image -> set_ctrlnet_image (Some image))
-             image)
+      generic_clone_button
+        ~label:"clone parent"
+        ~get_image:
+          (let%arr get_images = editor.get_images in
+           let%map.Effect { image; mask = _; blur_mask = _ } = get_images in
+           image)
     in
     let remove_button =
       let%arr theme = View.Theme.current graph
@@ -223,21 +212,21 @@ let image_editor_specialization
     and ~params:controlnet_params, ~view:_ = controlnet_fix_card
     and set_ctrlnet_image
     and dispatcher = Lease_pool.dispatcher lease_pool in
+    let set_controlnet image ~f =
+      extend_ctrlnet_setter
+        ~dispatcher:(fun f -> dispatcher f)
+        ~controlnet_params
+        ~f:(fun image ->
+          let%bind.Effect () = set_ctrlnet_image (Some image) in
+          f image)
+        image
+    in
     match editor_setter with
     | Some f -> Some f
     | None ->
       (match ctrlnet_setter with
        | None -> None
-       | Some f ->
-         Some
-           (fun image ->
-             extend_ctrlnet_setter
-               ~dispatcher:(fun f -> dispatcher f)
-               ~controlnet_params
-               ~f:(fun image ->
-                 let%bind.Effect () = set_ctrlnet_image (Some image) in
-                 f image)
-               image))
+       | Some f -> Some (set_controlnet ~f))
   in
   let get_ctrlnet =
     let%arr get_ctrlnet = ctrlnet_editor.get_images
@@ -595,47 +584,48 @@ let component
     resize_card ~get_images ~set_result
   in
   let settings_modal =
-    Toplayer.Modal.create
-      ~content:(fun ~close:close_modal graph ->
-        let%arr ~modifier:_, ~view:reimagine_view = reimagine_card
-        and ~modifier:_, ~view:refine_view = refine_card
-        and ~modifier:_, ~view:upscale_view = upscale_card
-        and ~modifier:_, ~view:other_model_view = other_model_card
-        and ~params:_, ~view:controlnet_view = controlnet_fix_card
-        and upscale_button
-        and resize_card
-        and edit_button
-        and ctrlnet_detect
-        and switch_model_button
-        and reimagine_button
-        and refine_button
-        and theme = View.Theme.current graph
-        and close_modal in
-        View.card'
-          theme
-          ~title:
-            [ Vdom.Node.div
-                [ Vdom.Node.text "Generation Settings"
-                ; Vdom.Node.button
-                    ~attrs:[ Vdom.Attr.on_click (fun _ -> close_modal) ]
-                    [ Vdom.Node.text "x" ]
-                ]
+    let content ~close:close_modal graph =
+      let%arr ~modifier:_, ~view:reimagine_view = reimagine_card
+      and ~modifier:_, ~view:refine_view = refine_card
+      and ~modifier:_, ~view:upscale_view = upscale_card
+      and ~modifier:_, ~view:other_model_view = other_model_card
+      and ~params:_, ~view:controlnet_view = controlnet_fix_card
+      and upscale_button
+      and resize_card
+      and edit_button
+      and ctrlnet_detect
+      and switch_model_button
+      and reimagine_button
+      and refine_button
+      and theme = View.Theme.current graph
+      and close_modal in
+      let title =
+        [ Vdom.Node.div
+            [ Vdom.Node.text "Generation Settings"
+            ; Vdom.Node.button
+                ~attrs:[ Vdom.Attr.on_click (fun _ -> close_modal) ]
+                [ Vdom.Node.text "x" ]
             ]
-          [ View.vbox
+        ]
+      in
+      let content =
+        View.vbox
+          ~gap:(`Em_float 0.5)
+          [ View.hbox
               ~gap:(`Em_float 0.5)
-              [ View.hbox
-                  ~gap:(`Em_float 0.5)
-                  [ upscale_view ~button:upscale_button
-                  ; refine_view ~button:refine_button
-                  ; reimagine_view ~button:reimagine_button
-                  ; other_model_view ~button:switch_model_button
-                  ]
-              ; controlnet_view ~button:ctrlnet_detect
-              ; resize_card
-              ; edit_button
+              [ upscale_view ~button:upscale_button
+              ; refine_view ~button:refine_button
+              ; reimagine_view ~button:reimagine_button
+              ; other_model_view ~button:switch_model_button
               ]
-          ])
-      graph
+          ; controlnet_view ~button:ctrlnet_detect
+          ; resize_card
+          ; edit_button
+          ]
+      in
+      View.card' theme ~title [ content ]
+    in
+    Toplayer.Modal.create ~content graph
   in
   let%arr img_view
   and inner_size =
@@ -644,7 +634,6 @@ let component
   and outer_size =
     Bonsai.cutoff outer_size ~equal:[%equal: Size_tracker.Dimensions.t option]
   and set_outer_size
-  and img
   and zoom, zoom_slider = zoom
   and refine
   and upscale
@@ -710,16 +699,8 @@ let component
       let css =
         let zoom =
           match inner_size, outer_size with
-          | ( Some
-                { Size_tracker.Dimensions.border_box =
-                    { width = inner_width; height = inner_height }
-                ; _
-                }
-            , Some
-                { Size_tracker.Dimensions.border_box =
-                    { width = outer_width; height = outer_height }
-                ; _
-                } ) ->
+          | ( Some { border_box = { width = inner_width; height = inner_height }; _ }
+            , Some { border_box = { width = outer_width; height = outer_height }; _ } ) ->
             let rat_w = inner_width /. outer_width in
             let rat_h = inner_height /. outer_height in
             let biggest_rat = Float.max rat_w rat_h in
@@ -733,19 +714,9 @@ let component
         | `Editor_view ((~widget, ..), _ctrlnet) -> widget
         | `Image_view (~img, ..) -> img
       in
-      let size =
-        match Sd.Image.size img with
-        | None ->
-          print_endline "no image size";
-          Vdom.Attr.empty
-        | Some (_w, _h) ->
-          print_endline "got image size";
-          Vdom.Attr.empty
-        (* {%css| width: %{ Int63.to_string w ^ "px"};  height: %{ Int63.to_string h ^ "px"};  |} *)
-      in
       Vdom.Node.div
         ~attrs:[ Size_tracker.on_change (fun dims -> set_inner_size (Some dims)) ]
-        [ Vdom.Node.div ~attrs:[ css; size ] [ contained ] ]
+        [ Vdom.Node.div ~attrs:[ css ] [ contained ] ]
     in
     let paint_opts =
       let color_picker =
@@ -807,45 +778,47 @@ let component
     view
   in
   let key_commands =
-    Vdom_keyboard.Keyboard_event_handler.of_command_list_exn
-      [ { keys = [ Vdom_keyboard.Keystroke.create' KeyY ]
+    let open Vdom_keyboard in
+    let module Kh = Keyboard_event_handler in
+    Kh.of_command_list_exn
+      [ { keys = [ Keystroke.create' KeyY ]
         ; description = "refine"
         ; group = None
         ; handler =
-            Vdom_keyboard.Keyboard_event_handler.Handler.only_handle_if
-              Vdom_keyboard.Keyboard_event_handler.Condition.(not_ has_text_input_target)
+            Kh.Handler.only_handle_if
+              Kh.Condition.(not_ has_text_input_target)
               (fun _ -> refine)
         }
-      ; { keys = [ Vdom_keyboard.Keystroke.create' KeyU ]
+      ; { keys = [ Keystroke.create' KeyU ]
         ; description = "upscale"
         ; group = None
         ; handler =
-            Vdom_keyboard.Keyboard_event_handler.Handler.only_handle_if
-              Vdom_keyboard.Keyboard_event_handler.Condition.(not_ has_text_input_target)
+            Kh.Handler.only_handle_if
+              Kh.Condition.(not_ has_text_input_target)
               (fun _ -> upscale)
         }
-      ; { keys = [ Vdom_keyboard.Keystroke.create' KeyI ]
+      ; { keys = [ Keystroke.create' KeyI ]
         ; description = "reimagine"
         ; group = None
         ; handler =
-            Vdom_keyboard.Keyboard_event_handler.Handler.only_handle_if
-              Vdom_keyboard.Keyboard_event_handler.Condition.(not_ has_text_input_target)
+            Kh.Handler.only_handle_if
+              Kh.Condition.(not_ has_text_input_target)
               (fun _ -> reimagine)
         }
-      ; { keys = [ Vdom_keyboard.Keystroke.create' KeyO ]
+      ; { keys = [ Keystroke.create' KeyO ]
         ; description = "switch model"
         ; group = None
         ; handler =
-            Vdom_keyboard.Keyboard_event_handler.Handler.only_handle_if
-              Vdom_keyboard.Keyboard_event_handler.Condition.(not_ has_text_input_target)
+            Kh.Handler.only_handle_if
+              Kh.Condition.(not_ has_text_input_target)
               (fun _ -> switch_model)
         }
-      ; { keys = [ Vdom_keyboard.Keystroke.create' KeyP ]
+      ; { keys = [ Keystroke.create' KeyP ]
         ; description = "edit"
         ; group = None
         ; handler =
-            Vdom_keyboard.Keyboard_event_handler.Handler.only_handle_if
-              Vdom_keyboard.Keyboard_event_handler.Condition.(not_ has_text_input_target)
+            Kh.Handler.only_handle_if
+              Kh.Condition.(not_ has_text_input_target)
               (fun _ -> edit)
         }
       ]

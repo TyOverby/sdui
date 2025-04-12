@@ -17,7 +17,7 @@ type t =
   ; specific_model : Sd.Hosts.Current_model.t option
   ; ctrlnet : Sd.Alwayson_scripts.Ctrlnet.Query.t option
   }
-[@@deriving equal, sexp_of]
+[@@deriving typed_fields, equal, sexp_of, fields ~getters]
 
 type view :=
   direction:[ `Horizontal | `Vertical ]
