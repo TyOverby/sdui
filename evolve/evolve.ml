@@ -10,7 +10,7 @@ module Toplayer = Bonsai_web_ui_toplayer
 module _ = [%css stylesheet {|
   svg * {
     vector-effect: non-scaling-stroke;
-    }
+  }
 |}]
 
 let none_screen ~inject graph =
@@ -32,65 +32,6 @@ let none_screen ~inject graph =
       ]
   in
   view, Vdom_keyboard.Keyboard_event_handler.of_command_list_exn [], None
-;;
-
-let children_of_current ~current_id ~state ~set_current_id graph =
-  let children_state =
-    let%arr current_id
-    and { Image_tree.Model.children; images; _ } = state in
-    match current_id with
-    | None -> Image_tree.Unique_id.Map.empty
-    | Some current_id ->
-      (match Map.find children current_id with
-       | None -> Image_tree.Unique_id.Map.empty
-       | Some children ->
-         children
-         |> Set.to_map ~f:(fun id -> Map.find images id)
-         |> Map.filter_map ~f:Fn.id)
-  in
-  let children_state =
-    Bonsai.cutoff
-      children_state
-      ~equal:[%equal: Image_tree.Stage.t Image_tree.Unique_id.Map.t]
-  in
-  let children_imgs =
-    Bonsai.assoc
-      (module Image_tree.Unique_id)
-      children_state
-      graph
-      ~f:(fun id stage _graph ->
-        let%arr id and set_current_id and stage in
-        let image =
-          match stage.state with
-          | Initial -> None
-          | Enqueued _ -> None
-          | In_progress _ -> None
-          | Finished { image; _ } ->
-            Some
-              (Sd.Image.to_vdom
-                 ~drop_size:true
-                 ~attrs:[ {%css| max-height:100%; |} ]
-                 image)
-          | Error e -> Some (Vdom.Node.sexp_for_debugging ([%sexp_of: Error.t] e))
-        in
-        match image with
-        | None -> None
-        | Some image ->
-          Some
-            (Vdom.Node.div
-               ~attrs:[ Vdom.Attr.on_click (fun _ -> set_current_id id) ]
-               [ image ]))
-  in
-  let children_imgs = Bonsai.Map.filter_map children_imgs graph ~f:Fn.id in
-  let%arr children_imgs in
-  if Map.is_empty children_imgs
-  then None
-  else
-    Some
-      (Vdom.Node.Map_children.make
-         ~attr:{%css| display: flex; gap:1em; margin: 1em; height: 100%;|}
-         ~tag:"div"
-         children_imgs)
 ;;
 
 let controlnet_fix_card ~hosts (local_ graph) =
@@ -667,13 +608,7 @@ let component (local_ graph) =
   and main_viewport, subview_handlers, _set_paint_image = main_viewport
   and hosts_view
   and queue_view
-  and global_keyboard_handlers
-  and children_of_current =
-    if false
-    then children_of_current ~current_id ~state ~set_current_id graph
-    else Bonsai.return None
-  in
-  let open Snips.Infix in
+  and global_keyboard_handlers in
   let handler =
     Virtual_dom.Vdom.Attr.Global_listeners.keydown ~phase:Bubbling ~f:(fun event ->
       Vdom_keyboard.Keyboard_event_handler.handle_or_ignore_event
@@ -684,10 +619,5 @@ let component (local_ graph) =
         event)
   in
   let host_monitor = View.hbox ~cross_axis_alignment:Center [ queue_view; hosts_view ] in
-  Option.value_map
-    children_of_current
-    ~f:(Snips.bottom ~attr:{%css| max-height: 30vh; |})
-    ~default:(Snips.bottom Vdom.Node.none)
-  |+| Snips.body ~attr:handler (main_viewport ~state_tree ~host_monitor)
-  |> Snips.render
+  Snips.body ~attr:handler (main_viewport ~state_tree ~host_monitor) |> Snips.render
 ;;
