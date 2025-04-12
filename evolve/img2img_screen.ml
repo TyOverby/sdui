@@ -398,9 +398,13 @@ let component
       , ~set_ctrlnet_image:None
       , ~set_paint_image:(Bonsai.return None) ))
   in
-  let size_state graph prev_var =
+  let size_state prev_var =
     let size, set_size = Bonsai.state_opt graph in
-    let size = Bonsai.map2 size (Bonsai.Expert.Var.value prev_var) ~f:Option.first_some in
+    let size =
+      let%arr size
+      and prev_size = Bonsai.Expert.Var.value prev_var in
+      Option.first_some size prev_size
+    in
     let set_size =
       let%arr set_size in
       fun new_size ->
@@ -411,8 +415,8 @@ let component
     in
     size, set_size
   in
-  let inner_size, set_inner_size = size_state graph prev_inner_size_var in
-  let outer_size, set_outer_size = size_state graph prev_outer_size_var in
+  let inner_size, set_inner_size = size_state prev_inner_size_var in
+  let outer_size, set_outer_size = size_state prev_outer_size_var in
   let ctrlnet_detect =
     ctrlnet_detect
       ~get_images
