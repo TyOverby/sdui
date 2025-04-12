@@ -434,6 +434,7 @@ let render ~state ~current_id ~inject ~seen ~set_current_id ~override_on_click =
       ]
   in
   Vdom.Node.div
+    ~attrs:[ {%css| flex-shrink: 1; overflow:auto;|} ]
     [ Vdom.Node.ul
         ~attrs:[ ul_styles ]
         (List.map tree_structure ~f:(fun child ->

@@ -55,7 +55,7 @@ let prompt_boxes ?(textarea_attrs = []) ?(container_attrs = []) ~parameters (loc
       ~default:
         (match%arr parameters with
          | { Sd_chain.Parameters.pos_prompt = s; _ } -> s)
-      ~container_attrs:({%css| flex-grow: 2 |} :: container_attrs)
+      ~container_attrs:({%css| flex-grow: 2; flex-shrink:0; |} :: container_attrs)
       ~textarea_attrs:(Vdom.Attr.create "data-kind" "prompt" :: textarea_attrs)
       ~label:"prompt"
       graph
@@ -65,7 +65,7 @@ let prompt_boxes ?(textarea_attrs = []) ?(container_attrs = []) ~parameters (loc
       ~default:
         (match%arr parameters with
          | { Sd_chain.Parameters.neg_prompt = s; _ } -> s)
-      ~container_attrs:({%css| flex-grow: 2 |} :: container_attrs)
+      ~container_attrs:({%css| flex-grow: 2; flex-shrink: 0; |} :: container_attrs)
       ~textarea_attrs:(Vdom.Attr.create "data-kind" "neg-prompt" :: textarea_attrs)
       ~label:"neg-prompt"
       graph
@@ -335,6 +335,9 @@ let ctrlnet_detect
   ctrlnet_detect
 ;;
 
+let prev_inner_size_var = Bonsai.Expert.Var.create None
+let prev_outer_size_var = Bonsai.Expert.Var.create None
+
 let component
   ~(lease_pool :
       ( Sd.Hosts.Host.t
@@ -395,8 +398,21 @@ let component
       , ~set_ctrlnet_image:None
       , ~set_paint_image:(Bonsai.return None) ))
   in
-  let inner_size, set_inner_size = Bonsai.state_opt graph in
-  let outer_size, set_outer_size = Bonsai.state_opt graph in
+  let size_state graph prev_var =
+    let size, set_size = Bonsai.state_opt graph in
+    let size = Bonsai.map2 size (Bonsai.Expert.Var.value prev_var) ~f:Option.first_some in
+    let set_size =
+      let%arr set_size in
+      fun new_size ->
+        Effect.Many
+          [ Effect.of_thunk (fun () -> Bonsai.Expert.Var.set prev_var new_size)
+          ; set_size new_size
+          ]
+    in
+    size, set_size
+  in
+  let inner_size, set_inner_size = size_state graph prev_inner_size_var in
+  let outer_size, set_outer_size = size_state graph prev_outer_size_var in
   let ctrlnet_detect =
     ctrlnet_detect
       ~get_images
@@ -655,7 +671,6 @@ let component
       display:flex;
       justify-content: space-between;
       align-items: center;
-      /* */
       background: rgb(0 0 0 / 18%);
       backdrop-filter: blur(10px);
       border-bottom: 1px solid #ffffff73;
@@ -664,8 +679,10 @@ let component
     let sidebar_css =
       {%css|
       grid-area: 2 / 3 / 5 / 4;
-      overflow:auto;
-      height: fit-content;
+
+      max-height:100%;
+      display:flex;
+      flex-direction:column;
     |}
     in
     let paint_opts_css =
@@ -674,9 +691,7 @@ let component
       padding: 3px;
     |}
     in
-    let zoom_css = {%css|
-      grid-area: 4 / 1 / 5 / 2;
-    |} in
+    let zoom_css = {%css| grid-area: 4 / 1 / 5 / 2; |} in
     let canvas_css =
       {%css|
       grid-area: 1 / 1 / 5 / 4;
@@ -758,11 +773,11 @@ let component
       | `Editor_view ((~pos_prompt, ~neg_prompt, ..), _)
       | `Image_view (~pos_prompt, ~neg_prompt, ..) ->
         {%html| 
-        <div> 
+        <> 
           %{Form.view pos_prompt} 
           %{Form.view neg_prompt} 
           %{state_tree} 
-        </div> 
+        </> 
         |}
     in
     let zoom =
