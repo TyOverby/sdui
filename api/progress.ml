@@ -31,13 +31,13 @@ let state ~host_and_port graph =
       (Bonsai.Edge.Poll.Starting.initial (Error (Error.of_string "loading...")))
       graph
       ~effect:
-        (let%map host_and_port = host_and_port in
+        (let%map host_and_port in
          dispatch host_and_port)
   in
   Bonsai.Clock.every
     ~when_to_start_next_effect:`Every_multiple_of_period_blocking
     ~trigger_on_activate:true
-    (Time_ns.Span.of_sec 0.1)
+    (Bonsai.return (Time_ns.Span.of_sec 0.1))
     refresh
     graph;
   r

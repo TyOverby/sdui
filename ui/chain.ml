@@ -122,7 +122,7 @@ let component ~pool ~index ~prev ~prev_params graph =
   fix3 index prev prev_params graph ~f:(fun ~recurse index prev prev_params graph ->
     let index = index >>| ( + ) 1 in
     let scope, incr_scope =
-      Bonsai.state_machine0
+      Bonsai.state_machine
         ~default_model:0
         ~apply_action:(fun _ model () -> model + 1)
         graph

@@ -120,7 +120,11 @@ let debug t = t.debug >>| Lazy.force
 
 let create cmp ?(data_equal = phys_equal) map graph =
   let model, inject =
-    Bonsai.state_machine1 ~default_model:(Model.default cmp) ~apply_action map graph
+    Bonsai.state_machine_with_input
+      ~default_model:(Model.default cmp)
+      ~apply_action
+      map
+      graph
   in
   let pump =
     let%map inject in

@@ -625,7 +625,7 @@ let component
       in
       View.card' theme ~title [ content ]
     in
-    Toplayer.Modal.create ~content graph
+    Toplayer.Modal.create ~overflow_auto_wrapper:(Bonsai.return true) ~content graph
   in
   let%arr img_view
   and inner_size =

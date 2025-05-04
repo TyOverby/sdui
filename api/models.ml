@@ -44,7 +44,7 @@ module Current_model = struct
     Bonsai.Clock.every
       ~when_to_start_next_effect:`Every_multiple_of_period_blocking
       ~trigger_on_activate:true
-      (Time_ns.Span.of_min 1.0)
+      (Bonsai.return (Time_ns.Span.of_min 1.0))
       refresh
       graph;
     match%arr r with
@@ -93,7 +93,7 @@ module Model_list = struct
     Bonsai.Clock.every
       ~when_to_start_next_effect:`Every_multiple_of_period_blocking
       ~trigger_on_activate:true
-      (Time_ns.Span.of_min 1.0)
+      (Bonsai.return (Time_ns.Span.of_min 1.0))
       refresh
       graph;
     match%arr r with

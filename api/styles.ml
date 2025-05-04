@@ -35,7 +35,7 @@ let all ~(hosts : Hosts.t Bonsai.t) graph =
     Bonsai.Edge.Poll.manual_refresh
       (Bonsai.Edge.Poll.Starting.initial (Error (Error.of_string "loading...")))
       ~effect:
-        (let%map hosts = hosts in
+        (let%map hosts in
          match%bind.Effect Hosts.random_healthy_host hosts with
          | None -> Effect.return (Ok [])
          | Some host -> dispatch (host :> string))
@@ -44,7 +44,7 @@ let all ~(hosts : Hosts.t Bonsai.t) graph =
   Bonsai.Clock.every
     ~when_to_start_next_effect:`Every_multiple_of_period_blocking
     ~trigger_on_activate:true
-    (Time_ns.Span.of_min 1.0)
+    (Bonsai.return (Time_ns.Span.of_min 1.0))
     refresh
     graph;
   r
@@ -86,7 +86,7 @@ let form ~hosts graph =
   in
   Form.Elements.Typeahead.list
     (module String)
-    ~placeholder:"STYLES"
+    ~placeholder:(Bonsai.return "STYLES")
     ~extra_attrs
     ~all_options:all
     graph

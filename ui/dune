@@ -5,8 +5,8 @@
   bonsai_web_components.web_ui_low_level_vdom
   bonsai_web_components.web_ui_toplayer virtual_dom.svg
   bonsai_web_components.feather_icon)
- (js_of_ocaml
-  (javascript_files ./js/index.js))
+ (js_of_ocaml (javascript_files ./js/index.js))
+ (wasm_of_ocaml (wasm_files ./js/index.js))
  (preprocess
   (pps ppx_jane js_of_ocaml-ppx ppx_css ppx_typed_fields ppx_yojson_conv
    bonsai.ppx_bonsai)))

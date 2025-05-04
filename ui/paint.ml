@@ -102,7 +102,7 @@ module Widget :
     Js.wrap_callback (fun arg -> Effect.Expert.handle_non_dom_event_exn (f arg))
   ;;
 
-  let init ~get_input:_ input =
+  let init ~get_input:_ ~other_instances:_ input =
     let state, element =
       painter_init
         (Js.string input.Input.url)
@@ -115,7 +115,7 @@ module Widget :
     state, element
   ;;
 
-  let update ~prev_input new_input state element =
+  let update ~other_instances:_ ~prev_input new_input state element =
     if not (String.equal prev_input.Input.url new_input.Input.url)
     then state##updateImage (Js.string new_input.url);
     if not (phys_equal prev_input.Input.on_color_change new_input.Input.on_color_change)
@@ -125,7 +125,7 @@ module Widget :
     element
   ;;
 
-  let destroy (input : Input.t) state _element =
+  let destroy ~other_instances:_ (input : Input.t) state _element =
     Effect.Expert.handle_non_dom_event_exn
       (input.set_wip_store
          (state##getPaintLayer, state##getMaskLayer, state##getBlurMaskLayer));
@@ -424,13 +424,13 @@ let run_on_change_and_on_init value ~equal ~widget ~f (local_ graph) =
 let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
   let color_picker = Form.Elements.Color_picker.hex () graph in
   let value, inject =
-    Bonsai.state_machine0
+    Bonsai.state_machine
       ~default_model:Inc.Or_error_or_stale.Not_computed
       ~apply_action:(fun _ model -> function
         | `Set_value t -> Inc.Or_error_or_stale.Fresh t
         | `Invalidate ->
           (match model with
-           | Fresh s -> Stale s
+           | Inc.Or_error_or_stale.Fresh s -> Stale s
            | other -> other))
       graph
   in
@@ -525,7 +525,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
       | Ok (`Hex color) -> state##.color := Js.string color)
     graph;
   let unique_id, next_id =
-    Bonsai.state_machine0 ~default_model:0 ~apply_action:(fun _ i () -> i + 1) graph
+    Bonsai.state_machine ~default_model:0 ~apply_action:(fun _ i () -> i + 1) graph
   in
   let is_dirty =
     let%arr value in

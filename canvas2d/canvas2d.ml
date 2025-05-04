@@ -35,8 +35,8 @@ module Image0 = struct
 
   let of_image_element = (Obj.magic : Dom_html.imageElement Js.t -> t)
   let to_image_element = (Obj.magic : t -> Dom_html.imageElement Js.t)
-  let width t = Js.Optdef.case t##.naturalWidth (fun () -> t##.width) (fun w -> w)
-  let height t = Js.Optdef.case t##.naturalHeight (fun () -> t##.height) (fun h -> h)
+  let width t = t##.naturalWidth
+  let height t = t##.naturalHeight
 end
 
 module Image_data0 = struct

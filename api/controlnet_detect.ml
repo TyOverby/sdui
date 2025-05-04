@@ -42,17 +42,6 @@ module Response = struct
   [@@yojson.allow_extra_fields] [@@deriving of_yojson, sexp_of]
 end
 
-let strip_images_field_from_json json =
-  let obj = Js_of_ocaml.Json.unsafe_input (Js_of_ocaml.Js.string json) in
-  let stripped = Js_of_ocaml.Js.Unsafe.get obj (Js_of_ocaml.Js.string "images") in
-  Js_of_ocaml.Js.Unsafe.set
-    obj
-    (Js_of_ocaml.Js.string "images")
-    (new%js Js_of_ocaml.Js.array_empty);
-  ( Js_of_ocaml.Json.output obj |> Js_of_ocaml.Js.to_string
-  , Js_of_ocaml.Js.to_array stripped |> Array.to_list )
-;;
-
 let dispatch (host_and_port, query) =
   Deferred.Or_error.try_with (fun () ->
     let%bind.Deferred response =
@@ -71,8 +60,7 @@ let dispatch (host_and_port, query) =
       |> Deferred.Or_error.ok_exn
     in
     print_s [%message response.content];
-    (* Deferred.return (Image.of_string ~kind:Base64 "") *)
-    let response_content, images = strip_images_field_from_json response.content in
+    let response_content, images = Strip_images_from_json.f response.content in
     Yojson.Safe.from_string response_content
     |> Response.t_of_yojson
     |> (fun response -> { response with Response.images })

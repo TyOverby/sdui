@@ -25,7 +25,7 @@ module Size_presets = struct
       }
       .preset:hover {
         border-color: var(--touch);
-        background: color-mix(in oklab, var(--bg) 80%, var(--touch))
+        background: color-mix(in oklab, var(--bg) 80%, var(--touch));
       }
 
       .landscape {
@@ -226,7 +226,7 @@ module Individual = struct
           | '@' -> "#d7d75d"
           | _ | (exception _) -> if any_at_lines then "grey" else "white"
         in
-        [ Vdom.Node.span ~attrs:[ {%css| color:%{color}|} ] [ Vdom.Node.text line ]
+        [ Vdom.Node.span ~attrs:[ {%css| color:%{color}; |} ] [ Vdom.Node.text line ]
         ; Vdom.Node.text "\n"
         ])
     in

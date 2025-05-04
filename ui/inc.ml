@@ -50,7 +50,7 @@ let of_bonsai ~equal ?time_to_stable a graph =
   let a = Bonsai.cutoff ~equal a in
   match time_to_stable with
   | None ->
-    let%arr a = a in
+    let%arr a in
     Or_error_or_stale.Fresh a
   | Some time_to_stable ->
     (match%arr Bonsai_extra.value_stability ~equal ~time_to_stable a graph with
@@ -109,7 +109,7 @@ let map ~equal a ~f graph =
   let module Id_gen = Bonsai_extra.Id_gen (Int63) () in
   let id_gen = Id_gen.component graph in
   let state, set_state =
-    Bonsai.state_machine0
+    Bonsai.state_machine
       ~default_model:None
       graph
       ~apply_action:(fun _ model (id, input, done_, change) ->
@@ -122,8 +122,7 @@ let map ~equal a ~f graph =
         | None -> Some (id, input, done_, change None))
   in
   let needs_recalc =
-    let%arr a = a
-    and state = state in
+    let%arr a and state in
     match (a : _ Or_error_or_stale.t), state with
     | Fresh a, None -> Some a
     | Fresh a, Some (_, old, _, _) when not (equal a old) -> Some a
@@ -136,9 +135,7 @@ let map ~equal a ~f graph =
         a
         ~equal
         ~callback:
-          (let%arr f = f
-           and set_state = set_state
-           and id_gen = id_gen in
+          (let%arr f and set_state and id_gen in
            fun a ->
              let%bind.Effect id = id_gen in
              let update f = set_state (id, a, false, f) in
@@ -148,9 +145,7 @@ let map ~equal a ~f graph =
       Bonsai.return ()
     | None -> Bonsai.return ()
   in
-  let%arr needs_recalc = needs_recalc
-  and state = state
-  and a = a in
+  let%arr needs_recalc and state and a in
   match needs_recalc, a, state with
   | None, Fresh _, Some (_, _, true, out) -> Or_error_or_stale.Fresh out
   | None, _, Some (_, _, _, out) -> Stale out
@@ -160,8 +155,7 @@ let map ~equal a ~f graph =
 
 let map2 ~equal_a ~equal_b a b ~f graph =
   let a_and_b =
-    let%arr a = a
-    and b = b in
+    let%arr a and b in
     match a, b with
     | Or_error_or_stale.Fresh a, Or_error_or_stale.Fresh b ->
       Or_error_or_stale.Fresh (a, b)
@@ -172,7 +166,7 @@ let map2 ~equal_a ~equal_b a b ~f graph =
     | Stale a, Stale b | Fresh a, Stale b | Stale a, Fresh b -> Stale (a, b)
   in
   let f =
-    let%arr f = f in
+    let%arr f in
     fun ~update (a, b) -> f ~update a b
   in
   let equal = Tuple2.equal ~eq1:equal_a ~eq2:equal_b in
@@ -181,9 +175,7 @@ let map2 ~equal_a ~equal_b a b ~f graph =
 
 let map3 ~equal_a ~equal_b ~equal_c a b c ~f graph =
   let a_and_b_and_c =
-    let%arr a = a
-    and b = b
-    and c = c in
+    let%arr a and b and c in
     match a, b, c with
     | Or_error_or_stale.Fresh a, Or_error_or_stale.Fresh b, Or_error_or_stale.Fresh c ->
       Or_error_or_stale.Fresh (a, b, c)
@@ -204,7 +196,7 @@ let map3 ~equal_a ~equal_b ~equal_c a b c ~f graph =
     | Fresh a, Fresh b, Stale c -> Stale (a, b, c)
   in
   let f =
-    let%arr f = f in
+    let%arr f in
     fun ~update (a, b, c) -> f ~update a b c
   in
   let equal = Tuple3.equal ~eq1:equal_a ~eq2:equal_b ~eq3:equal_c in

@@ -48,7 +48,7 @@ let all (type a) ~(hosts : a Hosts.Host.Map.t Bonsai.t) graph =
   Bonsai.Clock.every
     ~when_to_start_next_effect:`Every_multiple_of_period_blocking
     ~trigger_on_activate:true
-    (Time_ns.Span.of_sec 1.0)
+    (Bonsai.return (Time_ns.Span.of_sec 1.0))
     refresh
     graph;
   r

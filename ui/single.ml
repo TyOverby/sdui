@@ -159,7 +159,7 @@ let component ~direction ~pool ~prev ~mask graph =
                img)
           ]
       in
-      let gallery_attrs = [%css {| overflow-x: scroll|}] in
+      let gallery_attrs = [%css {| overflow-x: scroll; |}] in
       match images with
       | Fresh img ->
         View.hbox ~gap:(`Em 1) ~attrs:[ gallery_attrs ] (List.mapi img ~f:base64_to_vdom)

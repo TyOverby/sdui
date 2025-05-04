@@ -7,7 +7,10 @@ module Lease_pool = Sd_chain.Lease_pool
 module P = Sd.Parameters.Individual
 module Toplayer = Bonsai_web_ui_toplayer
 
-module _ = [%css stylesheet {|
+module _ =
+  [%css
+  stylesheet
+    {|
   svg * {
     vector-effect: non-scaling-stroke;
   }
@@ -217,7 +220,7 @@ let generic_card
     and steps_enabled_view in
     [ View.hbox
         ~cross_axis_alignment:Baseline
-        ~attrs:[ {%css|user-select:none|} ]
+        ~attrs:[ {%css|user-select:none; |} ]
         [ Vdom.Node.label [ ctrlnet_enabled_view; Vdom.Node.text "ctrlnet" ] ]
     ; View.hbox ~cross_axis_alignment:Baseline [ cfg_enabled_view; cfg_view ]
     ; View.hbox ~cross_axis_alignment:Baseline [ denoise_enabled_view; denoise_view ]
@@ -233,7 +236,7 @@ let refine_card ~controlnet_fix_card (local_ graph) =
       ~default_cfg_enabled:true
       ~default_denoise_enabled:true
       ~default_steps_enabled:true
-      ~default_ctrlnet_enabled:true
+      ~default_ctrlnet_enabled:false
       ~default_cfg:(Int63.of_int 10)
       ~default_denoise:(Int63.of_int 55)
       ~default_steps:(Int63.of_int 25)
@@ -287,7 +290,7 @@ let upscale_card ~controlnet_fix_card (local_ graph) =
       ~default_cfg_enabled:false
       ~default_denoise_enabled:true
       ~default_steps_enabled:true
-      ~default_ctrlnet_enabled:true
+      ~default_ctrlnet_enabled:false
       ~default_cfg:(Int63.of_int 7)
       ~default_denoise:(Int63.of_int 30)
       ~default_steps:(Int63.of_int 50)
@@ -314,7 +317,7 @@ let other_model_card ~controlnet_fix_card (local_ graph) =
       ~default_cfg_enabled:false
       ~default_denoise_enabled:true
       ~default_steps_enabled:true
-      ~default_ctrlnet_enabled:true
+      ~default_ctrlnet_enabled:false
       ~default_cfg:(Int63.of_int 7)
       ~default_denoise:(Int63.of_int 40)
       ~default_steps:(Int63.of_int 40)
@@ -346,7 +349,7 @@ let trigger_after_active ~for_duration ~effect graph =
         effect, sleep for_duration
       in
       let _state, inject =
-        Bonsai.state_machine1
+        Bonsai.state_machine_with_input
           inputs
           graph
           ~default_model:None
@@ -524,12 +527,17 @@ let component (local_ graph) =
             ~controlnet_fix_card
             ~zoom
             graph
-        | _ ->
-          Bonsai.return
-            ( (fun ~state_tree ~host_monitor ->
-                View.hbox ~main_axis_alignment:Space_between [ host_monitor; state_tree ])
-            , Vdom_keyboard.Keyboard_event_handler.of_command_list_exn []
-            , None ))
+        | Some (_, _, Error e) ->
+          let%arr e in
+          ( (fun ~state_tree ~host_monitor ->
+              View.hbox
+                ~main_axis_alignment:Space_between
+                [ host_monitor
+                ; Vdom.Node.sexp_for_debugging (Error.sexp_of_t e)
+                ; state_tree
+                ])
+          , Vdom_keyboard.Keyboard_event_handler.of_command_list_exn []
+          , None ))
   in
   let state_tree =
     Image_tree.render

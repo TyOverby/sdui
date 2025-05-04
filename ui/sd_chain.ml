@@ -7,7 +7,10 @@ module Lease_pool = Lease_pool
 module Paint = Paint
 module Toplayer = Bonsai_web_ui_toplayer
 
-module _ = [%css stylesheet {|
+module _ =
+  [%css
+  stylesheet
+    {|
 body {
   overflow-y: clip;
 }
@@ -19,6 +22,7 @@ let hosts_and_queue (local_ graph) =
   in
   let hosts_popover, hosts_popover_controls =
     Toplayer.Popover.create
+      ~overflow_auto_wrapper:(Bonsai.return true)
       ~match_anchor_side_length:(Bonsai.return None)
         (* ~alignment:(Bonsai.return Toplayer.Alignment.Start) *)
       ~position:(Bonsai.return Toplayer.Position.Bottom)

@@ -15,7 +15,7 @@
  (js_of_ocaml
   (flags :standard)
   (link_flags :standard))
- (modes js)
+ (modes js wasm)
  (preprocess
   (pps ppx_jane js_of_ocaml-ppx ppx_css ppx_typed_fields ppx_yojson_conv
    bonsai.ppx_bonsai)))

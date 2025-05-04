@@ -94,17 +94,17 @@ let find_offset ctx1 img2 =
         done;
         !collided)
   in
-  let r = 
-    match result with 
+  let r =
+    match result with
     | None -> 0
-    | Some x -> x 
-  in 
+    | Some x -> x
+  in
   r, c2, ctx2
 ;;
 
 let file_upload graph =
   let images, inject =
-    Bonsai.state_machine0
+    Bonsai.state_machine
       ~default_model:(String.Map.empty : Canvas2d.Image.t Or_error.t String.Map.t)
       ~apply_action:(fun _ctx _ files -> files)
       graph
@@ -115,13 +115,10 @@ let file_upload graph =
       (images >>| Map.key_set)
       ~render:(fun ~index:_ ~source key _graph ->
         let data =
-          let%arr images = images
-          and key = key in
+          let%arr images and key in
           Map.find images key
         in
-        let%arr data = data
-        and key = key
-        and source = source in
+        let%arr data and key and source in
         let view =
           match data with
           | None -> Vdom.Node.div ~attrs:[ source ] [ Vdom.Node.text key ]
@@ -172,7 +169,7 @@ let file_upload graph =
       graph
   in
   let composed =
-    let%arr images_and_offsets = images_and_offsets
+    let%arr images_and_offsets
     and gap_percentage = gap_form >>| Form.value_or_default ~default:0.0 in
     let open Canvas2d in
     let height =
@@ -214,14 +211,14 @@ let file_upload graph =
       ~kind:Base64
       (Canvas.to_data_url canvas)
   in
-  let%arr inject = inject
-  and composed = composed
+  let%arr inject
+  and composed
   and gap_form = gap_form >>| Form.view
-  and reorderable_list = reorderable_list
-  and images = images
+  and reorderable_list
+  and images
   and theme = View.Theme.current graph
-  and images_for_processing = images_for_processing
-  and update_images_for_processing = update_images_for_processing in
+  and images_for_processing
+  and update_images_for_processing in
   let upload_zone =
     Vdom.Node.div
       ~attrs:

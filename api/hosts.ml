@@ -47,16 +47,13 @@ let hosts_localstorage =
 
 let component graph =
   let hosts_form = Custom_form_elements.textarea ~label:"hosts" graph in
-  let _ : unit Bonsai.t =
-    Bonsai_extra.mirror
-      ~equal:String.equal
-      ~store_set:(Bonsai.return (Bonsai_web.Persistent_var.effect hosts_localstorage))
-      ~store_value:(Bonsai_web.Persistent_var.value hosts_localstorage)
-      ~interactive_set:(hosts_form >>| Form.set)
-      ~interactive_value:(hosts_form >>| Form.value_or_default ~default:"")
-      ()
-      graph
-  in
+  Bonsai_extra.mirror
+    ~equal:String.equal
+    ~store_set:(Bonsai.return (Bonsai_web.Persistent_var.effect hosts_localstorage))
+    ~store_value:(Bonsai_web.Persistent_var.value hosts_localstorage)
+    ~interactive_set:(hosts_form >>| Form.set)
+    ~interactive_value:(hosts_form >>| Form.value_or_default ~default:"")
+    graph;
   let%sub hosts =
     let%arr hosts = hosts_form in
     hosts
@@ -75,7 +72,7 @@ let component graph =
       | _ -> s)
   in
   let host_status, inject_host_status =
-    Bonsai.state_machine1
+    Bonsai.state_machine_with_input
       ~default_model:String.Map.empty
       ~apply_action:(fun ctx input model -> function
         | `Report_health (host, `Pending) ->
@@ -125,7 +122,7 @@ let component graph =
   Bonsai.Clock.every
     ~when_to_start_next_effect:`Wait_period_after_previous_effect_finishes_blocking
     ~trigger_on_activate:true
-    (Time_ns.Span.of_sec 5.0)
+    (Bonsai.return (Time_ns.Span.of_sec 5.0))
     callback
     graph;
   Bonsai.Edge.on_change
@@ -144,7 +141,7 @@ let component graph =
     good_hosts
   in
   let worker_state, inject_worker_state =
-    Bonsai.state_machine0
+    Bonsai.state_machine
       graph
       ~default_model:Host.Map.empty
       ~apply_action:(fun _ctx model (key, data) -> Map.set model ~key ~data)

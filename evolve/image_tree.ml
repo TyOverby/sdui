@@ -210,7 +210,7 @@ module Action = struct
 end
 
 let state (local_ graph) =
-  Bonsai.state_machine0
+  Bonsai.state_machine
     graph
     ~default_model:Model.empty
     ~apply_action:(fun ctx model action ->
@@ -282,7 +282,7 @@ let render ~state ~current_id ~inject ~seen ~set_current_id ~override_on_click =
       then (
         match state with
         | Stage.State.Finished _ | Error _ ->
-          {%css| background: #20592794; border: 2px solid  #91df94 |}
+          {%css| background: #20592794; border: 2px solid  #91df94; |}
         | _ -> Vdom.Attr.empty)
       else Vdom.Attr.empty
     in
@@ -314,7 +314,8 @@ let render ~state ~current_id ~inject ~seen ~set_current_id ~override_on_click =
         |}
        else {%css| |})
     ; (if child_is_starred
-       then {%css|
+       then
+         {%css|
         stroke: gold;
        |}
        else Vdom.Attr.empty)
@@ -397,7 +398,7 @@ let render ~state ~current_id ~inject ~seen ~set_current_id ~override_on_click =
     let on_click, highlight =
       match override_on_click, state with
       | Some f, Finished { image; _ } ->
-        Vdom.Attr.on_click (fun _ -> f image), {%css| background: yellow; color: black|}
+        Vdom.Attr.on_click (fun _ -> f image), {%css| background: yellow; color: black; |}
       | _ -> set_on_click id, {%css||}
     in
     Vdom.Node.li
