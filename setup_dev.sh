@@ -2,7 +2,7 @@
 
 set -euox pipefail
 
-sudo apt install bubblewrap
+sudo apt install bubblewrap curl autoconf build-essential
 
 curl -fsSL https://opam.ocaml.org/install.sh > install_opam.sh
 chmod +x install_opam.sh
