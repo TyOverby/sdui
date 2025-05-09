@@ -1,4 +1,3 @@
-//Provides:drawPill
 function drawPill(ctx, x1, y1, x2, y2, radius1, radius2) {
     const angle = Math.atan2(y2 - y1, x2 - x1);
     const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
@@ -18,7 +17,6 @@ function drawPill(ctx, x1, y1, x2, y2, radius1, radius2) {
     ctx.restore();
 }
 
-//Provides:rgbToHex
 function rgbToHex(r, g, b) {
     function componentToHex(c) {
         const hex = c.toString(16);
@@ -27,19 +25,15 @@ function rgbToHex(r, g, b) {
     return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
 }
 
-//Provides:sanatize_url
 function sanatize_url(url) {
     return (url.startsWith("data:image") || url.startsWith("http://") || url.startsWith("https://")) ? url : "data:image/png;base64," + url;
 }
 
-//Provides:on_image_init
 function on_image_init(image, f) {
     if (image.complete) { f() }
     else { image.onload = f; }
 }
 
-//Provides:on_images_init
-//Requires:on_image_init
 function on_images_init(images, f) {
     if (images.length === 0) {
         f();
@@ -55,7 +49,6 @@ function on_images_init(images, f) {
     }
 }
 
-//Provides:resizeCanvas
 function resizeCanvas(image, canvas) {
     canvas.setAttribute("width", image.naturalWidth);
     canvas.setAttribute("height", image.naturalHeight);
@@ -63,8 +56,6 @@ function resizeCanvas(image, canvas) {
     canvas.style.height = (image.naturalHeight / window.devicePixelRatio) + "px";
 }
 
-//Provides:createCanvas
-//Requires:resizeCanvas
 function createCanvas(name, image, parent) {
     const canvas = document.createElement("canvas");
     canvas.setAttribute("data-name", name);
@@ -77,7 +68,6 @@ function createCanvas(name, image, parent) {
     return canvas;
 }
 
-//Provides:isCanvasAllWhite
 function isCanvasAllWhite(canvas, ctx) {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
@@ -92,7 +82,6 @@ function isCanvasAllWhite(canvas, ctx) {
     return true;
 }
 
-//Provides:randomPointInCircle
 function randomPointInCircle(cx, cy, r, dist_x, dist_y, stddev) {
     function randn_bm() {
         let u = 0, v = 0;
@@ -110,14 +99,11 @@ function randomPointInCircle(cx, cy, r, dist_x, dist_y, stddev) {
     return { x: x, y: y };
 }
 
-//Provides:is_in_circle
 function is_in_circle(cx, cy, r, x, y) {
     const d2 = (x - cx) * (x - cx) + (y - cy) * (y - cy);
     return d2 <= r * r;
 }
 
-//Requires:randomPointInCircle,is_in_circle
-//Provides:scramble
 function scramble(img_data, draw_data, cx, cy, r, prev_cx, prev_cy, prev_r, w, h) {
     cx = Math.round(cx);
     cy = Math.round(cy);
@@ -185,8 +171,6 @@ function scramble(img_data, draw_data, cx, cy, r, prev_cx, prev_cy, prev_r, w, h
     }
 }
 
-//Provides:prep_img
-//Requires:sanatize_url
 function prep_img(img_string) {
     var image = document.createElement("img");
     image.crossOrigin = "Anonymous";
@@ -195,8 +179,6 @@ function prep_img(img_string) {
     return image;
 }
 
-//Provides:painter_init
-//Requires:drawPill, sanatize_url, on_image_init, rgbToHex, createCanvas, isCanvasAllWhite, scramble, prep_img, on_images_init, resizeCanvas
 function painter_init(input, paint_input, mask_input, blur_mask_input) {
     var stack = document.createElement("div");
     stack.className = "stack";
@@ -500,10 +482,11 @@ function painter_init(input, paint_input, mask_input, blur_mask_input) {
         });
     });
 
-    return [0, state, stack];
+    return {state : state, element : stack};
 }
 
-//Provides:empty_white_image
+globalThis.painter = { init : painter_init }; 
+
 function empty_white_image(width, height) {
     const canvas = document.createElement("canvas");
     canvas.setAttribute("width", width);

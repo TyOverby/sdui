@@ -90,13 +90,32 @@ module Widget :
   type input = Input.t
   type state = Output.t Js.t
 
-  external painter_init
-    :  Js.js_string Js.t
-    -> Js.js_string Js.t Js.Optdef.t
-    -> Js.js_string Js.t Js.Optdef.t
-    -> Js.js_string Js.t Js.Optdef.t
-    -> state * element Js.t
-    = "painter_init"
+  module Painter = struct
+    class type init_result = object
+      method state : state Js.readonly_prop
+      method element : element Js.t Js.readonly_prop
+    end
+
+    class type t = object
+      method init :
+        Js.js_string Js.t
+        -> Js.js_string Js.t Js.Optdef.t
+        -> Js.js_string Js.t Js.Optdef.t
+        -> Js.js_string Js.t Js.Optdef.t
+        -> init_result Js.t Js.meth
+    end
+  end
+
+  let painter : Painter.t Js.t = Js.Unsafe.global##.painter
+
+  let painter_init
+    :  Js.js_string Js.t -> Js.js_string Js.t Js.Optdef.t -> Js.js_string Js.t Js.Optdef.t
+    -> Js.js_string Js.t Js.Optdef.t -> state * element Js.t
+    =
+    fun input paint_input mask_input blur_mask_input ->
+    let obj = painter##init input paint_input mask_input blur_mask_input in
+    obj##.state, obj##.element
+  ;;
 
   let wrap_cb f =
     Js.wrap_callback (fun arg -> Effect.Expert.handle_non_dom_event_exn (f arg))
