@@ -13,7 +13,7 @@ chmod +x opam
 ./opam init --disable-sandboxing
 ./opam repo add with-extensions https://github.com/janestreet/opam-repository.git#with-extensions --dont-select
 ./opam update
-./opam switch create 5.2.0-testing 5.2.0+flambda2 --repos with-extensions,default
+./opam switch create 5.2.0+flambda2 --repos with-extensions,default
 eval $(opam env --switch=5.2.0+flambda2)
 
 ./opam install --yes \
