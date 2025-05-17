@@ -123,6 +123,7 @@ let component (local_ graph) =
          fun image params -> inject (`Add (image, params)))
       graph
   in
+  let%sub ~view, ~generate_action = txt2img in
   let images =
     Bonsai.assoc
       (module Int)
@@ -148,26 +149,21 @@ let component (local_ graph) =
                image))
       graph
   in
-  let%sub ~view, ~generate_action = txt2img in
+  let last_duration, set_last_duration = Bonsai.state (Time_ns.Span.of_sec 5.0) graph in
   let%sub () =
     match%sub mostly_caught_up, Lease_pool.all lease_pool >>| Map.length with
     | false, _ | _, 0 -> Bonsai.return ()
     | _, n ->
-      let last_duration, set_last_duration =
-        Bonsai.state (Time_ns.Span.of_sec 5.0) graph
-      in
       let generate_action =
         let%arr generate_action
         and set_last_duration
-        and get_now = Bonsai.Clock.get_current_time graph
         and num_queued = Lease_pool.queued_jobs lease_pool >>| List.length in
         if num_queued >= 1
         then Effect.Ignore
         else (
-          let%bind.Effect before = get_now in
-          let%bind.Effect () = generate_action in
-          let%bind.Effect after = get_now in
-          set_last_duration (Time_ns.abs_diff before after))
+          match%bind.Effect generate_action with
+          | None -> Effect.Ignore
+          | Some duration -> set_last_duration duration)
       in
       Bonsai.Clock.every
         ~trigger_on_activate:true
@@ -200,10 +196,21 @@ let component (local_ graph) =
     in
     {%html| <div %{style} style="position:absolute; top:0; right:0" on_click=%{fun _ -> open_edit_modal}> %{Feather.svg ~size:(`Px 150) Edit} </div> |}
   in
-  let%arr images and open_edit_modal in
+  let%arr images
+  and open_edit_modal
+  and last_duration
+  and num_queued = Lease_pool.queued_jobs lease_pool >>| List.length
+  and num_active = Lease_pool.leased_out lease_pool >>| Map.length in
   let content = Vdom.Node.Map_children.div ~attrs:[ Style.image_container ] images in
   Snips.body
     ~attr:{%css| scrollbar-width: none; |}
-    (View.vbox ~attrs:[ {%css| overflow:clip; |} ] [ content; open_edit_modal ])
+    (View.vbox
+       ~attrs:[ {%css| overflow:clip; |} ]
+       [ content
+       ; {%html|<div>Active: %{num_active #Int}</div>|}
+       ; {%html|<div>Queued: %{num_queued #Int}</div>|}
+       ; {%html|<div>Last duration: #{Time_ns.Span.to_string_hum last_duration}</div>|}
+       ; open_edit_modal
+       ])
   |> Snips.render
 ;;

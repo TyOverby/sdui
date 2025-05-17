@@ -17,14 +17,18 @@ module Style =
     }
 
     .overlay {
-      display: flex;
+      display: none;
       flex-direction: row;
       padding: 5px;
+      backdrop-filter: blur(10px);
     }
 
-    .overlay.opened { }
+    .overlay.opened {
+      display: flex;
+      animation: overlay-enter 0.1s ease-in;
+    }
     .overlay.closed {
-      display: none;
+      animation: overlay-close 0.1s ease-out;
     }
 
     .close, .delete, .upscale, .refine, .reimagine {
@@ -36,7 +40,6 @@ module Style =
       margin: 5px;
       border: 1px solid white;
       background: rgba(255,255,255, 0.5);
-      backdrop-filter: blur(10px);
       border-radius: 10px;
       color: black;
     }
@@ -52,13 +55,16 @@ module Style =
       100% { background-color: rgba(255,255,255, 0.5); }
     }
 
+    @keyframes overlay-enter {
+      0%   { opacity: 0; }
+      100% { opacity: 1;}
+    }
 
-
-    .close { }
-    .delete { }
-    .upscale { }
-    .refine { }
-    .reimagine { }
+    @keyframes overlay-close {
+      0%   { opacity: 1; display: flex; }
+      99% { opacity: 0; display: flex; }
+      100% { opacity: 0; display: none; }
+    }
 |}]
 
 let component ~on_remove ~refine ~reimagine ~upscale (local_ graph) =

@@ -28,30 +28,42 @@ let component
   let%arr parameters
   and theme = View.Theme.current graph
   and dispatcher = Lease_pool.dispatcher lease_pool
+  and get_now = Bonsai.Clock.get_current_time graph
   and inject in
   let generate_action =
     match Form.value parameters with
-    | Error _ -> Effect.Ignore
+    | Error _ -> Effect.return None
     | Ok parameters ->
       let parameters = { parameters with Sd_chain.Parameters.seed = Int63.of_int (-1) } in
       let pred =
         Option.map parameters.specific_model ~f:(fun specific_model _host current_model ->
           Sd.Hosts.Current_model.equal current_model specific_model)
       in
-      let%bind.Effect image =
+      let%bind.Effect image_and_duration =
         dispatcher ?pred (fun get_host ->
           match get_host with
           | Error e -> Effect.return (Error e)
           | Ok (host, _current_model) ->
-            (match%map.Effect
-               Sd.Txt2img.dispatch
-                 ~host_and_port:(host :> string)
-                 (Sd_chain.Parameters.for_txt2img parameters)
-             with
-             | Ok (img, _) -> Ok img
-             | Error e -> Error e))
+            let%bind.Effect before = get_now in
+            let%bind.Effect result =
+              Sd.Txt2img.dispatch
+                ~host_and_port:(host :> string)
+                (Sd_chain.Parameters.for_txt2img parameters)
+            in
+            let%bind.Effect after = get_now in
+            let duration = Time_ns.abs_diff before after in
+            Effect.return
+              (match result with
+               | Ok (img, _) -> Ok (img, duration)
+               | Error e -> Error e))
       in
-      inject image parameters
+      let image, duration =
+        match image_and_duration with
+        | Ok (image, duration) -> Ok image, Some duration
+        | Error e -> Error e, None
+      in
+      let%bind.Effect () = inject image parameters in
+      Effect.return duration
   in
   let view ~host_monitor =
     View.vbox

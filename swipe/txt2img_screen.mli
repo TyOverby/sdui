@@ -11,5 +11,6 @@ val component
   :  lease_pool:lease_pool
   -> inject:(Sd.Image.t Or_error.t -> Sd_chain.Parameters.t -> unit Ui_effect.t) Bonsai.t
   -> local_ Bonsai.graph
-  -> (view:(host_monitor:Vdom.Node.t -> Vdom.Node.t) * generate_action:unit Effect.t)
+  -> (view:(host_monitor:Vdom.Node.t -> Vdom.Node.t)
+     * generate_action:Time_ns.Span.t option Effect.t)
        Bonsai.t
