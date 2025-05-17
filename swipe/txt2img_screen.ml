@@ -15,16 +15,7 @@ let component
   ~(inject : (Sd.Image.t Or_error.t -> Sd_chain.Parameters.t -> unit Effect.t) Bonsai.t)
   (local_ graph)
   =
-  let models =
-    let%arr hosts = Lease_pool.all lease_pool in
-    hosts |> Map.data |> Sd.Hosts.Current_model.Set.of_list
-  in
-  let samplers =
-    Sd.Samplers.all ~hosts:(Lease_pool.all lease_pool) graph
-    >>| Or_error.ok
-    >>| Option.value ~default:[]
-  in
-  let parameters = Sd_chain.Parameters.component ~samplers ~models graph in
+  let parameters = Sd_chain.Parameters.basic_component graph in
   let%arr parameters
   and theme = View.Theme.current graph
   and dispatcher = Lease_pool.dispatcher lease_pool
@@ -67,11 +58,9 @@ let component
   in
   let view ~host_monitor =
     View.vbox
+      ~attrs:[ {%css| font-size:20px; |} ]
       [ host_monitor
-      ; View.vbox
-          [ Vdom.Node.div
-              [ Form.view parameters ~direction:`Horizontal ~theme ~reset:Effect.Ignore ]
-          ]
+      ; View.vbox [ Vdom.Node.div [ Form.view parameters ~theme ~reset:Effect.Ignore ] ]
       ]
   in
   ~view, ~generate_action

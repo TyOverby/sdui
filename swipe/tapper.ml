@@ -17,19 +17,10 @@ module Style =
     }
 
     .overlay {
-      display: none;
+      display:flex;
+      opacity: 1.0;
       flex-direction: row;
       padding: 5px;
-      backdrop-filter: blur(10px);
-    }
-
-    .overlay.opened {
-      display: flex;
-      animation: overlay-enter 0.1s ease-in;
-    }
-
-    .overlay.closed {
-      animation: overlay-close 0.1s ease-out;
     }
 
     .close, .delete, .upscale, .refine, .reimagine {
@@ -38,38 +29,29 @@ module Style =
       align-items: center;
       justify-content: center;
 
+      opacity:0.0;
+
       margin: 5px;
       border: 1px solid white;
       background: rgba(255,255,255, 0.5);
+      /*backdrop-filter: blur(10px);*/
       border-radius: 10px;
       color: black;
     }
 
 
     .upscale.clicked, .refine.clicked, .reimagine.clicked {
-      animation: bg-pulse 0.2s ease;
+      animation: bg-pulse 0.2s ease-in-out;
     }
 
     @keyframes bg-pulse {
-      0%   { background-color: rgba(255,255,255, 0.5); }
-      20%  { background-color: rgba(255,255,255, 1.0); } 
-      100% { background-color: rgba(255,255,255, 0.5); }
-    }
-
-    @keyframes overlay-enter {
-      0%   { opacity: 0; }
-      100% { opacity: 1;}
-    }
-
-    @keyframes overlay-close {
-      0%   { opacity: 1; display: flex; }
-      99% { opacity: 0; display: flex; }
-      100% { opacity: 0; display: none; }
+      0%   { opacity: 0.0; }
+      50%  { opacity: 1.0; } 
+      100% { opacity: 0.0; }
     }
 |}]
 
 let component ~on_remove ~refine ~reimagine ~upscale (local_ graph) =
-  let opened, set_opened = Bonsai.state false graph in
   let modify_effect effect =
     let clicked, set_clicked = Bonsai.state false graph in
     let%arr clicked
@@ -90,16 +72,15 @@ let component ~on_remove ~refine ~reimagine ~upscale (local_ graph) =
   let refine = modify_effect refine in
   let reimagine = modify_effect reimagine in
   let upscale = modify_effect upscale in
-  let%arr on_remove and opened and set_opened and refine and reimagine and upscale in
+  let%arr on_remove and refine and reimagine and upscale in
   fun img ->
-    let overlay = if opened then Style.opened else Style.closed in
     let size = `Vw (Percent.of_mult 0.3) in
     {%html|
-    <div %{Style.container} on_click=%{fun _ -> set_opened true}>
+    <div %{Style.container}>
       %{img}
-      <div %{Style.overlay} %{overlay}> 
+      <div %{Style.overlay}> 
         <div style="display:flex; flex-direction: column; flex-grow:1;">
-            <div %{Style.close} on_click=%{fun _ -> Effect.Many [ Effect.Stop_propagation; set_opened false ]}> 
+            <div %{Style.close} on_click=%{fun _ -> Effect.Many [ Effect.Stop_propagation ]}> 
               %{Feather.svg ~size X} 
             </div>
             <div %{Style.delete} on_click=%{fun _ -> on_remove }> %{Feather.svg ~size Trash_2} </div>

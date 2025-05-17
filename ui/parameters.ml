@@ -190,8 +190,7 @@ let component
           Vdom.Node.div
             [ vbox
                 [ hbox
-                    [ (* View.button theme "reset" ~on_click:reset ; *)
-                      vbox
+                    [ vbox
                         [ Form.view model
                         ; Form.view sampler
                         ; Form.view width
@@ -203,13 +202,159 @@ let component
                             ]
                         ]
                     ; vbox [ Form.view steps; Form.view cfg; Form.view denoise ]
-                      (* ; vbox [ Form.view seed ] *)
-                      (*                     ; Form.view num_images *)
-                      (*; Form.view ratios *)
                     ; Form.view pos_prompt
                     ; Form.view neg_prompt
                     ]
                 ]
+            ]
+      ;;
+    end)
+    graph
+;;
+
+let basic_component graph =
+  let is_localhost = false in
+  let prompt_attrs =
+    [ {%css| font-size: inherit; |}; Vdom.Attr.create "autocapitalize" "none" ]
+  in
+  let pos_prompt =
+    Form.Elements.Textarea.string
+      ~extra_attrs:(Bonsai.return ({%css| height:30vh; |} :: prompt_attrs))
+      ()
+      graph
+  and neg_prompt =
+    Form.Elements.Textarea.string ~extra_attrs:(Bonsai.return prompt_attrs) () graph
+  and width = P.width_height_form ~default:896 ~label:"width" graph
+  and height = P.width_height_form ~default:1152 ~label:"height" graph
+  and steps =
+    P.min_1_form
+      ~default:(Int63.of_int (if is_localhost then 1 else 25))
+      ~max:150
+      ~label:"steps"
+      graph
+  and cfg = P.min_1_form ~default:(Int63.of_int 14) ~max:30 ~label:"cfg" graph
+  and denoise = P.min_1_form ~default:(Int63.of_int 70) ~max:100 ~label:"deno" graph
+  and num_images =
+    P.min_1_form
+      ~default:(Int63.of_int (if is_localhost then 1 else 4))
+      ~max:25
+      ~label:"# imgs"
+      graph
+    >>| Form.project ~parse_exn:Int63.to_int_exn ~unparse:Int63.of_int
+  in
+  let pos_prompt =
+    Form.Dynamic.with_default
+      (Bonsai.return "score_9, score_8_up, score_7_up,\n")
+      pos_prompt
+      graph
+  in
+  let neg_prompt =
+    Form.Dynamic.with_default
+      (Bonsai.return "score_1, score_2, score_3,\n")
+      neg_prompt
+      graph
+  in
+  let seed =
+    P.seed_form
+      ~container_attrs:
+        (let%arr num_images in
+         fun ~state ~set_state ->
+           [ Vdom.Attr.on_double_click (fun _ ->
+               set_state
+                 Int63.(state + of_int (Form.value_or_default num_images ~default:1)))
+           ])
+      graph
+  in
+  Form.Typed.Record.make
+    (module struct
+      module Typed_field = Typed_field
+
+      type field_view = Vdom.Node.t
+      type resulting_view = theme:View.Theme.t -> reset:unit Effect.t -> Vdom.Node.t
+
+      type form_of_field_fn =
+        { f : 'a. 'a Typed_field.t -> ('a, Vdom.Node.t) Form.t Bonsai.t }
+
+      let form_return v =
+        Bonsai.return
+          { Form.value = Ok v; set = (fun _ -> Effect.return ()); view = Vdom.Node.none }
+      ;;
+
+      let form_for_field (type a) (field : a Typed_field.t) _graph
+        : (a, Vdom.Node.t) Form.t Bonsai.t
+        =
+        match field with
+        | Seed -> seed
+        | Pos_prompt -> pos_prompt
+        | Neg_prompt -> neg_prompt
+        | Width -> width
+        | Height -> height
+        | Steps -> steps
+        | Cfg -> cfg
+        | Denoise -> denoise
+        | Ratios -> form_return ""
+        | Num_images -> num_images
+        | Specific_model -> form_return None
+        | Sampler -> form_return Sd.Samplers.default
+        | Ctrlnet -> form_return None
+      ;;
+
+      let finalize_view { f } _graph =
+        let%arr width = f Width
+        and height = f Height
+        and steps = f Steps
+        and cfg = f Cfg
+        and denoise = f Denoise
+        and _seed = f Seed
+        (*and ratios = f Ratios*)
+        and pos_prompt = f Pos_prompt
+        and _num_images = f Num_images
+        and neg_prompt = f Neg_prompt in
+        fun ~theme ~reset:_ ->
+          let size_modification s ~f =
+            let on_click =
+              let modify form =
+                Form.value_or_default form ~default:Int63.zero |> f |> Form.set form
+              in
+              Effect.Many [ modify width; modify height ]
+            in
+            View.button theme s ~on_click
+          in
+          let flip_button =
+            let on_click =
+              let w = Form.value_or_default width ~default:Int63.zero in
+              let h = Form.value_or_default height ~default:Int63.zero in
+              Effect.Many [ Form.set width h; Form.set height w ]
+            in
+            View.button theme "flip" ~on_click
+          in
+          let preset ~w ~h =
+            let on_click =
+              Effect.Many
+                [ Form.set width (Int63.of_int w); Form.set height (Int63.of_int h) ]
+            in
+            let label = sprintf "%dx%d" w h in
+            View.button theme label ~on_click
+          in
+          let two_x_button = size_modification "2" ~f:Int63.(( * ) (of_int 2)) in
+          let div2_button = size_modification "1/2" ~f:Int63.(fun x -> x / of_int 2) in
+          let div3_button = size_modification "1/3" ~f:Int63.(fun x -> x / of_int 3) in
+          let x640_1536 = preset ~w:640 ~h:1536 in
+          let x768_1344 = preset ~w:768 ~h:1344 in
+          let x832_1216 = preset ~w:832 ~h:1216 in
+          let x896_1152 = preset ~w:896 ~h:1152 in
+          View.vbox
+            [ View.hbox
+                [ Form.view width
+                ; Form.view height
+                ; Form.view steps
+                ; Form.view cfg
+                ; Form.view denoise
+                ]
+            ; View.hbox [ x640_1536; x768_1344; x832_1216; x896_1152 ]
+            ; View.hbox [ two_x_button; div2_button; div3_button; flip_button ]
+            ; Form.view pos_prompt
+            ; Form.view neg_prompt
             ]
       ;;
     end)

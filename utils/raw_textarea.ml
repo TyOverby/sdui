@@ -177,7 +177,9 @@ let textarea
         [ Vdom.Node.pre
             ~attrs:[ (if has_colorize then Kado_textarea.colorized else Vdom.Attr.empty) ]
             (pre_value @ [ extra_dot_for_pre ])
-        ; Vdom.Node.textarea ~attrs:textarea_attrs []
+        ; Vdom.Node.textarea
+            ~attrs:(Vdom.Attr.create "autocapitalize" "none" :: textarea_attrs)
+            []
         ]
     ]
 ;;

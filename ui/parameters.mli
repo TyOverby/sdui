@@ -25,12 +25,15 @@ type view :=
   -> reset:unit Ui_effect.t
   -> Vdom.Node.t
 
+type basic_view := theme:View.Theme.t -> reset:unit Ui_effect.t -> Vdom.Node.t
+
 val component
   :  ?samplers:Sd.Samplers.t list Bonsai.t
   -> ?models:Sd.Hosts.Current_model.Set.t Bonsai.t
   -> local_ Bonsai.graph
   -> (t, view) Form.t Bonsai.t
 
+val basic_component : local_ Bonsai.graph -> (t, basic_view) Form.t Bonsai.t
 val for_txt2img : t -> Sd.Txt2img.Query.t
 val for_img2img : t -> Sd.Img2img.Query.t
 val num_images : t -> int

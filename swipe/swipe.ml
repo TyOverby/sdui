@@ -182,10 +182,14 @@ let component (local_ graph) =
           ~cross_axis_alignment:Center
           [ queue_view
           ; hosts_view
-          ; {%html| <div style="margin-left:auto;" on_click=%{fun _ -> close }> %{Feather.svg X} </div> |}
+          ; {%html| <div style="margin-left:auto;" > %{Feather.svg X} </div> |}
           ]
       in
-      view ~host_monitor
+      View.vbox
+        ~attrs:[ {%css| font-size:16px; |} ]
+        [ view ~host_monitor
+        ; {%html| <div style="font-size: 2em; border:1px solid white; margin:0.5em 0; text-align:center; border-radius:5px;" on_click=%{fun _ -> close }> Done </div>|}
+        ]
     in
     Toplayer.Modal.create ~overflow_auto_wrapper:(Bonsai.return true) ~content graph
   in
@@ -194,7 +198,7 @@ let component (local_ graph) =
     let style =
       {%css| display:flex; justify-content: center; align-content:center; border-radius:20px; background:black; |}
     in
-    {%html| <div %{style} style="position:absolute; top:0; right:0" on_click=%{fun _ -> open_edit_modal}> %{Feather.svg ~size:(`Px 150) Edit} </div> |}
+    {%html| <div %{style} style="position:absolute; top:0; right:0" on_click=%{fun _ -> open_edit_modal}> %{Feather.svg ~size:(`Px 75) Edit} </div> |}
   in
   let%arr images
   and open_edit_modal
