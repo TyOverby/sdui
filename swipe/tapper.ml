@@ -27,6 +27,7 @@ module Style =
       display: flex;
       animation: overlay-enter 0.1s ease-in;
     }
+
     .overlay.closed {
       animation: overlay-close 0.1s ease-out;
     }
