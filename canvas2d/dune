@@ -1,8 +1,7 @@
 (library
  (name canvas2d)
  (libraries core js_of_ocaml virtual_dom)
- (js_of_ocaml
-  (javascript_files ./bindings.js))
+ (js_of_ocaml)
  (preprocess
   (pps ppx_jane js_of_ocaml-ppx)))
 

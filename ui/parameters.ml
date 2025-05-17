@@ -141,7 +141,7 @@ let component
         and cfg = f Cfg
         and denoise = f Denoise
         and _seed = f Seed
-        and ratios = f Ratios
+        (*and ratios = f Ratios*)
         and sampler = f Sampler
         and model = f Specific_model
         and pos_prompt = f Pos_prompt
@@ -205,7 +205,7 @@ let component
                     ; vbox [ Form.view steps; Form.view cfg; Form.view denoise ]
                       (* ; vbox [ Form.view seed ] *)
                       (*                     ; Form.view num_images *)
-                    ; Form.view ratios
+                      (*; Form.view ratios *)
                     ; Form.view pos_prompt
                     ; Form.view neg_prompt
                     ]

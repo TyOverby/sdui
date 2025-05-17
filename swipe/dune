@@ -1,0 +1,11 @@
+(library
+ (name swipe)
+ (libraries shared bonsai_web sd sd_chain canvas2d async_js
+  bonsai_web_components.web_ui_form
+  bonsai_web_components.web_ui_reorderable_list bonsai_web.kado
+  virtual_dom.svg bonsai_web_components.feather_icon
+  bonsai_web_components.web_ui_visibility
+  bonsai_web_components.web_ui_toplayer)
+ (preprocess
+  (pps ppx_jane js_of_ocaml-ppx ppx_css ppx_html ppx_typed_fields
+   ppx_yojson_conv bonsai.ppx_bonsai)))

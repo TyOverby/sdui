@@ -22,7 +22,7 @@ module Style =
         }
 
         * {
-            touch-action: none;
+          touch-action: pan-y pinch-zoom;
         }
 
         .outline_layer {

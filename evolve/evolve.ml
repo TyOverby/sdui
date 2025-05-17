@@ -5,7 +5,6 @@ module Snips = Shared.Snips
 module Form = Bonsai_web_ui_form.With_manual_view
 module Lease_pool = Sd_chain.Lease_pool
 module P = Sd.Parameters.Individual
-module Toplayer = Bonsai_web_ui_toplayer
 
 module _ =
   [%css

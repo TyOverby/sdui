@@ -1,9 +1,10 @@
 (executables
  (names main)
  (libraries
-  ; sd
+   sd
   sd_chain
   comp
+  swipe
   shared
   bonsai_web
   async_js

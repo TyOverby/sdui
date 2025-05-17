@@ -10,9 +10,14 @@ module Toplayer = Bonsai_web_ui_toplayer
 module _ =
   [%css
   stylesheet
+    ~don't_hash:[ "popover_dom__inline_class_hash_2a0c95f160" ]
     {|
 body {
   overflow-y: clip;
+}
+
+.popover_dom__inline_class_hash_2a0c95f160 {
+  height: unset !important;
 }
 |}]
 

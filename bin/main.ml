@@ -9,9 +9,10 @@ module Tab = struct
     | Gen
     | Comp
     | Evolve
+    | Swipe
   [@@deriving sexp, enumerate, equal]
 
-  let default = Evolve
+  let default = Swipe
 end
 
 let ui (local_ graph) =
@@ -21,6 +22,7 @@ let ui (local_ graph) =
     | Gen -> Sd_chain.component graph [@nontail]
     | Comp -> Comp.component graph [@nontail]
     | Evolve -> Evolve.component graph [@nontail]
+    | Swipe -> Swipe.component graph [@nontail]
   in
   let%arr which
   and _ = tab

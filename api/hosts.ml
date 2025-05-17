@@ -42,11 +42,13 @@ let hosts_localstorage =
     (module String)
     `Session_storage
     ~unique_id:"hosts-session-storage"
-    ~default:"localhost"
+    ~default:"ty-tower"
 ;;
 
 let component graph =
-  let hosts_form = Custom_form_elements.textarea ~label:"hosts" graph in
+  let hosts_form =
+    Custom_form_elements.textarea ~default:(Bonsai.return "ty-tower") ~label:"hosts" graph
+  in
   Bonsai_extra.mirror
     ~equal:String.equal
     ~store_set:(Bonsai.return (Bonsai_web.Persistent_var.effect hosts_localstorage))
