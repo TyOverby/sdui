@@ -47,7 +47,11 @@ let hosts_localstorage =
 
 let component graph =
   let hosts_form =
-    Custom_form_elements.textarea ~default:(Bonsai.return "ty-tower") ~label:"hosts" graph
+    Custom_form_elements.textarea
+      ~container_attrs:[ {%css| font-size: 20px; |} ]
+      ~default:(Bonsai.return "ty-tower")
+      ~label:"hosts"
+      graph
   in
   Bonsai_extra.mirror
     ~equal:String.equal

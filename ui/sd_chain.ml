@@ -29,7 +29,6 @@ let hosts_and_queue (local_ graph) =
     Toplayer.Popover.create
       ~overflow_auto_wrapper:(Bonsai.return true)
       ~match_anchor_side_length:(Bonsai.return None)
-        (* ~alignment:(Bonsai.return Toplayer.Alignment.Start) *)
       ~position:(Bonsai.return Toplayer.Position.Bottom)
       ~content:(fun ~close:_ _graph -> hosts_view)
       graph
