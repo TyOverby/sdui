@@ -40,7 +40,7 @@ let find_permutation map permutations =
 let hosts_localstorage =
   Bonsai_web.Persistent_var.create
     (module String)
-    `Session_storage
+    `Local_storage
     ~unique_id:"hosts-session-storage"
     ~default:"ty-tower"
 ;;

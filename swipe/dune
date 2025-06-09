@@ -5,6 +5,7 @@
   bonsai_web_components.web_ui_reorderable_list bonsai_web.kado
   virtual_dom.svg bonsai_web_components.feather_icon
   bonsai_web_components.web_ui_visibility
+  bonsai_web_components.web_ui_element_size_hooks
   bonsai_web_components.web_ui_toplayer)
  (preprocess
   (pps ppx_jane js_of_ocaml-ppx ppx_css ppx_html ppx_typed_fields

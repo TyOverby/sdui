@@ -17,7 +17,6 @@ module Style =
     .image-container  {
       display:flex; 
       flex-direction: column;
-      gap: 1em;
     }
 
     .image {
@@ -135,6 +134,13 @@ let component (local_ graph) =
         in
         match%sub data with
         | Error e, _ ->
+          Bonsai.Edge.lifecycle
+            ~on_activate:
+              (let%arr sleep = Bonsai.Clock.sleep graph
+               and on_remove in
+               let%bind.Effect () = sleep (Time_ns.Span.of_sec 1.0) in
+               on_remove)
+            graph;
           let%arr e in
           Vdom.Node.sexp_for_debugging (Error.sexp_of_t e)
         | Ok image, parameters ->
