@@ -491,9 +491,9 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
   in
   let blur_radius_slider =
     Form.Elements.Range.int
-      ~default:(Bonsai.return 10)
+      ~default:(Bonsai.return 4)
       ~min:(Bonsai.return 1)
-      ~max:(Bonsai.return 100)
+      ~max:(Bonsai.return 20)
       ~step:(Bonsai.return 1)
       ~allow_updates_when_focused:`Never
       ()

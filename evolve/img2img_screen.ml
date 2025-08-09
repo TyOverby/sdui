@@ -722,10 +722,20 @@ let component
       let color_picker =
         match img_view with
         | `Editor_view
-            ((~color_picker, ~layer_panel, ~flip_button, ~pen_size_slider, ..), _ctrlnet)
-          ->
+            ( ( ~color_picker
+              , ~layer_panel
+              , ~flip_button
+              , ~pen_size_slider
+              , ~blur_button
+              , ~blur_radius_slider
+              , .. )
+            , _ctrlnet ) ->
           View.vbox
-            [ View.hbox [ layer_panel; color_picker ]; pen_size_slider; flip_button ]
+            [ View.hbox [ layer_panel; color_picker ]
+            ; View.hbox [ Vdom.Node.text "pen: "; pen_size_slider ]
+            ; View.hbox [ blur_radius_slider; blur_button ]
+            ; flip_button
+            ]
         | `Image_view _ -> Vdom.Node.none
       in
       let fancy_box =

@@ -12,7 +12,7 @@ module Tab = struct
     | Swipe
   [@@deriving sexp, enumerate, equal]
 
-  let default = Swipe
+  let default = Evolve
 end
 
 let ui (local_ graph) =

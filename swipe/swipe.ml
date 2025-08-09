@@ -112,7 +112,7 @@ let component (local_ graph) =
   in
   let mostly_caught_up =
     let%arr current_id and max_id_seen in
-    current_id - max_id_seen < 5
+    current_id - max_id_seen < 10
   in
   let txt2img =
     Txt2img_screen.component
