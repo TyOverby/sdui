@@ -17,25 +17,27 @@ end
 
 let ui (local_ graph) =
   let tab, set_tab = Bonsai.state Tab.default graph in
+  let tabs =
+    let%arr tab
+    and set_tab
+    and theme = View.Theme.current graph in
+    View.tabs_enum
+      theme
+      (module Tab)
+      ~active:tab
+      ~on_change:(fun ~from:_ ~to_ -> set_tab to_)
+  in
   let which =
     match%sub tab with
     | Gen -> Sd_chain.component graph [@nontail]
-    | Comp -> Comp.component graph [@nontail]
-    | Evolve -> Evolve.component graph [@nontail]
-    | Swipe -> Swipe.component graph [@nontail]
+    | Comp ->
+      let%arr view = Comp.component graph
+      and tabs in
+      View.vbox [ tabs; view ]
+    | Evolve -> Evolve.component ~tabs graph [@nontail]
+    | Swipe -> Swipe.component ~tabs graph
   in
-  let%arr which
-  and _ = tab
-  and _ = set_tab
-  and _ = View.Theme.current graph in
-  View.vbox
-    [ (*       View.tabs_enum
-        theme
-        (module Tab)
-        ~active:tab
-        ~on_change:(fun ~from:_ ~to_ -> set_tab to_) *)
-      which
-    ]
+  which
 ;;
 
 let () =

@@ -612,7 +612,7 @@ let component ~prev:(image : Sd.Image.t Bonsai.t) graph =
   let flip_button =
     let%arr theme = View.Theme.current graph
     and { modify; _ } = widget in
-    View.button theme "flip" ~on_click:(modify (fun _ state -> state##flipCanvas))
+    View.button theme "flip h" ~on_click:(modify (fun _ state -> state##flipCanvas))
   in
   let blur_button =
     let%arr theme = View.Theme.current graph

@@ -95,7 +95,7 @@ let tapper ~image ~parameters ~inject ~lease_pool ~on_remove graph =
     graph
 ;;
 
-let component (local_ graph) =
+let component ~tabs (local_ graph) =
   let lease_pool, hosts_view, queue_view, _kill_all = Sd_chain.hosts_and_queue graph in
   let state, inject =
     Bonsai.state_machine
@@ -207,6 +207,7 @@ let component (local_ graph) =
     {%html| <div %{style} style="position:absolute; top:0; right:0" on_click=%{fun _ -> open_edit_modal}> %{Feather.svg ~size:(`Px 75) Edit} </div> |}
   in
   let%arr images
+  and tabs
   and open_edit_modal
   and last_duration
   and num_queued = Lease_pool.queued_jobs lease_pool >>| List.length
@@ -216,7 +217,8 @@ let component (local_ graph) =
     ~attr:{%css| scrollbar-width: none; |}
     (View.vbox
        ~attrs:[ {%css| overflow:clip; |} ]
-       [ content
+       [ tabs
+       ; content
        ; {%html|<div>Active: %{num_active #Int}</div>|}
        ; {%html|<div>Queued: %{num_queued #Int}</div>|}
        ; {%html|<div>Last duration: #{Time_ns.Span.to_string_hum last_duration}</div>|}

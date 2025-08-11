@@ -389,7 +389,7 @@ let add_seen_after_active ~add_seen ~id graph =
     graph
 ;;
 
-let component (local_ graph) =
+let component ~tabs (local_ graph) =
   let lease_pool, hosts_view, queue_view, _kill_all = Sd_chain.hosts_and_queue graph in
   let state, inject = Image_tree.state graph in
   let seen = state >>| fun { seen; _ } -> seen in
@@ -615,7 +615,8 @@ let component (local_ graph) =
   and main_viewport, subview_handlers, _set_paint_image = main_viewport
   and hosts_view
   and queue_view
-  and global_keyboard_handlers in
+  and global_keyboard_handlers
+  and tabs in
   let handler =
     Virtual_dom.Vdom.Attr.Global_listeners.keydown ~phase:Bubbling ~f:(fun event ->
       Vdom_keyboard.Keyboard_event_handler.handle_or_ignore_event
@@ -625,6 +626,8 @@ let component (local_ graph) =
            subview_handlers)
         event)
   in
-  let host_monitor = View.hbox ~cross_axis_alignment:Center [ queue_view; hosts_view ] in
+  let host_monitor =
+    View.hbox ~cross_axis_alignment:Center [ tabs; queue_view; hosts_view ]
+  in
   Snips.body ~attr:handler (main_viewport ~state_tree ~host_monitor) |> Snips.render
 ;;

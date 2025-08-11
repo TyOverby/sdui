@@ -732,7 +732,7 @@ let component
             , _ctrlnet ) ->
           View.vbox
             [ View.hbox [ layer_panel; color_picker ]
-            ; View.hbox [ Vdom.Node.text "pen: "; pen_size_slider ]
+            ; View.hbox [ pen_size_slider; Vdom.Node.text "pen" ]
             ; View.hbox [ blur_radius_slider; blur_button ]
             ; flip_button
             ]
