@@ -13,6 +13,31 @@ by painting on the image or by resubmitting it to the image-to-image API.
 - `canvas2d`: bindings to the browsers `canvas2d` API
 - `comp`: an image composition UI for stitching images together
 
+### `./evolve`
+@./evolve/CLAUDE.md
+
+### `./api`
+@./api/CLAUDE.md
+
+### `./canvas2d`
+@./canvas2d/CLAUDE.md
+
+### `./comp`
+@./comp/CLAUDE.md
+
+### `./swipe/`
+@./swipe/CLAUDE.md
+
+### `./ui/`
+@./ui/CLAUDE.md
+
+### `./ui/js`
+@./ui/js/CLAUDE.md
+
+### `./utils/`
+@./utils/CLAUDE.md
+
+
 ## Working on this project
 
 Sdui is written in OCaml using the Bonsai frontend framework.  The author of
@@ -26,3 +51,5 @@ IMPORTANT: NEVER run git commands unless explicitly instructed to
 - IMPORTANT: check for errors after every change!
 - If you want to see the type of a value, you can write `let () = Some_module.some_function` 
   and then check the error messages to see the type mismatch.
+
+
