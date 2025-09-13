@@ -23,10 +23,10 @@ let editor_view_for_ctrlnet_image
           ; layer_panel = _
           ; clear_button = _
           ; forward_button = _
+          ; blur_button = _
           ; alt_panel
           ; flip_button
           ; clone_button
-          ; blur_button = _
           }
     =
     view
@@ -340,6 +340,7 @@ let component
   ~is_image_editor
   ~parameters
   ~refine_card
+  ~sub_refine_card
   ~reimagine_card
   ~upscale_card
   ~other_model_card
@@ -493,6 +494,15 @@ let component
           ; steps = Int63.of_int 50
           })
   in
+  let%sub sub_refine_button, sub_refine =
+    let%arr generate_button
+    and ~modifier:modify_sub_refine, ~view:_ = sub_refine_card in
+    generate_button
+      ~button_text:"sub-refne [6]"
+      ~kind:(Img2img "sub-refined")
+      ~modify_parameters:(fun ~parameters ~image ~ctrlnet_image ->
+        Effect.return (modify_sub_refine ~parameters ~image ~ctrlnet_image))
+  in
   let%sub refine_button, refine =
     let%arr generate_button
     and ~modifier:modify_refine, ~view:_ = refine_card in
@@ -587,6 +597,7 @@ let component
     let content ~close:close_modal graph =
       let%arr ~modifier:_, ~view:reimagine_view = reimagine_card
       and ~modifier:_, ~view:refine_view = refine_card
+      and ~modifier:_, ~view:sub_refine_view = sub_refine_card
       and ~modifier:_, ~view:upscale_view = upscale_card
       and ~modifier:_, ~view:other_model_view = other_model_card
       and ~params:_, ~view:controlnet_view = controlnet_fix_card
@@ -596,6 +607,7 @@ let component
       and ctrlnet_detect
       and switch_model_button
       and reimagine_button
+      and sub_refine_button
       and refine_button
       and theme = View.Theme.current graph
       and close_modal in
@@ -614,6 +626,7 @@ let component
           [ View.hbox
               ~gap:(`Em_float 0.5)
               [ upscale_view ~button:upscale_button
+              ; sub_refine_view ~button:sub_refine_button
               ; refine_view ~button:refine_button
               ; reimagine_view ~button:reimagine_button
               ; other_model_view ~button:switch_model_button
@@ -636,6 +649,7 @@ let component
   and set_outer_size
   and zoom, zoom_slider = zoom
   and refine
+  and sub_refine
   and upscale
   and reimagine
   and switch_model
@@ -791,7 +805,15 @@ let component
     let open Vdom_keyboard in
     let module Kh = Keyboard_event_handler in
     Kh.of_command_list_exn
-      [ { keys = [ Keystroke.create' KeyY ]
+      [ { keys = [ Keystroke.create' Digit6 ]
+        ; description = "refine"
+        ; group = None
+        ; handler =
+            Kh.Handler.only_handle_if
+              Kh.Condition.(not_ has_text_input_target)
+              (fun _ -> sub_refine)
+        }
+      ; { keys = [ Keystroke.create' KeyY ]
         ; description = "refine"
         ; group = None
         ; handler =

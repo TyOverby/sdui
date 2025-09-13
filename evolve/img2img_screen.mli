@@ -41,6 +41,7 @@ val component
   -> is_image_editor:bool
   -> parameters:Sd_chain.Parameters.t Bonsai.t
   -> refine_card:basic_card
+  -> sub_refine_card:basic_card
   -> reimagine_card:basic_card
   -> upscale_card:basic_card
   -> other_model_card:basic_card

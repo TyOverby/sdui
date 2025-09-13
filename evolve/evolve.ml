@@ -256,6 +256,33 @@ let refine_card ~controlnet_fix_card (local_ graph) =
   ~modifier, ~view
 ;;
 
+let sub_refine_card ~controlnet_fix_card (local_ graph) =
+  let ~modifier, ~view =
+    generic_card
+      ~default_cfg_enabled:true
+      ~default_denoise_enabled:true
+      ~default_steps_enabled:true
+      ~default_ctrlnet_enabled:false
+      ~default_cfg:(Int63.of_int 7)
+      ~default_denoise:(Int63.of_int 40)
+      ~default_steps:(Int63.of_int 25)
+      ~controlnet_fix_card
+      graph
+  in
+  let view =
+    let%arr view
+    and theme = View.Theme.current graph in
+    fun ~button ->
+      View.card'
+        theme
+        ~title_kind:View.Constants.Card_title_kind.Discreet
+        ~title:[ Vdom.Node.text "Sub-Refinement" ]
+        (view @ [ button ])
+  in
+  let%arr modifier and view in
+  ~modifier, ~view
+;;
+
 let reimagine_card ~controlnet_fix_card (local_ graph) =
   let ~modifier, ~view =
     generic_card
@@ -432,6 +459,7 @@ let component ~tabs (local_ graph) =
     controlnet_fix_card ~hosts:(Lease_pool.all lease_pool) graph
   in
   let refine_card = refine_card ~controlnet_fix_card graph in
+  let sub_refine_card = sub_refine_card ~controlnet_fix_card graph in
   let reimagine_card = reimagine_card ~controlnet_fix_card graph in
   let upscale_card = upscale_card ~controlnet_fix_card graph in
   let other_model_card = other_model_card ~controlnet_fix_card graph in
@@ -480,6 +508,7 @@ let component ~tabs (local_ graph) =
             ~parent_img:parent_image
             ~parameters
             ~refine_card
+            ~sub_refine_card
             ~reimagine_card
             ~upscale_card
             ~other_model_card
@@ -500,6 +529,7 @@ let component ~tabs (local_ graph) =
             ~parent_img:parent_image
             ~parameters
             ~refine_card
+            ~sub_refine_card
             ~reimagine_card
             ~upscale_card
             ~other_model_card
@@ -518,6 +548,7 @@ let component ~tabs (local_ graph) =
             ~parent_img:empty_image
             ~parameters
             ~refine_card
+            ~sub_refine_card
             ~reimagine_card
             ~upscale_card
             ~other_model_card
